@@ -15,6 +15,32 @@ a heredar la AGPL de otro.
 
 ---
 
+## Estado del desarrollo
+
+Actualizado el **2026-08-12**, al cerrar la primera jornada de trabajo.
+
+| Fase | Estado | Nota |
+|---|---|---|
+| 1 — Cimientos | ✅ terminada | Servidor, sonda, base por red, auth, API, interfaz y `.deb` |
+| 2 — Descubrimiento | ✅ terminada | ARP, ICMP y TCP; puertos, DNS inverso y fabricante por OUI |
+| 3 — Presencia en vivo | ✅ terminada | Barrido rapido, historial de conexiones y agenda por red |
+| 4 — SNMP y capa 2 | ⚠️ hecha, sin probar en equipo real | Falta un switch administrable de verdad. Falta CDP y controladora WiFi |
+| 5 — El mapa | ⚠️ parcial | Mapa visual y exportacion a CSV listos. **Faltan PNG, SVG y PDF** |
+| 6 — Catalogo `.toml` | ⏳ pendiente | |
+| 7 — Alertas | ⏳ pendiente | |
+| 8 — Ancho de banda | ⏳ pendiente | |
+| 9 — Publicacion | ⏳ pendiente | Falta decidir la licencia |
+| 10 — Inspeccion profunda | ⏳ pendiente | Opcional |
+
+**Probado de verdad:** el descubrimiento contra la red real de casa (encontro el
+equipo, resolvio su nombre y detecto su puerto abierto), los barridos
+programados corriendo solos, y el `.deb` armandose para `amd64` y `arm64`.
+
+**NO probado todavia:** instalar el `.deb` en un equipo, y SNMP contra un switch
+administrable real. Este ultimo es el riesgo abierto mas grande del proyecto.
+
+---
+
 ## 1. Decisiones de fondo
 
 ### 1.1 Go para el servicio

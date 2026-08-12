@@ -7,9 +7,11 @@ Sin topes de redes ni de usuarios. Cada red vive en su propia base de datos
 SQLite, así que respaldar un sitio es copiar un archivo. No necesita servidor de
 base de datos ni Docker: son dos binarios y dos servicios, en un `.deb`.
 
-> **Estado: en construcción (fase 1 de 10).** Ya funcionan los cimientos —
-> servidor, base por red, autenticación, API y empaquetado—. El descubrimiento
-> de equipos llega en la fase 2. El plan completo está en [PLAN.md](PLAN.md).
+> **Estado: en construcción (fases 1 a 5 de 10).** Ya descubre los equipos de la
+> red, guarda quién está encendido en cada momento, escanea solo con la
+> periodicidad que se le diga, le pregunta a los switches por SNMP en qué boca
+> está cada aparato y dibuja el mapa. El plan y el avance por fase están en
+> [PLAN.md](PLAN.md).
 
 ## Instalar
 
@@ -40,6 +42,9 @@ Hay paquete para `amd64` y para `arm64`, que es lo que necesita una Raspberry Pi
   `arm64` sin toolchain cruzado.
 - **Flutter** para la interfaz, compilada a web y servida por el propio binario.
 - **SQLite** para los datos, con una base independiente por cada red.
+- Descubrimiento en tres capas —ARP, ICMP y TCP—, que degradan con honestidad:
+  cada equipo dice con qué método se vio, y el mapa distingue el puerto
+  confirmado del grupo que cuelga de un switch no administrable.
 - Dos procesos separados a propósito: el que está expuesto a la red no tiene
   privilegios, y el que los tiene no toca la base de datos.
 
