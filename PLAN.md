@@ -32,12 +32,30 @@ Actualizado el **2026-08-12**, al cerrar la primera jornada de trabajo.
 | 9 — Publicacion | ⚠️ parcial | Documentacion de instalacion (ES y EN) y guia para aportar dispositivos, listas. **Falta decidir la licencia** y publicar los paquetes |
 | 10 — Inspeccion profunda | ⏳ pendiente | Opcional |
 
-**Probado de verdad:** el descubrimiento contra la red real de casa (encontro el
-equipo, resolvio su nombre y detecto su puerto abierto), los barridos
-programados corriendo solos, y el `.deb` armandose para `amd64` y `arm64`.
+**Probado de verdad:** el descubrimiento contra la red real de casa, los barridos
+programados corriendo solos, el motor de alertas, el catalogo de dispositivos, el
+receptor de flujos, y el `.deb` desempaquetado y corriendo desde su propio arbol.
 
-**NO probado todavia:** instalar el `.deb` en un equipo, y SNMP contra un switch
-administrable real. Este ultimo es el riesgo abierto mas grande del proyecto.
+**NO probado todavia:** instalar el `.deb` con `dpkg -i` en un equipo, y SNMP
+contra un switch administrable real. Este ultimo es el riesgo abierto mas grande
+del proyecto.
+
+### Consumo de recursos medido (2026-08-12)
+
+El plan lo pone como requisito, no como resultado, asi que se mide al cerrar cada
+fase. Medido sobre el `.deb` de `amd64`, escaneando un `/24` completo:
+
+| | En reposo | Pico durante un escaneo completo |
+|---|---|---|
+| `mired-servidor` | 12.2 MB | 14.7 MB |
+| `mired-sonda` | 5.1 MB | 15.8 MB |
+
+El escaneo completo de un `/24` (254 direcciones por 38 puertos cada una) tardo
+**12 segundos**. Las bases de datos de una red con equipos descubiertos pesan
+menos de 1 MB.
+
+**Menos de 31 MB entre los dos procesos en el pico.** Cabe de sobra en una
+Raspberry Pi, que era el requisito.
 
 ---
 

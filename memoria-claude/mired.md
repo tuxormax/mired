@@ -80,6 +80,14 @@ aparte y corriendo los binarios desde ahi**: sirve la interfaz, entra, crea rede
 y escanea. **Falta**: instalarlo de verdad con `dpkg -i` (necesita sudo), y
 probar SNMP contra un switch administrable real.
 
+## Consumo de recursos medido (2026-08-12)
+Sobre el `.deb` de amd64, escaneando un `/24` completo:
+- **En reposo**: servidor 12.2 MB, sonda 5.1 MB.
+- **Pico durante el escaneo**: servidor 14.7 MB, sonda 15.8 MB.
+- Un `/24` completo (254 direcciones x 38 puertos) tarda **12 segundos**.
+- Menos de 31 MB entre los dos. **Cabe de sobra en una Raspberry Pi**, que era el
+  requisito del plan. Se vuelve a medir al cerrar cada fase.
+
 ## Tiempos
 - **3-4 meses** hasta la fase 9 (publicable). La inspeccion profunda va aparte.
 - **Al cerrar la fase 2 ya hay `.deb` instalable que inventaria la red**, y eso
