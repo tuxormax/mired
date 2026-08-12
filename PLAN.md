@@ -29,7 +29,7 @@ Actualizado el **2026-08-12**, al cerrar la primera jornada de trabajo.
 | 6 — Catalogo `.toml` | ✅ terminada | Formato, motor de reconocimiento, 15 definiciones semilla y "proponer definicion" |
 | 7 — Alertas | ✅ terminada | Las 6 reglas detectan y los 4 destinos de aviso funcionan |
 | 8 — Ancho de banda | ✅ terminada | Contadores SNMP por puerto y receptor de flujos NetFlow v5 del router. Falta sFlow e IPFIX |
-| 9 — Publicacion | ⏳ pendiente | Falta decidir la licencia |
+| 9 — Publicacion | ⚠️ parcial | Documentacion de instalacion (ES y EN) y guia para aportar dispositivos, listas. **Falta decidir la licencia** y publicar los paquetes |
 | 10 — Inspeccion profunda | ⏳ pendiente | Opcional |
 
 **Probado de verdad:** el descubrimiento contra la red real de casa (encontro el

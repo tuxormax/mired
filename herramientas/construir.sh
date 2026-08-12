@@ -83,6 +83,7 @@ for ARQ in "${ARQUITECTURAS[@]}"; do
     cp "$RAIZ/empaquetado/systemd/"*.service "$ARBOL/lib/systemd/system/"
     cp "$RAIZ/empaquetado/mired.toml" "$ARBOL/etc/mired/mired.toml"
     cp "$RAIZ/PLAN.md" "$ARBOL/usr/share/doc/mired/" 2>/dev/null || true
+    cp "$RAIZ/documentacion/"*.md "$ARBOL/usr/share/doc/mired/" 2>/dev/null || true
     [[ -f "$RAIZ/LICENSE" ]] && cp "$RAIZ/LICENSE" "$ARBOL/usr/share/doc/mired/copyright"
 
     if [[ -d "$RAIZ/catalogo/dispositivos" ]]; then

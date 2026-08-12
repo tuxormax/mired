@@ -65,11 +65,19 @@ MIRED_DATOS=./datos MIRED_ESCUCHA=127.0.0.1:60072 go run ./programas/mired-servi
 MIRED_SOCKET_SONDA=/tmp/sonda.sock go run ./programas/mired-sonda
 ```
 
+## Documentación
+
+- [Instalación y primeros pasos](documentacion/instalacion.md)
+- [Cómo aportar un dispositivo al catálogo](documentacion/aportar-dispositivos.md)
+  — no hace falta programar
+- [Installation guide (English)](documentacion/installation-en.md)
+
 ## Aportar un dispositivo al catálogo
 
-Desde la fase 6, reconocer un aparato nuevo no exige programar: es un archivo
-`.toml` que se copia a `/etc/mired/dispositivos/`. Esa es la puerta de entrada
-para quien quiera aportar sin saber Go.
+Reconocer un aparato nuevo no exige programar: es un archivo `.toml` que se copia
+a `/etc/mired/dispositivos/`. La interfaz incluso lo genera solo, ya relleno con
+lo que vio del equipo. Esa es la puerta de entrada para quien quiera aportar sin
+saber Go.
 
 ## Sobre Scanopy
 
