@@ -80,6 +80,12 @@ aparte y corriendo los binarios desde ahi**: sirve la interfaz, entra, crea rede
 y escanea. **Falta**: instalarlo de verdad con `dpkg -i` (necesita sudo), y
 probar SNMP contra un switch administrable real.
 
+## Cobertura (2026-08-12)
+61 pruebas en Go y 7 en Flutter (5 dibujan pantallas contra un servidor de
+mentira). Mas `herramientas/probar.sh`, la prueba de humo que construye el
+`.deb`, lo desempaqueta y recorre el flujo completo. ~11 800 lineas de Go y
+~5 200 de Dart.
+
 ## Consumo de recursos medido (2026-08-12)
 Sobre el `.deb` de amd64, escaneando un `/24` completo:
 - **En reposo**: servidor 12.2 MB, sonda 5.1 MB.

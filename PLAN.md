@@ -57,6 +57,14 @@ menos de 1 MB.
 **Menos de 31 MB entre los dos procesos en el pico.** Cabe de sobra en una
 Raspberry Pi, que era el requisito.
 
+### Cobertura de pruebas
+
+61 pruebas en Go (almacenamiento, agenda, alertas, topologia, catalogo, flujos y
+la lectura de SNMP) y 7 en Flutter, de las cuales 5 dibujan cada pantalla contra
+un servidor de mentira. Mas la prueba de humo `herramientas/probar.sh`, que
+construye el `.deb`, lo desempaqueta y recorre el flujo completo: es la unica que
+comprueba lo que de verdad se entrega.
+
 ---
 
 ## 1. Decisiones de fondo
