@@ -18,6 +18,12 @@ Arrancado el 2026-08-12.
    [mired-upstream-scanopy](mired-upstream-scanopy.md). **Copiar codigo de ahi
    esta prohibido**: heredaria la AGPL.
 
+## Antes de dar algo por terminado
+Correr **`./herramientas/probar.sh`**: construye el `.deb`, lo desempaqueta
+aparte, levanta los dos servicios desde ahi y recorre el flujo completo. Correr
+los binarios del arbol de compilacion NO prueba lo mismo: no valida que el
+paquete lleve la interfaz, el catalogo ni la configuracion.
+
 ## Reglas que no se negocian
 - **Todo se nombra en espanol.** Unica excepcion: la carpeta `internal/`, que la
   impone el compilador de Go.

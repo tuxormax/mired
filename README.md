@@ -56,7 +56,13 @@ Hace falta Go 1.24 o superior y, para la interfaz, Flutter.
 ./herramientas/construir.sh                      # .deb para amd64
 ./herramientas/construir.sh --arquitectura todas # amd64 y arm64
 go test ./...                                    # pruebas
+./herramientas/probar.sh                         # prueba de humo del paquete
 ```
+
+`probar.sh` construye el `.deb`, lo desempaqueta aparte, levanta los servicios
+desde ahí y recorre el flujo completo: entrar, crear una red, escanear, revisar
+alertas y consumo. Es la única forma de comprobar que lo que se **entrega**
+funciona, y no toca el sistema.
 
 Para trabajar sin instalar nada:
 
