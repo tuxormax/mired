@@ -32,9 +32,13 @@ Arrancado el 2026-08-12.
 - [mired-arquitectura](mired-arquitectura.md) — dos binarios, una base por red,
   catalogo `.toml`, estructura del repo, `.deb`.
 
-### 📦 Funcionalidades
+### 📦 Funcionalidades por modulo
 - [mired-capacidades](mired-capacidades.md) — las 4 capacidades (mapa, presencia,
   alertas, ancho de banda) y como degradan en redes mixtas.
+- [modulo-escaneo](modulo-escaneo.md) — descubrimiento en tres capas, los dos
+  ritmos de barrido, identidad del equipo y la agenda.
+- [modulo-topologia](modulo-topologia.md) — SNMP, mapa de puertos, confirmado
+  contra grupo, y el perfil de capacidades por red.
 
 ### 🔗 Contratos / interconexion
 - [contrato-api](contrato-api.md) — sobre `{ok, datos, error}`, rutas, sesion por
@@ -43,7 +47,8 @@ Arrancado el 2026-08-12.
 ### 🐛 Deteccion y correccion de bugs
 - [gotchas](gotchas.md) — **leer siempre antes de tocar codigo**: reglas
   transversales (fechas, borrado suave, prestamo de bases, formularios).
-- `historial-bugs.md` y `bug-*.md`: todavia no hay (fase 1 recien cerrada).
+- [historial-bugs](historial-bugs.md) — cronica de cada problema: que paso, por
+  que y como se corrigio.
 
 ### 📚 Referencia
 - [mired-upstream-scanopy](mired-upstream-scanopy.md) — Scanopy y el sector:

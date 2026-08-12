@@ -56,13 +56,18 @@ Go 1.26.4 y Flutter 3.35.6 **ya instalados**. No hay Rust, ni Docker, ni
 `sqlite3` de linea de comandos. Node es 18. PostgreSQL 16 esta (ya no hace falta).
 
 ## Estado real (2026-08-12)
-**Fase 1 cerrada**: servidor Go + sonda, catalogo y una base SQLite por red con
-migraciones propias, autenticacion con permisos por red, API completa con el
-estandar de errores de la casa, interfaz Flutter web (entrar, redes, subredes,
-usuarios, permisos) y `.deb` para amd64 y arm64 que se construye con
-`./herramientas/construir.sh --arquitectura todas`. Pruebas en verde en Go y en
-Flutter. **Falta probar la instalacion real del `.deb` en un equipo.**
-Siguiente: fase 2, descubrimiento de equipos.
+**Fases 1 a 4 cerradas** en un solo dia de trabajo:
+1. Cimientos: servidor + sonda, una base SQLite por red, autenticacion con
+   permisos por red, API con el estandar de errores de la casa, interfaz Flutter
+   web y `.deb` para amd64 y arm64.
+2. Descubrimiento de equipos por ARP, ICMP y TCP, con puertos, DNS inverso y
+   fabricante por OUI.
+3. Presencia en vivo, historial de conexiones y barridos programados por red.
+4. SNMP v1/v2c/v3, tabla de MAC del switch, LLDP, mapa de puertos y perfil de
+   capacidades.
+
+Pruebas en verde (Go y Flutter). **Falta**: probar el `.deb` instalado de verdad,
+probar SNMP contra un switch real, y las fases 5 a 10.
 
 ## Tiempos
 - **3-4 meses** hasta la fase 9 (publicable). La inspeccion profunda va aparte.
