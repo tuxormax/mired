@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 20376d18-adf7-4315-bb9c-98a3aa84ec95
-  modified: 2026-08-12T20:55:52.493Z
+  modified: 2026-08-12T21:26:00.738Z
 ---
 
 # MiRed — servicio propio de mapeo de redes
@@ -54,6 +54,15 @@ en el servicio, para no romper el binario unico.
 ## Herramental verificado en el equipo (2026-08-12)
 Go 1.26.4 y Flutter 3.35.6 **ya instalados**. No hay Rust, ni Docker, ni
 `sqlite3` de linea de comandos. Node es 18. PostgreSQL 16 esta (ya no hace falta).
+
+## Estado real (2026-08-12)
+**Fase 1 cerrada**: servidor Go + sonda, catalogo y una base SQLite por red con
+migraciones propias, autenticacion con permisos por red, API completa con el
+estandar de errores de la casa, interfaz Flutter web (entrar, redes, subredes,
+usuarios, permisos) y `.deb` para amd64 y arm64 que se construye con
+`./herramientas/construir.sh --arquitectura todas`. Pruebas en verde en Go y en
+Flutter. **Falta probar la instalacion real del `.deb` en un equipo.**
+Siguiente: fase 2, descubrimiento de equipos.
 
 ## Tiempos
 - **3-4 meses** hasta la fase 9 (publicable). La inspeccion profunda va aparte.

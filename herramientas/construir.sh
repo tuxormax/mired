@@ -45,7 +45,7 @@ WEB=""
 if [[ -f "$RAIZ/interfaz/pubspec.yaml" ]]; then
     if command -v flutter >/dev/null 2>&1; then
         echo "== Compilando la interfaz Flutter"
-        (cd "$RAIZ/interfaz" && flutter build web --release)
+        (cd "$RAIZ/interfaz" && flutter build web --release -t lib/principal.dart)
         WEB="$RAIZ/interfaz/build/web"
     else
         echo "AVISO: Flutter no esta instalado; el paquete saldra sin interfaz."

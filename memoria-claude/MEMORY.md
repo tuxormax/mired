@@ -7,6 +7,7 @@ mapa y dice en que puerto de que switch esta cada aparato.
 Arrancado el 2026-08-12.
 
 ## ⚠️ Antes de tocar — pre-flight obligatorio
+0. Leer [gotchas](gotchas.md) — **siempre**, antes de tocar cualquier codigo.
 1. Leer [mired](mired.md) — estado real, stack elegido y por que ya no es un fork.
 2. Leer `PLAN.md` (raiz del repo) — las 10 fases y que entrega cada una.
 3. Si el tema es base de datos, privilegios, catalogo `.toml` o empaquetado →
@@ -36,11 +37,13 @@ Arrancado el 2026-08-12.
   alertas, ancho de banda) y como degradan en redes mixtas.
 
 ### 🔗 Contratos / interconexion
-- N/A todavia. Se define en la fase 1: contrato API ↔ interfaz Flutter y el del
-  socket servidor ↔ sonda.
+- [contrato-api](contrato-api.md) — sobre `{ok, datos, error}`, rutas, sesion por
+  Bearer, red activa en el contexto y el socket servidor ↔ sonda.
 
 ### 🐛 Deteccion y correccion de bugs
-- N/A todavia (sin codigo no hay bugs; al aparecer: `historial-bugs.md` + `bug-*.md`).
+- [gotchas](gotchas.md) — **leer siempre antes de tocar codigo**: reglas
+  transversales (fechas, borrado suave, prestamo de bases, formularios).
+- `historial-bugs.md` y `bug-*.md`: todavia no hay (fase 1 recien cerrada).
 
 ### 📚 Referencia
 - [mired-upstream-scanopy](mired-upstream-scanopy.md) — Scanopy y el sector:
