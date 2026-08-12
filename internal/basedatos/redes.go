@@ -39,17 +39,41 @@ type Red struct {
 	EquiposPresentes int     `json:"equiposPresentes"`
 	UltimoEscaneo    *string `json:"ultimoEscaneo"`
 	AlertasAbiertas  int     `json:"alertasAbiertas"`
+
+	// Agenda de barridos automaticos de esta instalacion.
+	Programado            bool    `json:"programado"`
+	PresenciaCadaSegundos int     `json:"presenciaCadaSegundos"`
+	ProfundoCadaMinutos   int     `json:"profundoCadaMinutos"`
+	ProximaPresencia      *string `json:"proximaPresencia"`
+	ProximoProfundo       *string `json:"proximoProfundo"`
+}
+
+// columnasRed es la lista que leen todas las consultas de red, para que no se
+// desincronicen entre si al agregar una columna.
+const columnasRed = `
+	id, clave, nombre, COALESCE(descripcion, ''), archivo, estatus,
+	creada, modificada, equipos, equipos_presentes, ultimo_escaneo,
+	alertas_abiertas, programado, presencia_cada_segundos, profundo_cada_minutos,
+	proxima_presencia, proximo_profundo`
+
+// leerRed llena una red desde una fila con las columnasRed.
+func leerRed(destino interface {
+	Scan(...any) error
+}) (Red, error) {
+	var r Red
+	var programado int
+	err := destino.Scan(&r.ID, &r.Clave, &r.Nombre, &r.Descripcion, &r.Archivo,
+		&r.Estatus, &r.Creada, &r.Modificada, &r.Equipos, &r.EquiposPresentes,
+		&r.UltimoEscaneo, &r.AlertasAbiertas, &programado, &r.PresenciaCadaSegundos,
+		&r.ProfundoCadaMinutos, &r.ProximaPresencia, &r.ProximoProfundo)
+	r.Programado = programado == 1
+	return r, err
 }
 
 // ListarRedes devuelve las redes activas del catalogo, ordenadas por nombre.
 func (e *Enrutador) ListarRedes(ctx context.Context) ([]Red, error) {
-	filas, err := e.Catalogo.QueryContext(ctx, `
-		SELECT id, clave, nombre, COALESCE(descripcion, ''), archivo, estatus,
-		       creada, modificada, equipos, equipos_presentes, ultimo_escaneo,
-		       alertas_abiertas
-		  FROM redes
-		 WHERE estatus = 1
-		 ORDER BY nombre`)
+	filas, err := e.Catalogo.QueryContext(ctx,
+		`SELECT `+columnasRed+` FROM redes WHERE estatus = 1 ORDER BY nombre`)
 	if err != nil {
 		return nil, fmt.Errorf("no se pudieron listar las redes: %w", err)
 	}
@@ -57,10 +81,8 @@ func (e *Enrutador) ListarRedes(ctx context.Context) ([]Red, error) {
 
 	redes := []Red{}
 	for filas.Next() {
-		var r Red
-		if err := filas.Scan(&r.ID, &r.Clave, &r.Nombre, &r.Descripcion, &r.Archivo,
-			&r.Estatus, &r.Creada, &r.Modificada, &r.Equipos, &r.EquiposPresentes,
-			&r.UltimoEscaneo, &r.AlertasAbiertas); err != nil {
+		r, err := leerRed(filas)
+		if err != nil {
 			return nil, err
 		}
 		redes = append(redes, r)
@@ -70,16 +92,9 @@ func (e *Enrutador) ListarRedes(ctx context.Context) ([]Red, error) {
 
 // BuscarRed devuelve una red activa por su clave.
 func (e *Enrutador) BuscarRed(ctx context.Context, clave string) (Red, error) {
-	var r Red
-	err := e.Catalogo.QueryRowContext(ctx, `
-		SELECT id, clave, nombre, COALESCE(descripcion, ''), archivo, estatus,
-		       creada, modificada, equipos, equipos_presentes, ultimo_escaneo,
-		       alertas_abiertas
-		  FROM redes
-		 WHERE clave = ? AND estatus >= 0`, clave).
-		Scan(&r.ID, &r.Clave, &r.Nombre, &r.Descripcion, &r.Archivo, &r.Estatus,
-			&r.Creada, &r.Modificada, &r.Equipos, &r.EquiposPresentes,
-			&r.UltimoEscaneo, &r.AlertasAbiertas)
+	fila := e.Catalogo.QueryRowContext(ctx,
+		`SELECT `+columnasRed+` FROM redes WHERE clave = ? AND estatus >= 0`, clave)
+	r, err := leerRed(fila)
 	if errors.Is(err, sql.ErrNoRows) {
 		return r, ErrRedNoExiste
 	}

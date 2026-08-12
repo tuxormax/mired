@@ -20,6 +20,7 @@ class PantallaRed extends StatefulWidget {
 class _PantallaRedState extends State<PantallaRed> {
   late Future<List<Equipo>> _equipos;
   late Future<List<Subred>> _subredes;
+  late Red _red;
 
   final _busqueda = TextEditingController();
   String _filtro = '';
@@ -30,6 +31,7 @@ class _PantallaRedState extends State<PantallaRed> {
   @override
   void initState() {
     super.initState();
+    _red = widget.red;
     _recargar();
     _revisarEscaneoEnCurso();
   }
@@ -43,18 +45,18 @@ class _PantallaRedState extends State<PantallaRed> {
 
   void _recargar() {
     setState(() {
-      _equipos = Api.instancia.listarEquipos(widget.red.clave, soloPresentes: _soloPresentes);
-      _subredes = Api.instancia.listarSubredes(widget.red.clave);
+      _equipos = Api.instancia.listarEquipos(_red.clave, soloPresentes: _soloPresentes);
+      _subredes = Api.instancia.listarSubredes(_red.clave);
     });
   }
 
   /// Si al abrir la pantalla ya hay un escaneo corriendo (lo lanzo otra persona,
-  /// o esta pestana se recargo), hay que engancharse a el en vez de fingir que
-  /// no pasa nada.
+  /// el programador, o esta pestana se recargo), hay que engancharse a el en vez
+  /// de fingir que no pasa nada.
   Future<void> _revisarEscaneoEnCurso() async {
     try {
-      final corridas = await Api.instancia.listarEscaneos(widget.red.clave);
-      if (corridas.isNotEmpty && corridas.first.enCurso && mounted) {
+      final estado = await Api.instancia.listarEscaneos(_red.clave);
+      if (estado.enCurso && mounted) {
         setState(() => _escaneando = true);
         _vigilar();
       }
@@ -63,12 +65,24 @@ class _PantallaRedState extends State<PantallaRed> {
     }
   }
 
+  Future<void> _configurarAgenda() async {
+    final nueva = await showDialog<Red>(
+      context: context,
+      builder: (_) => _DialogoAgenda(red: _red),
+    );
+    if (nueva != null && mounted) {
+      setState(() => _red = nueva);
+      mensajeAviso(context,
+          nueva.programado ? 'Barridos automaticos encendidos.' : 'Barridos automaticos apagados.');
+    }
+  }
+
   Future<void> _escanear({required bool soloPresencia}) async {
     setState(() => _escaneando = true);
-    Trayectoria.instancia.anotar('Escanear ${widget.red.nombre}');
+    Trayectoria.instancia.anotar('Escanear ${_red.nombre}');
 
     try {
-      await Api.instancia.lanzarEscaneo(widget.red.clave, soloPresencia: soloPresencia);
+      await Api.instancia.lanzarEscaneo(_red.clave, soloPresencia: soloPresencia);
       _vigilar();
     } catch (problema, pila) {
       if (mounted) {
@@ -85,15 +99,15 @@ class _PantallaRedState extends State<PantallaRed> {
     _vigilante?.cancel();
     _vigilante = Timer.periodic(const Duration(seconds: 3), (reloj) async {
       try {
-        final corridas = await Api.instancia.listarEscaneos(widget.red.clave);
-        if (corridas.isEmpty || corridas.first.enCurso) return;
+        final estado = await Api.instancia.listarEscaneos(_red.clave);
+        if (estado.enCurso || estado.escaneos.isEmpty) return;
 
         reloj.cancel();
         if (!mounted) return;
         setState(() => _escaneando = false);
         _recargar();
 
-        final ultima = corridas.first;
+        final ultima = estado.escaneos.first;
         if (!mounted) return;
         if (ultima.estado == 'fallido') {
           mensajeAviso(context, 'El escaneo fallo: ${ultima.detalle ?? "sin detalle"}');
@@ -110,7 +124,7 @@ class _PantallaRedState extends State<PantallaRed> {
   Future<void> _agregarSubred() async {
     final agregada = await showDialog<bool>(
       context: context,
-      builder: (_) => _DialogoNuevaSubred(clave: widget.red.clave),
+      builder: (_) => _DialogoNuevaSubred(clave: _red.clave),
     );
     if (agregada == true) _recargar();
   }
@@ -145,7 +159,7 @@ class _PantallaRedState extends State<PantallaRed> {
     if (nuevo == null) return;
 
     try {
-      await Api.instancia.ponerAlias(widget.red.clave, equipo.id, nuevo.trim());
+      await Api.instancia.ponerAlias(_red.clave, equipo.id, nuevo.trim());
       _recargar();
     } catch (problema, pila) {
       if (mounted) await mostrarProblema(context, problema, pila: pila.toString());
@@ -158,7 +172,7 @@ class _PantallaRedState extends State<PantallaRed> {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(widget.red.nombre),
+          title: Text(_red.nombre),
           bottom: const TabBar(tabs: [
             Tab(icon: Icon(Icons.devices_other), text: 'Equipos'),
             Tab(icon: Icon(Icons.route_outlined), text: 'Subredes'),
@@ -193,6 +207,14 @@ class _PantallaRedState extends State<PantallaRed> {
                   ),
                 ],
               ),
+            IconButton(
+              tooltip: _red.programado
+                  ? 'Barridos automaticos encendidos'
+                  : 'Programar barridos automaticos',
+              icon: Icon(_red.programado ? Icons.schedule : Icons.schedule_outlined),
+              color: _red.programado ? Colors.lightGreenAccent : null,
+              onPressed: _configurarAgenda,
+            ),
             IconButton(
               tooltip: 'Actualizar',
               icon: const Icon(Icons.refresh),
@@ -273,6 +295,7 @@ class _PantallaRedState extends State<PantallaRed> {
                 separatorBuilder: (_, __) => const SizedBox(height: 6),
                 itemBuilder: (_, indice) => _TarjetaEquipo(
                   equipo: equipos[indice],
+                  clave: _red.clave,
                   alRenombrar: () => _renombrar(equipos[indice]),
                 ),
               );
@@ -345,7 +368,7 @@ class _PantallaRedState extends State<PantallaRed> {
               ),
             ),
             const SizedBox(height: 16),
-            Text('Archivo de esta red: ${widget.red.clave}.db',
+            Text('Archivo de esta red: ${_red.clave}.db',
                 style: Theme.of(contexto).textTheme.labelSmall),
           ],
         );
@@ -355,9 +378,14 @@ class _PantallaRedState extends State<PantallaRed> {
 }
 
 class _TarjetaEquipo extends StatelessWidget {
-  const _TarjetaEquipo({required this.equipo, required this.alRenombrar});
+  const _TarjetaEquipo({
+    required this.equipo,
+    required this.clave,
+    required this.alRenombrar,
+  });
 
   final Equipo equipo;
+  final String clave;
   final VoidCallback alRenombrar;
 
   @override
@@ -427,6 +455,18 @@ class _TarjetaEquipo extends StatelessWidget {
                 _Renglon(etiqueta: 'Certeza', valor: equipo.certeza),
                 _Renglon(etiqueta: 'Visto por primera vez', valor: equipo.primeraVez),
                 _Renglon(etiqueta: 'Visto por ultima vez', valor: equipo.ultimaVez),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    icon: const Icon(Icons.history),
+                    label: const Text('Historial de conexiones'),
+                    onPressed: () => showDialog<void>(
+                      context: contexto,
+                      builder: (_) => _DialogoPresencia(clave: clave, equipo: equipo),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -607,6 +647,220 @@ class _DialogoNuevaSubredState extends State<_DialogoNuevaSubred> {
             child: _ocupado
                 ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
                 : const Text('Agregar'),
+          ),
+        ],
+      );
+}
+
+/// _DialogoPresencia muestra cuando aparecio y cuando se fue un equipo.
+///
+/// Solo se guardan los CAMBIOS de estado, asi que esta lista es corta y legible
+/// aunque el barrido corra cada minuto.
+class _DialogoPresencia extends StatefulWidget {
+  const _DialogoPresencia({required this.clave, required this.equipo});
+
+  final String clave;
+  final Equipo equipo;
+
+  @override
+  State<_DialogoPresencia> createState() => _DialogoPresenciaState();
+}
+
+class _DialogoPresenciaState extends State<_DialogoPresencia> {
+  late Future<List<EventoPresencia>> _eventos;
+
+  @override
+  void initState() {
+    super.initState();
+    _eventos = Api.instancia.listarPresencia(widget.clave, widget.equipo.id);
+  }
+
+  @override
+  Widget build(BuildContext contexto) => AlertDialog(
+        title: Text('Conexiones de ${widget.equipo.comoSeLlama}'),
+        content: SizedBox(
+          width: 460,
+          height: 420,
+          child: FutureBuilder<List<EventoPresencia>>(
+            future: _eventos,
+            builder: (_, resultado) {
+              if (resultado.connectionState != ConnectionState.done) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (resultado.hasError) {
+                return Center(
+                  child: TextButton(
+                    onPressed: () => mostrarProblema(contexto, resultado.error!),
+                    child: const Text('No se pudo leer el historial. Ver detalles'),
+                  ),
+                );
+              }
+
+              final eventos = resultado.data ?? [];
+              if (eventos.isEmpty) {
+                return const Center(
+                  child: Text('Todavia no hay historial para este equipo.',
+                      textAlign: TextAlign.center),
+                );
+              }
+
+              return ListView.separated(
+                itemCount: eventos.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (_, indice) {
+                  final evento = eventos[indice];
+                  return ListTile(
+                    dense: true,
+                    leading: Icon(
+                      evento.presente ? Icons.login : Icons.logout,
+                      color: evento.presente ? Colors.green : Colors.grey,
+                    ),
+                    title: Text(evento.presente ? 'Se conecto' : 'Dejo de responder'),
+                    subtitle: Text(evento.momento),
+                    trailing: evento.ip.isEmpty
+                        ? null
+                        : Text(evento.ip, style: const TextStyle(fontFamily: 'monospace')),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(contexto).pop(),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      );
+}
+
+/// _DialogoAgenda enciende los barridos automaticos y fija sus dos ritmos.
+class _DialogoAgenda extends StatefulWidget {
+  const _DialogoAgenda({required this.red});
+
+  final Red red;
+
+  @override
+  State<_DialogoAgenda> createState() => _DialogoAgendaState();
+}
+
+class _DialogoAgendaState extends State<_DialogoAgenda> {
+  final _formulario = GlobalKey<FormState>();
+  late bool _programado;
+  late TextEditingController _presencia;
+  late TextEditingController _profundo;
+  bool _ocupado = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _programado = widget.red.programado;
+    _presencia = TextEditingController(text: '${widget.red.presenciaCadaSegundos}');
+    _profundo = TextEditingController(text: '${widget.red.profundoCadaMinutos}');
+  }
+
+  @override
+  void dispose() {
+    _presencia.dispose();
+    _profundo.dispose();
+    super.dispose();
+  }
+
+  Future<void> _guardar() async {
+    if (!_formulario.currentState!.validate()) return;
+    setState(() => _ocupado = true);
+    Trayectoria.instancia.anotar('Configurar agenda de ${widget.red.nombre}');
+
+    try {
+      final nueva = await Api.instancia.configurarAgenda(
+        widget.red.clave,
+        programado: _programado,
+        presenciaCadaSegundos: int.parse(_presencia.text.trim()),
+        profundoCadaMinutos: int.parse(_profundo.text.trim()),
+      );
+      if (mounted) Navigator.of(context).pop(nueva);
+    } catch (problema, pila) {
+      if (mounted) await mostrarProblema(context, problema, pila: pila.toString());
+    } finally {
+      if (mounted) setState(() => _ocupado = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext contexto) => AlertDialog(
+        title: const Text('Barridos automaticos'),
+        content: SizedBox(
+          width: 460,
+          child: Form(
+            key: _formulario,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Son dos ritmos distintos sobre la misma red. El de presencia es corto y '
+                  'frecuente: solo dice quien esta. El profundo revisa puertos, nombres y '
+                  'servicios, cuesta mucho mas y por eso va espaciado.',
+                ),
+                const SizedBox(height: 16),
+                SwitchListTile(
+                  value: _programado,
+                  onChanged: (valor) => setState(() => _programado = valor),
+                  title: const Text('Escanear esta red automaticamente'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _presencia,
+                  enabled: _programado,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Presencia cada (segundos)',
+                    helperText: 'De 15 a 3600. Con 60 basta para casi todo.',
+                    border: OutlineInputBorder(),
+                  ),
+                  // Los mismos limites que impone el servidor.
+                  validator: (valor) {
+                    final numero = int.tryParse((valor ?? '').trim());
+                    if (numero == null || numero < 15 || numero > 3600) {
+                      return 'Debe estar entre 15 y 3600 segundos';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _profundo,
+                  enabled: _programado,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Escaneo profundo cada (minutos)',
+                    helperText: 'De 5 a 10080. Con 360 (seis horas) suele sobrar.',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (valor) {
+                    final numero = int.tryParse((valor ?? '').trim());
+                    if (numero == null || numero < 5 || numero > 10080) {
+                      return 'Debe estar entre 5 y 10080 minutos';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: _ocupado ? null : () => Navigator.of(contexto).pop(),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: _ocupado ? null : _guardar,
+            child: _ocupado
+                ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Text('Guardar'),
           ),
         ],
       );

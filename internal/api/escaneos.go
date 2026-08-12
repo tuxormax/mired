@@ -1,51 +1,15 @@
 package api
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
-	"sync"
-	"time"
 
 	"github.com/tuxormax/mired/internal/autenticacion"
 	"github.com/tuxormax/mired/internal/basedatos"
-	"github.com/tuxormax/mired/internal/sonda"
+	"github.com/tuxormax/mired/internal/programador"
 )
-
-// esperaEscaneo es lo que el servidor le da a la sonda para terminar un barrido
-// antes de darlo por perdido. Un /24 con puertos tarda minutos, no segundos.
-const esperaEscaneo = 20 * time.Minute
-
-// enCurso lleva la cuenta de que redes se estan escaneando ahora mismo.
-//
-// Dos barridos simultaneos sobre la misma red no solo desperdician trabajo: se
-// pisan al marcar los equipos ausentes, y el resultado seria una red donde los
-// equipos parpadean entre presente y ausente sin razon.
-var enCurso struct {
-	sync.Mutex
-	redes map[string]bool
-}
-
-func marcarEnCurso(clave string) bool {
-	enCurso.Lock()
-	defer enCurso.Unlock()
-	if enCurso.redes == nil {
-		enCurso.redes = map[string]bool{}
-	}
-	if enCurso.redes[clave] {
-		return false
-	}
-	enCurso.redes[clave] = true
-	return true
-}
-
-func liberarEnCurso(clave string) {
-	enCurso.Lock()
-	defer enCurso.Unlock()
-	delete(enCurso.redes, clave)
-}
 
 type peticionEscaneo struct {
 	// SoloPresencia hace el barrido rapido: quien esta, sin tocar puertos.
@@ -53,10 +17,6 @@ type peticionEscaneo struct {
 }
 
 // lanzarEscaneo arranca un barrido y contesta de inmediato.
-//
-// No se espera a que termine porque un escaneo tarda minutos: dejar la peticion
-// HTTP abierta todo ese rato serviria para que cualquier corte de red la mate y
-// el usuario no sepa si quedo o no.
 func (a *API) lanzarEscaneo(escritor http.ResponseWriter, peticion *http.Request) {
 	clave, _ := autenticacion.RedActivaDe(peticion.Context())
 	nivel, _ := autenticacion.NivelDe(peticion.Context())
@@ -73,53 +33,17 @@ func (a *API) lanzarEscaneo(escritor http.ResponseWriter, peticion *http.Request
 		return
 	}
 
-	// Sin subredes no hay nada que barrer, y decirlo asi evita el escaneo vacio
-	// que despues parece un fallo.
-	var subredes []string
-	err := a.Datos.ConRed(peticion.Context(), clave, func(base *basedatos.Base) error {
-		lista, err := base.ListarSubredes(peticion.Context())
-		if err != nil {
-			return err
-		}
-		for _, subred := range lista {
-			if subred.Escanear {
-				subredes = append(subredes, subred.CIDR)
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		a.responderError(escritor, peticion, contextoError{
-			Modulo: "Escaneo", Accion: "Lanzar", Causa: CausaBaseDatos,
-			Tabla: "subredes", Codigo: http.StatusInternalServerError,
-		}, "No se pudieron leer las subredes de esta red.", err)
-		return
-	}
-	if len(subredes) == 0 {
+	escaneoID, subredes, err := a.Programador.Lanzar(peticion.Context(), clave, cuerpo.SoloPresencia)
+	switch {
+	case errors.Is(err, programador.ErrSinSubredes):
 		a.errorValidacion(escritor, peticion, "Escaneo", "Lanzar",
 			"Esta red no tiene ninguna subred marcada para escanear. Agregue al menos una.")
 		return
-	}
-
-	if !marcarEnCurso(clave) {
+	case errors.Is(err, programador.ErrYaEnCurso):
 		a.errorValidacion(escritor, peticion, "Escaneo", "Lanzar",
 			"Ya hay un escaneo en curso en esta red. Espere a que termine.")
 		return
-	}
-
-	tipo := "profundo"
-	if cuerpo.SoloPresencia {
-		tipo = "presencia"
-	}
-
-	var escaneoID int64
-	err = a.Datos.ConRed(peticion.Context(), clave, func(base *basedatos.Base) error {
-		var err error
-		escaneoID, err = base.IniciarEscaneo(peticion.Context(), tipo)
-		return err
-	})
-	if err != nil {
-		liberarEnCurso(clave)
+	case err != nil:
 		a.responderError(escritor, peticion, contextoError{
 			Modulo: "Escaneo", Accion: "Lanzar", Causa: CausaBaseDatos,
 			Tabla: "escaneos", Codigo: http.StatusInternalServerError,
@@ -128,7 +52,10 @@ func (a *API) lanzarEscaneo(escritor http.ResponseWriter, peticion *http.Request
 		return
 	}
 
-	go a.correrEscaneo(clave, escaneoID, subredes, cuerpo.SoloPresencia)
+	tipo := basedatos.TipoProfundo
+	if cuerpo.SoloPresencia {
+		tipo = basedatos.TipoPresencia
+	}
 
 	a.anotarActividad(peticion, "Escaneo", "Lanzar escaneo "+tipo+" en "+clave)
 	responderOk(escritor, map[string]any{
@@ -137,75 +64,6 @@ func (a *API) lanzarEscaneo(escritor http.ResponseWriter, peticion *http.Request
 		"tipo":      tipo,
 		"subredes":  subredes,
 	})
-}
-
-// correrEscaneo le pide el barrido a la sonda y guarda lo que traiga.
-func (a *API) correrEscaneo(clave string, escaneoID int64, subredes []string, soloPresencia bool) {
-	defer liberarEnCurso(clave)
-
-	// Contexto propio: la peticion HTTP que lo lanzo ya termino hace rato.
-	ctx, cancelar := context.WithTimeout(context.Background(), esperaEscaneo+time.Minute)
-	defer cancelar()
-
-	resultado, err := sonda.PedirEscaneo(a.SocketSonda, sonda.PeticionEscaneo{
-		Subredes:      subredes,
-		SoloPresencia: soloPresencia,
-	}, esperaEscaneo)
-	if err != nil {
-		a.Bitacora.Error("el escaneo fallo", "red", clave, "escaneo", escaneoID, "error", err)
-		a.Datos.ConRed(ctx, clave, func(base *basedatos.Base) error {
-			return base.FallarEscaneo(ctx, escaneoID, err.Error())
-		})
-		return
-	}
-	for _, advertencia := range resultado.Advertencias {
-		a.Bitacora.Warn("aviso del escaneo", "red", clave, "aviso", advertencia)
-	}
-
-	equipos := make([]basedatos.EquipoDescubierto, 0, len(resultado.Equipos))
-	for _, visto := range resultado.Equipos {
-		puertos := make([]basedatos.PuertoDescubierto, 0, len(visto.Puertos))
-		for _, puerto := range visto.Puertos {
-			puertos = append(puertos, basedatos.PuertoDescubierto{
-				Numero:    puerto.Numero,
-				Protocolo: puerto.Protocolo,
-				Servicio:  puerto.Servicio,
-				Banner:    puerto.Banner,
-			})
-		}
-		equipos = append(equipos, basedatos.EquipoDescubierto{
-			IP:         visto.IP,
-			MAC:        visto.MAC,
-			Nombre:     visto.Nombre,
-			Fabricante: visto.Fabricante,
-			Metodo:     visto.Metodo,
-			Subred:     visto.Subred,
-			Puertos:    puertos,
-		})
-	}
-
-	err = a.Datos.ConRed(ctx, clave, func(base *basedatos.Base) error {
-		resumen, err := base.GuardarDescubrimiento(ctx, escaneoID, !soloPresencia, equipos)
-		if err != nil {
-			return err
-		}
-		a.Bitacora.Info("escaneo terminado", "red", clave, "vistos", resumen.Vistos,
-			"nuevos", resumen.Nuevos, "ausentes", resumen.Ausentes, "ms", resultado.DuracionMs)
-
-		// El resumen del catalogo se actualiza aqui, al terminar cada escaneo:
-		// es lo que permite que el panel de inicio no abra el archivo de cada red.
-		total, presentes, ultimo, err := base.ResumenDeRed(ctx)
-		if err != nil {
-			return err
-		}
-		return a.Datos.ActualizarResumen(ctx, clave, total, presentes, ultimo)
-	})
-	if err != nil {
-		a.Bitacora.Error("no se pudo guardar el escaneo", "red", clave, "error", err)
-		a.Datos.ConRed(ctx, clave, func(base *basedatos.Base) error {
-			return base.FallarEscaneo(ctx, escaneoID, err.Error())
-		})
-	}
 }
 
 // listarEscaneos devuelve las ultimas corridas, para que la interfaz sepa si hay
@@ -249,7 +107,64 @@ func (a *API) listarEscaneos(escritor http.ResponseWriter, peticion *http.Reques
 	if corridas == nil {
 		corridas = []map[string]any{}
 	}
-	responderOk(escritor, corridas)
+	responderOk(escritor, map[string]any{
+		"escaneos": corridas,
+		"enCurso":  a.Programador.EnCurso(clave),
+	})
+}
+
+type peticionAgenda struct {
+	Programado            bool `json:"programado"`
+	PresenciaCadaSegundos int  `json:"presenciaCadaSegundos"`
+	ProfundoCadaMinutos   int  `json:"profundoCadaMinutos"`
+}
+
+// configurarAgenda enciende o apaga los barridos automaticos de una red.
+func (a *API) configurarAgenda(escritor http.ResponseWriter, peticion *http.Request) {
+	clave, _ := autenticacion.RedActivaDe(peticion.Context())
+	nivel, _ := autenticacion.NivelDe(peticion.Context())
+	if !autenticacion.PuedeAdministrar(nivel) {
+		a.responderError(escritor, peticion, contextoError{
+			Modulo: "Agenda", Accion: "Configurar", Causa: CausaPermiso,
+			Codigo: http.StatusForbidden,
+		}, "Necesita permiso de administracion sobre esta red.", nil)
+		return
+	}
+
+	var cuerpo peticionAgenda
+	if !a.leerCuerpo(escritor, peticion, &cuerpo, "Agenda", "Configurar") {
+		return
+	}
+
+	// Los mismos limites que impone la capa de datos, para que el rechazo no
+	// llegue despues de mandar el formulario.
+	switch {
+	case cuerpo.PresenciaCadaSegundos < basedatos.PresenciaMinimaSegundos ||
+		cuerpo.PresenciaCadaSegundos > basedatos.PresenciaMaximaSegundos:
+		a.errorValidacion(escritor, peticion, "Agenda", "Configurar",
+			fmt.Sprintf("El barrido de presencia debe ir de %d a %d segundos.",
+				basedatos.PresenciaMinimaSegundos, basedatos.PresenciaMaximaSegundos))
+		return
+	case cuerpo.ProfundoCadaMinutos < basedatos.ProfundoMinimoMinutos ||
+		cuerpo.ProfundoCadaMinutos > basedatos.ProfundoMaximoMinutos:
+		a.errorValidacion(escritor, peticion, "Agenda", "Configurar",
+			fmt.Sprintf("El escaneo profundo debe ir de %d a %d minutos.",
+				basedatos.ProfundoMinimoMinutos, basedatos.ProfundoMaximoMinutos))
+		return
+	}
+
+	red, err := a.Datos.ConfigurarAgenda(peticion.Context(), clave, cuerpo.Programado,
+		cuerpo.PresenciaCadaSegundos, cuerpo.ProfundoCadaMinutos)
+	if err != nil {
+		a.responderError(escritor, peticion, contextoError{
+			Modulo: "Agenda", Accion: "Configurar", Causa: CausaBaseDatos,
+			Tabla: "redes", Codigo: http.StatusInternalServerError,
+		}, "No se pudo guardar la agenda.", err)
+		return
+	}
+
+	a.anotarActividad(peticion, "Agenda", "Configurar agenda de "+clave)
+	responderOk(escritor, red)
 }
 
 // ------------------------------------------------------------- equipos ----
@@ -272,6 +187,33 @@ func (a *API) listarEquipos(escritor http.ResponseWriter, peticion *http.Request
 		return
 	}
 	responderOk(escritor, equipos)
+}
+
+// listarPresencia devuelve el historial de conexiones de un equipo: a que hora
+// aparece y a que hora se va.
+func (a *API) listarPresencia(escritor http.ResponseWriter, peticion *http.Request) {
+	clave, _ := autenticacion.RedActivaDe(peticion.Context())
+
+	id, err := strconv.ParseInt(peticion.PathValue("equipo"), 10, 64)
+	if err != nil || id <= 0 {
+		a.errorValidacion(escritor, peticion, "Equipos", "Presencia", "El equipo no es valido.")
+		return
+	}
+
+	var eventos []basedatos.EventoPresencia
+	err = a.Datos.ConRed(peticion.Context(), clave, func(base *basedatos.Base) error {
+		var err error
+		eventos, err = base.ListarPresencia(peticion.Context(), id, 100)
+		return err
+	})
+	if err != nil {
+		a.responderError(escritor, peticion, contextoError{
+			Modulo: "Equipos", Accion: "Presencia", Causa: CausaBaseDatos,
+			Tabla: "eventos_presencia", Codigo: http.StatusInternalServerError,
+		}, "No se pudo leer el historial de presencia.", err)
+		return
+	}
+	responderOk(escritor, eventos)
 }
 
 type peticionAlias struct {

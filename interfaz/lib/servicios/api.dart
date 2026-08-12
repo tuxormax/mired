@@ -199,9 +199,34 @@ class Api {
     return (datos as Map<String, dynamic>)['escaneoId'] as int;
   }
 
-  Future<List<Escaneo>> listarEscaneos(String clave) async {
-    final datos = await obtener('/api/redes/$clave/escaneos') as List<dynamic>;
-    return datos.map((fila) => Escaneo.desdeJson(fila as Map<String, dynamic>)).toList();
+  /// Devuelve las ultimas corridas y si hay una en curso ahora mismo. El "en
+  /// curso" lo dice el servidor y no se deduce de la lista: un escaneo puede
+  /// estar corriendo aunque su renglon todavia no cambie.
+  Future<({List<Escaneo> escaneos, bool enCurso})> listarEscaneos(String clave) async {
+    final datos = await obtener('/api/redes/$clave/escaneos') as Map<String, dynamic>;
+    final lista = (datos['escaneos'] as List<dynamic>? ?? [])
+        .map((fila) => Escaneo.desdeJson(fila as Map<String, dynamic>))
+        .toList();
+    return (escaneos: lista, enCurso: datos['enCurso'] as bool? ?? false);
+  }
+
+  Future<List<EventoPresencia>> listarPresencia(String clave, int equipoId) async {
+    final datos = await obtener('/api/redes/$clave/equipos/$equipoId/presencia') as List<dynamic>;
+    return datos
+        .map((fila) => EventoPresencia.desdeJson(fila as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<Red> configurarAgenda(String clave,
+      {required bool programado,
+      required int presenciaCadaSegundos,
+      required int profundoCadaMinutos}) async {
+    final datos = await reemplazar('/api/redes/$clave/agenda', {
+      'programado': programado,
+      'presenciaCadaSegundos': presenciaCadaSegundos,
+      'profundoCadaMinutos': profundoCadaMinutos,
+    });
+    return Red.desdeJson(datos as Map<String, dynamic>);
   }
 
   Future<Map<String, dynamic>> estadoSonda() async =>

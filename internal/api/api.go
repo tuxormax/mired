@@ -15,6 +15,7 @@ import (
 
 	"github.com/tuxormax/mired/internal/autenticacion"
 	"github.com/tuxormax/mired/internal/basedatos"
+	"github.com/tuxormax/mired/internal/programador"
 )
 
 // API reune lo que necesitan los manejadores.
@@ -30,6 +31,8 @@ type API struct {
 	Seguro bool
 	// SocketSonda es por donde se le pregunta a mired-sonda.
 	SocketSonda string
+	// Programador lanza los barridos, pedidos o por agenda.
+	Programador *programador.Servicio
 }
 
 // Rutas arma el enrutador HTTP completo.
@@ -57,8 +60,10 @@ func (a *API) Rutas() http.Handler {
 	// Escaneo e inventario de equipos.
 	mux.Handle("POST /api/redes/{clave}/escaneos", a.conRed(a.lanzarEscaneo))
 	mux.Handle("GET /api/redes/{clave}/escaneos", a.conRed(a.listarEscaneos))
+	mux.Handle("PUT /api/redes/{clave}/agenda", a.conRed(a.configurarAgenda))
 	mux.Handle("GET /api/redes/{clave}/equipos", a.conRed(a.listarEquipos))
 	mux.Handle("PATCH /api/redes/{clave}/equipos/{equipo}", a.conRed(a.ponerAlias))
+	mux.Handle("GET /api/redes/{clave}/equipos/{equipo}/presencia", a.conRed(a.listarPresencia))
 
 	// Sonda: si esta viva y con que permisos. La interfaz lo usa para avisar
 	// por que el escaneo no esta disponible, en vez de dejar pantallas vacias.

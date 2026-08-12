@@ -41,6 +41,11 @@ class Red {
   final String? ultimoEscaneo;
   final int alertasAbiertas;
 
+  // Agenda de barridos automaticos.
+  final bool programado;
+  final int presenciaCadaSegundos;
+  final int profundoCadaMinutos;
+
   const Red({
     required this.id,
     required this.clave,
@@ -50,6 +55,9 @@ class Red {
     required this.equiposPresentes,
     this.ultimoEscaneo,
     required this.alertasAbiertas,
+    required this.programado,
+    required this.presenciaCadaSegundos,
+    required this.profundoCadaMinutos,
   });
 
   factory Red.desdeJson(Map<String, dynamic> json) => Red(
@@ -61,6 +69,28 @@ class Red {
         equiposPresentes: json['equiposPresentes'] as int? ?? 0,
         ultimoEscaneo: json['ultimoEscaneo'] as String?,
         alertasAbiertas: json['alertasAbiertas'] as int? ?? 0,
+        programado: json['programado'] as bool? ?? false,
+        presenciaCadaSegundos: json['presenciaCadaSegundos'] as int? ?? 60,
+        profundoCadaMinutos: json['profundoCadaMinutos'] as int? ?? 360,
+      );
+}
+
+/// Una conexion o desconexion de un equipo.
+class EventoPresencia {
+  final String momento;
+  final bool presente;
+  final String ip;
+
+  const EventoPresencia({
+    required this.momento,
+    required this.presente,
+    required this.ip,
+  });
+
+  factory EventoPresencia.desdeJson(Map<String, dynamic> json) => EventoPresencia(
+        momento: json['momento'] as String? ?? '',
+        presente: json['presente'] as bool? ?? false,
+        ip: json['ip'] as String? ?? '',
       );
 }
 

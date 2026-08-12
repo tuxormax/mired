@@ -21,6 +21,7 @@ import (
 	"github.com/tuxormax/mired/internal/autenticacion"
 	"github.com/tuxormax/mired/internal/basedatos"
 	"github.com/tuxormax/mired/internal/configuracion"
+	"github.com/tuxormax/mired/internal/programador"
 	"github.com/tuxormax/mired/internal/version"
 )
 
@@ -71,12 +72,15 @@ func correr(cfg configuracion.Configuracion, bitacora *slog.Logger) error {
 			"clave", autenticacion.ClaveSuperadmin)
 	}
 
+	agenda := programador.Nuevo(datos, cfg.Sonda.Socket, bitacora)
+
 	servicio := &api.API{
 		Datos:       datos,
 		Auth:        autenticador,
 		Bitacora:    bitacora,
 		RutaWeb:     cfg.Servidor.RutaWeb,
 		SocketSonda: cfg.Sonda.Socket,
+		Programador: agenda,
 	}
 
 	// Tareas de fondo: cerrar bases de red que ya nadie usa y limpiar sesiones
@@ -84,6 +88,9 @@ func correr(cfg configuracion.Configuracion, bitacora *slog.Logger) error {
 	// y la tabla de sesiones crece sola.
 	go datos.Vigilar(ctx)
 	go limpiarSesiones(ctx, datos, bitacora)
+	// El programador corre los barridos automaticos de las redes que lo tengan
+	// encendido: presencia frecuente y escaneo profundo espaciado.
+	go agenda.Vigilar(ctx)
 
 	servidor := &http.Server{
 		Addr:              cfg.Servidor.Escucha,

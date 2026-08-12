@@ -193,10 +193,22 @@ func guardarEquipo(ctx context.Context, tx *sql.Tx, identidad string, visto Equi
 			return 0, false, fmt.Errorf("no se pudo guardar el equipo %s: %w", visto.IP, err)
 		}
 		nuevoID, _ := resultado.LastInsertId()
+		if err := anotarPresencia(ctx, tx, nuevoID, momento, true, visto.IP); err != nil {
+			return 0, false, err
+		}
 		return nuevoID, true, nil
 
 	case err != nil:
 		return 0, false, fmt.Errorf("no se pudo buscar el equipo %s: %w", visto.IP, err)
+	}
+
+	// Si estaba ausente y volvio, eso es un evento: es la mitad de lo que
+	// despues responde "¿a que hora llega el celular de fulano?".
+	var estaba int
+	if err := tx.QueryRowContext(ctx, `SELECT presente FROM equipos WHERE id = ?`, equipoID).Scan(&estaba); err == nil && estaba == 0 {
+		if err := anotarPresencia(ctx, tx, equipoID, momento, true, visto.IP); err != nil {
+			return 0, false, err
+		}
 	}
 
 	// COALESCE conserva lo que ya se sabia cuando este barrido no lo trae: un
@@ -273,18 +285,100 @@ func guardarPuertos(ctx context.Context, tx *sql.Tx, equipoID int64, puertos []P
 }
 
 func marcarAusentes(ctx context.Context, tx *sql.Tx, escaneoID int64, momento string) (int, error) {
-	resultado, err := tx.ExecContext(ctx, `
-		UPDATE equipos
-		   SET presente = 0, modificado = ?
-		 WHERE estatus = 1
-		   AND presente = 1
+	// Primero se ve QUIENES se van a marcar ausentes, porque despues del UPDATE
+	// ya no hay forma de saber cuales cambiaron, y cada uno necesita su evento.
+	filas, err := tx.QueryContext(ctx, `
+		SELECT id, ip FROM equipos
+		 WHERE estatus = 1 AND presente = 1
 		   AND id NOT IN (SELECT equipo_id FROM escaneo_equipos WHERE escaneo_id = ?)`,
-		momento, escaneoID)
+		escaneoID)
 	if err != nil {
-		return 0, fmt.Errorf("no se pudieron marcar los equipos ausentes: %w", err)
+		return 0, fmt.Errorf("no se pudieron buscar los equipos ausentes: %w", err)
 	}
-	ausentes, _ := resultado.RowsAffected()
-	return int(ausentes), nil
+
+	type ausente struct {
+		id int64
+		ip string
+	}
+	var ausentes []ausente
+	for filas.Next() {
+		var quien ausente
+		if err := filas.Scan(&quien.id, &quien.ip); err != nil {
+			filas.Close()
+			return 0, err
+		}
+		ausentes = append(ausentes, quien)
+	}
+	filas.Close()
+	if err := filas.Err(); err != nil {
+		return 0, err
+	}
+	if len(ausentes) == 0 {
+		return 0, nil
+	}
+
+	for _, quien := range ausentes {
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE equipos SET presente = 0, modificado = ? WHERE id = ?`,
+			momento, quien.id); err != nil {
+			return 0, fmt.Errorf("no se pudo marcar ausente el equipo %d: %w", quien.id, err)
+		}
+		if err := anotarPresencia(ctx, tx, quien.id, momento, false, quien.ip); err != nil {
+			return 0, err
+		}
+	}
+	return len(ausentes), nil
+}
+
+// anotarPresencia guarda un cambio de estado. Solo se llama cuando el estado
+// cambia de verdad: guardar en cada barrido serian mil renglones diarios por
+// equipo para decir lo mismo.
+func anotarPresencia(ctx context.Context, tx *sql.Tx, equipoID int64, momento string, presente bool, ip string) error {
+	_, err := tx.ExecContext(ctx,
+		`INSERT INTO eventos_presencia (equipo_id, momento, presente, ip) VALUES (?, ?, ?, ?)`,
+		equipoID, momento, boolAEntero(presente), nuloSiVacio(ip))
+	if err != nil {
+		return fmt.Errorf("no se pudo anotar el cambio de presencia: %w", err)
+	}
+	return nil
+}
+
+// EventoPresencia es una conexion o una desconexion de un equipo.
+type EventoPresencia struct {
+	Momento  string `json:"momento"`
+	Presente bool   `json:"presente"`
+	IP       string `json:"ip"`
+}
+
+// ListarPresencia devuelve el historial de un equipo, del mas reciente al mas
+// viejo.
+func (b *Base) ListarPresencia(ctx context.Context, equipoID int64, limite int) ([]EventoPresencia, error) {
+	if limite <= 0 || limite > 500 {
+		limite = 100
+	}
+
+	filas, err := b.QueryContext(ctx, `
+		SELECT momento, presente, COALESCE(ip, '')
+		  FROM eventos_presencia
+		 WHERE equipo_id = ?
+		 ORDER BY id DESC
+		 LIMIT ?`, equipoID, limite)
+	if err != nil {
+		return nil, fmt.Errorf("no se pudo leer el historial de presencia: %w", err)
+	}
+	defer filas.Close()
+
+	eventos := []EventoPresencia{}
+	for filas.Next() {
+		var evento EventoPresencia
+		var presente int
+		if err := filas.Scan(&evento.Momento, &presente, &evento.IP); err != nil {
+			return nil, err
+		}
+		evento.Presente = presente == 1
+		eventos = append(eventos, evento)
+	}
+	return eventos, filas.Err()
 }
 
 // ListarEquipos devuelve los equipos de la red con sus puertos abiertos.
