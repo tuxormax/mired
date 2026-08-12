@@ -20,6 +20,7 @@ class PantallaRed extends StatefulWidget {
 class _PantallaRedState extends State<PantallaRed> {
   late Future<List<Equipo>> _equipos;
   late Future<List<Subred>> _subredes;
+  late Future<MapaPuertos> _mapa;
   late Red _red;
 
   final _busqueda = TextEditingController();
@@ -47,6 +48,7 @@ class _PantallaRedState extends State<PantallaRed> {
     setState(() {
       _equipos = Api.instancia.listarEquipos(_red.clave, soloPresentes: _soloPresentes);
       _subredes = Api.instancia.listarSubredes(_red.clave);
+      _mapa = Api.instancia.mapaDePuertos(_red.clave);
     });
   }
 
@@ -169,12 +171,13 @@ class _PantallaRedState extends State<PantallaRed> {
   @override
   Widget build(BuildContext contexto) {
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: Text(_red.nombre),
           bottom: const TabBar(tabs: [
             Tab(icon: Icon(Icons.devices_other), text: 'Equipos'),
+            Tab(icon: Icon(Icons.settings_input_component), text: 'Puertos'),
             Tab(icon: Icon(Icons.route_outlined), text: 'Subredes'),
           ]),
           actions: [
@@ -230,6 +233,7 @@ class _PantallaRedState extends State<PantallaRed> {
         body: TabBarView(
           children: [
             _pestanaEquipos(contexto),
+            _pestanaPuertos(contexto),
             _pestanaSubredes(contexto),
           ],
         ),
@@ -318,6 +322,131 @@ class _PantallaRedState extends State<PantallaRed> {
       ...equipo.puertos.map((puerto) => puerto.etiqueta),
     ].join(' ').toLowerCase();
     return donde.contains(_filtro);
+  }
+
+  /// _pestanaPuertos es el mapa de puertos: que hay conectado en cada boca.
+  ///
+  /// Cuando no hay mapa NO se deja la pantalla vacia: se explica por que no lo
+  /// hay y que haria falta para tenerlo. Una pantalla vacia sin explicacion hace
+  /// que la gente crea que la herramienta esta rota.
+  Widget _pestanaPuertos(BuildContext contexto) {
+    return FutureBuilder<MapaPuertos>(
+      future: _mapa,
+      builder: (_, resultado) {
+        if (resultado.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (resultado.hasError) {
+          return Center(
+            child: TextButton(
+              onPressed: () => mostrarProblema(contexto, resultado.error!),
+              child: const Text('No se pudo cargar el mapa de puertos. Ver detalles'),
+            ),
+          );
+        }
+
+        final mapa = resultado.data!;
+        final colores = Theme.of(contexto).colorScheme;
+
+        // Los renglones se agrupan por switch, que es como se mira un plano de
+        // sitio: primero el aparato, luego sus bocas.
+        final porSwitch = <String, List<PuertoDeSwitch>>{};
+        for (final renglon in mapa.puertos) {
+          porSwitch.putIfAbsent('${renglon.switchNombre}|${renglon.switchIp}', () => []).add(renglon);
+        }
+
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
+          children: [
+            Card(
+              color: mapa.capacidad == 'exacta'
+                  ? colores.primaryContainer
+                  : colores.surfaceContainerHighest,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(mapa.capacidad == 'exacta'
+                        ? Icons.check_circle_outline
+                        : Icons.info_outline),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(mapa.explicacion)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (!mapa.hayMapa)
+              const Padding(
+                padding: EdgeInsets.all(24),
+                child: Text('Todavia no hay ninguna boca de switch registrada.',
+                    textAlign: TextAlign.center),
+              ),
+            for (final entrada in porSwitch.entries) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.router_outlined),
+                    const SizedBox(width: 8),
+                    Text(entrada.key.split('|').first,
+                        style: Theme.of(contexto).textTheme.titleMedium),
+                    const SizedBox(width: 8),
+                    Text(entrada.key.split('|').last,
+                        style: TextStyle(fontFamily: 'monospace', color: colores.outline)),
+                  ],
+                ),
+              ),
+              Card(
+                margin: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    for (final renglon in entrada.value)
+                      ListTile(
+                        dense: true,
+                        leading: SizedBox(
+                          width: 84,
+                          child: Text(renglon.puerto,
+                              style: const TextStyle(fontFamily: 'monospace'),
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                        title: Text(renglon.quienEs),
+                        subtitle: Text([
+                          renglon.mac,
+                          if (renglon.velocidadMbps > 0) '${renglon.velocidadMbps} Mbps',
+                          if (renglon.alias.isNotEmpty) renglon.alias,
+                        ].join(' · ')),
+                        // Se distingue lo confirmado de lo inferido: con varias
+                        // MAC en una boca, atras hay un switch no administrable
+                        // y no se puede decir cual esta en que puerto.
+                        trailing: renglon.confirmado
+                            ? const Tooltip(
+                                message: 'Unico equipo en esta boca: puerto exacto',
+                                child: Chip(
+                                  label: Text('Confirmado'),
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                              )
+                            : Tooltip(
+                                message: 'Hay ${renglon.cuantosEnBoca} equipos en esta boca: '
+                                    'atras cuelga un switch no administrable o un punto de acceso',
+                                child: Chip(
+                                  avatar: const Icon(Icons.hub, size: 16),
+                                  label: Text('Grupo de ${renglon.cuantosEnBoca}'),
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                              ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ],
+        );
+      },
+    );
   }
 
   Widget _pestanaSubredes(BuildContext contexto) {

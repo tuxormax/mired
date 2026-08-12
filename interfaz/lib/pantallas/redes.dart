@@ -4,6 +4,7 @@ import '../modelos/modelos.dart';
 import '../servicios/api.dart';
 import '../servicios/trayectoria.dart';
 import '../widgets/mensajes.dart';
+import 'credenciales.dart';
 import 'entrar.dart';
 import 'red.dart';
 import 'usuarios.dart';
@@ -68,6 +69,14 @@ class _PantallaRedesState extends State<PantallaRedes> {
       appBar: AppBar(
         title: const Text('MiRed'),
         actions: [
+          if (usuario?.superadmin == true)
+            IconButton(
+              tooltip: 'Credenciales SNMP',
+              icon: const Icon(Icons.vpn_key_outlined),
+              onPressed: () => Navigator.of(contexto).push(
+                MaterialPageRoute<void>(builder: (_) => const PantallaCredenciales()),
+              ),
+            ),
           if (usuario?.superadmin == true)
             IconButton(
               tooltip: 'Usuarios',

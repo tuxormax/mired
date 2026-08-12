@@ -321,3 +321,106 @@ class ErrorMiRed implements Exception {
   @override
   String toString() => mensaje.isNotEmpty ? mensaje : errorCrudo;
 }
+
+/// Un renglon del mapa de puertos: que hay conectado en una boca de un switch.
+class PuertoDeSwitch {
+  final int switchId;
+  final String switchNombre;
+  final String switchIp;
+  final int indice;
+  final String puerto;
+  final String alias;
+  final bool activa;
+  final int velocidadMbps;
+  final String mac;
+  final int? equipoId;
+  final String equipoNombre;
+  final String equipoIp;
+  final bool confirmado;
+  final int cuantosEnBoca;
+
+  const PuertoDeSwitch({
+    required this.switchId,
+    required this.switchNombre,
+    required this.switchIp,
+    required this.indice,
+    required this.puerto,
+    required this.alias,
+    required this.activa,
+    required this.velocidadMbps,
+    required this.mac,
+    this.equipoId,
+    required this.equipoNombre,
+    required this.equipoIp,
+    required this.confirmado,
+    required this.cuantosEnBoca,
+  });
+
+  factory PuertoDeSwitch.desdeJson(Map<String, dynamic> json) => PuertoDeSwitch(
+        switchId: json['switchId'] as int,
+        switchNombre: json['switchNombre'] as String? ?? '',
+        switchIp: json['switchIp'] as String? ?? '',
+        indice: json['indice'] as int? ?? 0,
+        puerto: json['puerto'] as String? ?? '',
+        alias: json['alias'] as String? ?? '',
+        activa: json['activa'] as bool? ?? false,
+        velocidadMbps: json['velocidadMbps'] as int? ?? 0,
+        mac: json['mac'] as String? ?? '',
+        equipoId: json['equipoId'] as int?,
+        equipoNombre: json['equipoNombre'] as String? ?? '',
+        equipoIp: json['equipoIp'] as String? ?? '',
+        confirmado: json['confirmado'] as bool? ?? false,
+        cuantosEnBoca: json['cuantosEnBoca'] as int? ?? 1,
+      );
+
+  String get quienEs =>
+      equipoNombre.isNotEmpty ? equipoNombre : (equipoIp.isNotEmpty ? equipoIp : mac);
+}
+
+/// El mapa de puertos de una red, con que tan seguro es en este sitio.
+class MapaPuertos {
+  final String capacidad;
+  final String explicacion;
+  final List<PuertoDeSwitch> puertos;
+
+  const MapaPuertos({
+    required this.capacidad,
+    required this.explicacion,
+    required this.puertos,
+  });
+
+  factory MapaPuertos.desdeJson(Map<String, dynamic> json) => MapaPuertos(
+        capacidad: json['capacidad'] as String? ?? 'desconocida',
+        explicacion: json['explicacion'] as String? ?? '',
+        puertos: ((json['puertos'] as List<dynamic>?) ?? [])
+            .map((fila) => PuertoDeSwitch.desdeJson(fila as Map<String, dynamic>))
+            .toList(),
+      );
+
+  bool get hayMapa => puertos.isNotEmpty;
+}
+
+/// Una credencial para hablarle a los switches por SNMP.
+class CredencialSNMP {
+  final int id;
+  final String nombre;
+  final String version;
+  final String usuario;
+  final String creada;
+
+  const CredencialSNMP({
+    required this.id,
+    required this.nombre,
+    required this.version,
+    required this.usuario,
+    required this.creada,
+  });
+
+  factory CredencialSNMP.desdeJson(Map<String, dynamic> json) => CredencialSNMP(
+        id: json['id'] as int,
+        nombre: json['nombre'] as String? ?? '',
+        version: json['version'] as String? ?? '',
+        usuario: json['usuario'] as String? ?? '',
+        creada: json['creada'] as String? ?? '',
+      );
+}

@@ -17,11 +17,13 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/tuxormax/mired/internal/configuracion"
 	"github.com/tuxormax/mired/internal/escaneo"
+	"github.com/tuxormax/mired/internal/snmp"
 	"github.com/tuxormax/mired/internal/sonda"
 	"github.com/tuxormax/mired/internal/version"
 )
@@ -157,6 +159,23 @@ func atender(conexion net.Conn, desde string, bitacora *slog.Logger) {
 		}
 		responder(conexion, sonda.Respuesta{Ok: true, Datos: datos})
 
+	case sonda.OrdenSNMP:
+		var peticion sonda.PeticionSNMP
+		if err := json.Unmarshal(orden.Datos, &peticion); err != nil {
+			responder(conexion, sonda.Respuesta{Ok: false, Error: "peticion SNMP invalida: " + err.Error()})
+			return
+		}
+
+		conexion.SetDeadline(time.Now().Add(30 * time.Minute))
+		resultado := consultarSNMP(peticion, bitacora)
+
+		datos, err := json.Marshal(resultado)
+		if err != nil {
+			responder(conexion, sonda.Respuesta{Ok: false, Error: "no se pudo armar el resultado: " + err.Error()})
+			return
+		}
+		responder(conexion, sonda.Respuesta{Ok: true, Datos: datos})
+
 	default:
 		bitacora.Warn("orden desconocida", "tipo", orden.Tipo)
 		responder(conexion, sonda.Respuesta{Ok: false, Error: "orden desconocida: " + orden.Tipo})
@@ -232,4 +251,56 @@ func armarBitacora(nivel string) *slog.Logger {
 		severidad = slog.LevelInfo
 	}
 	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: severidad}))
+}
+
+// consultarSNMP interroga en paralelo a los equipos indicados.
+//
+// El paralelismo importa mas aqui que en cualquier otro lado: en una red normal
+// la enorme mayoria de los equipos NO habla SNMP, y cada uno de esos cuesta la
+// espera completa. En serie, un /24 serian varios minutos de puro esperar.
+func consultarSNMP(peticion sonda.PeticionSNMP, bitacora *slog.Logger) sonda.ResultadoSNMP {
+	inicio := time.Now()
+	resultado := sonda.ResultadoSNMP{Fichas: []snmp.Ficha{}, Consultados: len(peticion.Destinos)}
+
+	if len(peticion.Credenciales) == 0 {
+		resultado.Advertencias = append(resultado.Advertencias,
+			"no hay credenciales SNMP configuradas: sin ellas no se puede preguntar a los switches")
+		return resultado
+	}
+
+	espera := 2 * time.Second
+	if peticion.EsperaMs > 0 {
+		espera = time.Duration(peticion.EsperaMs) * time.Millisecond
+	}
+
+	permisos := make(chan struct{}, 16)
+	var candado sync.Mutex
+	var grupo sync.WaitGroup
+
+	for _, destino := range peticion.Destinos {
+		grupo.Add(1)
+		go func(ip string) {
+			defer grupo.Done()
+			permisos <- struct{}{}
+			defer func() { <-permisos }()
+
+			ficha, err := snmp.Consultar(ip, peticion.Credenciales, espera)
+			if err != nil {
+				// Que un equipo no conteste SNMP es lo normal, no un error:
+				// solo los administrables hablan. No se registra para no llenar
+				// la bitacora de ruido.
+				return
+			}
+			candado.Lock()
+			resultado.Fichas = append(resultado.Fichas, ficha)
+			candado.Unlock()
+		}(destino)
+	}
+	grupo.Wait()
+
+	resultado.DuracionMs = time.Since(inicio).Milliseconds()
+	bitacora.Info("consulta SNMP terminada",
+		"consultados", resultado.Consultados, "contestaron", len(resultado.Fichas),
+		"ms", resultado.DuracionMs)
+	return resultado
 }

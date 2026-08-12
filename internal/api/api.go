@@ -69,6 +69,14 @@ func (a *API) Rutas() http.Handler {
 	// por que el escaneo no esta disponible, en vez de dejar pantallas vacias.
 	mux.Handle("GET /api/sonda", a.conSesion(a.estadoSonda))
 
+	mux.Handle("GET /api/redes/{clave}/mapa-puertos", a.conRed(a.mapaDePuertos))
+
+	// Credenciales SNMP: son secretos compartidos entre redes, asi que las
+	// administra solo el superadministrador.
+	mux.Handle("GET /api/credenciales-snmp", a.conSuperadmin(a.listarCredenciales))
+	mux.Handle("POST /api/credenciales-snmp", a.conSuperadmin(a.crearCredencial))
+	mux.Handle("DELETE /api/credenciales-snmp/{id}", a.conSuperadmin(a.borrarCredencial))
+
 	// Usuarios y permisos: solo el superadministrador.
 	mux.Handle("GET /api/usuarios", a.conSuperadmin(a.listarUsuarios))
 	mux.Handle("POST /api/usuarios", a.conSuperadmin(a.crearUsuario))

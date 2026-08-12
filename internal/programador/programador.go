@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/tuxormax/mired/internal/basedatos"
+	"github.com/tuxormax/mired/internal/snmp"
 	"github.com/tuxormax/mired/internal/sonda"
 )
 
@@ -170,6 +171,13 @@ func (s *Servicio) correr(clave string, escaneoID int64, subredes []string, solo
 		}
 		return s.Datos.ActualizarResumen(ctx, clave, total, presentes, ultimo)
 	})
+
+	// El interrogatorio SNMP va DESPUES del barrido y solo en el profundo: solo
+	// tiene sentido preguntarle a equipos que ya se sabe que existen, y es lo
+	// que da el mapa de puertos.
+	if err == nil && !soloPresencia {
+		s.consultarSNMP(ctx, clave, resultado.Equipos)
+	}
 	if err != nil {
 		s.Bitacora.Error("no se pudo guardar el escaneo", "red", clave, "error", err)
 		s.Datos.ConRed(ctx, clave, func(base *basedatos.Base) error {
@@ -254,5 +262,128 @@ func (s *Servicio) revisarAgenda(ctx context.Context) {
 		default:
 			s.Bitacora.Debug("barrido programado lanzado", "red", tarea.Clave, "tipo", tarea.Tipo)
 		}
+	}
+}
+
+// consultarSNMP le pregunta por SNMP a los equipos recien descubiertos y guarda
+// el mapa de puertos que salga de ahi.
+//
+// Que un equipo no conteste es lo normal: solo los administrables hablan SNMP.
+// Por eso esto nunca marca el escaneo como fallido — el barrido ya termino bien,
+// y esto es informacion adicional que puede haber o no.
+func (s *Servicio) consultarSNMP(ctx context.Context, clave string, vistos []sonda.EquipoVisto) {
+	credenciales, err := s.Datos.ListarCredencialesSNMP(ctx)
+	if err != nil {
+		s.Bitacora.Warn("no se pudieron leer las credenciales SNMP", "error", err)
+		return
+	}
+	if len(credenciales) == 0 {
+		// Sin credenciales no hay nada que preguntar. No es un error: es una red
+		// que todavia no tiene configurado el acceso a sus switches.
+		return
+	}
+
+	destinos := make([]string, 0, len(vistos))
+	for _, equipo := range vistos {
+		destinos = append(destinos, equipo.IP)
+	}
+	if len(destinos) == 0 {
+		return
+	}
+
+	peticion := sonda.PeticionSNMP{Destinos: destinos, EsperaMs: 2000}
+	for _, credencial := range credenciales {
+		peticion.Credenciales = append(peticion.Credenciales, snmp.Credencial{
+			Nombre:                 credencial.Nombre,
+			Version:                credencial.Version,
+			Comunidad:              credencial.Comunidad,
+			Usuario:                credencial.Usuario,
+			AutenticacionProtocolo: credencial.AutenticacionProtocolo,
+			AutenticacionClave:     credencial.AutenticacionClave,
+			PrivacidadProtocolo:    credencial.PrivacidadProtocolo,
+			PrivacidadClave:        credencial.PrivacidadClave,
+		})
+	}
+
+	resultado, err := sonda.PedirSNMP(s.SocketSonda, peticion, esperaEscaneo)
+	if err != nil {
+		s.Bitacora.Warn("no se pudo consultar SNMP", "red", clave, "error", err)
+		return
+	}
+	for _, advertencia := range resultado.Advertencias {
+		s.Bitacora.Warn("aviso de SNMP", "red", clave, "aviso", advertencia)
+	}
+	if len(resultado.Fichas) == 0 {
+		s.Bitacora.Info("ningun equipo contesto SNMP", "red", clave,
+			"consultados", resultado.Consultados)
+		// Que nadie conteste ES una respuesta: esta red no tiene switches
+		// administrables al alcance. Se anota, para que la interfaz lo explique
+		// en vez de dejar la pantalla en "todavia no se ha consultado" para
+		// siempre.
+		err := s.Datos.ConRed(ctx, clave, func(base *basedatos.Base) error {
+			_, err := base.CalcularCapacidades(ctx)
+			return err
+		})
+		if err != nil {
+			s.Bitacora.Warn("no se pudo anotar el perfil de capacidades", "red", clave, "error", err)
+		}
+		return
+	}
+
+	fichas := make([]basedatos.FichaSNMP, 0, len(resultado.Fichas))
+	for _, ficha := range resultado.Fichas {
+		interfaces := make([]basedatos.InterfazSNMP, 0, len(ficha.Interfaces))
+		for _, puerto := range ficha.Interfaces {
+			interfaces = append(interfaces, basedatos.InterfazSNMP{
+				Indice:        puerto.Indice,
+				Nombre:        puerto.Nombre,
+				Descripcion:   puerto.Descripcion,
+				Alias:         puerto.Alias,
+				MAC:           puerto.MAC,
+				Tipo:          puerto.Tipo,
+				Activa:        puerto.Activa,
+				VelocidadMbps: puerto.VelocidadMbps,
+			})
+		}
+		vecinos := make([]basedatos.VecinoSNMP, 0, len(ficha.Vecinos))
+		for _, vecino := range ficha.Vecinos {
+			vecinos = append(vecinos, basedatos.VecinoSNMP{
+				InterfazLocal: vecino.InterfazLocal,
+				Nombre:        vecino.Nombre,
+				Descripcion:   vecino.Descripcion,
+				PuertoRemoto:  vecino.PuertoRemoto,
+				ChasisID:      vecino.ChasisID,
+			})
+		}
+		fichas = append(fichas, basedatos.FichaSNMP{
+			IP:            ficha.IP,
+			Nombre:        ficha.Nombre,
+			Descripcion:   ficha.Descripcion,
+			Contacto:      ficha.Contacto,
+			Ubicacion:     ficha.Ubicacion,
+			ObjectID:      ficha.ObjectID,
+			EncendidoMs:   ficha.EncendidoMs,
+			EsSwitch:      ficha.EsSwitch,
+			Credencial:    ficha.Credencial,
+			Interfaces:    interfaces,
+			MacsPorPuerto: ficha.MacsPorPuerto,
+			Vecinos:       vecinos,
+		})
+	}
+
+	err = s.Datos.ConRed(ctx, clave, func(base *basedatos.Base) error {
+		if err := base.GuardarSNMP(ctx, fichas); err != nil {
+			return err
+		}
+		capacidad, err := base.CalcularCapacidades(ctx)
+		if err != nil {
+			return err
+		}
+		s.Bitacora.Info("SNMP guardado", "red", clave, "equipos", len(fichas),
+			"mapa de puertos", capacidad)
+		return nil
+	})
+	if err != nil {
+		s.Bitacora.Error("no se pudo guardar lo consultado por SNMP", "red", clave, "error", err)
 	}
 }

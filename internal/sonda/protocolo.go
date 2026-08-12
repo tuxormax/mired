@@ -15,6 +15,8 @@ import (
 	"fmt"
 	"net"
 	"time"
+
+	"github.com/tuxormax/mired/internal/snmp"
 )
 
 // Tipos de orden que entiende la sonda.
@@ -23,7 +25,49 @@ const (
 	OrdenEstado = "estado"
 	// OrdenEscanear le pide un barrido de una o varias subredes.
 	OrdenEscanear = "escanear"
+	// OrdenSNMP le pide interrogar por SNMP a una lista de equipos.
+	OrdenSNMP = "snmp"
 )
+
+// PeticionSNMP es la lista de equipos a interrogar y con que credenciales.
+type PeticionSNMP struct {
+	Destinos     []string          `json:"destinos"`
+	Credenciales []snmp.Credencial `json:"credenciales"`
+	// EsperaMs es cuanto se espera a que cada equipo conteste. En una red con
+	// muchos equipos que NO hablan SNMP, este numero manda sobre lo que tarda
+	// todo: cada uno que no contesta cuesta una espera completa.
+	EsperaMs int `json:"esperaMs,omitempty"`
+}
+
+// ResultadoSNMP son las fichas de los que si contestaron.
+type ResultadoSNMP struct {
+	Fichas       []snmp.Ficha `json:"fichas"`
+	DuracionMs   int64        `json:"duracionMs"`
+	Consultados  int          `json:"consultados"`
+	Advertencias []string     `json:"advertencias,omitempty"`
+}
+
+// PedirSNMP le encarga a la sonda interrogar equipos por SNMP.
+func PedirSNMP(socket string, peticion PeticionSNMP, espera time.Duration) (ResultadoSNMP, error) {
+	crudo, err := json.Marshal(peticion)
+	if err != nil {
+		return ResultadoSNMP{}, fmt.Errorf("no se pudo armar la peticion SNMP: %w", err)
+	}
+
+	respuesta, err := Preguntar(socket, Orden{Tipo: OrdenSNMP, Datos: crudo}, espera)
+	if err != nil {
+		return ResultadoSNMP{}, err
+	}
+	if !respuesta.Ok {
+		return ResultadoSNMP{}, fmt.Errorf("la sonda no pudo consultar SNMP: %s", respuesta.Error)
+	}
+
+	var resultado ResultadoSNMP
+	if err := json.Unmarshal(respuesta.Datos, &resultado); err != nil {
+		return ResultadoSNMP{}, fmt.Errorf("no se pudo interpretar el resultado SNMP: %w", err)
+	}
+	return resultado, nil
+}
 
 // PeticionEscaneo es lo que el servidor le pide barrer.
 type PeticionEscaneo struct {

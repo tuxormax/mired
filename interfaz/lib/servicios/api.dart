@@ -229,6 +229,27 @@ class Api {
     return Red.desdeJson(datos as Map<String, dynamic>);
   }
 
+  // ------------------------------------------------ SNMP y mapa de puertos --
+
+  Future<MapaPuertos> mapaDePuertos(String clave) async {
+    final datos = await obtener('/api/redes/$clave/mapa-puertos');
+    return MapaPuertos.desdeJson(datos as Map<String, dynamic>);
+  }
+
+  Future<List<CredencialSNMP>> listarCredenciales() async {
+    final datos = await obtener('/api/credenciales-snmp') as List<dynamic>;
+    return datos
+        .map((fila) => CredencialSNMP.desdeJson(fila as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<CredencialSNMP> crearCredencial(Map<String, dynamic> credencial) async {
+    final datos = await enviar('/api/credenciales-snmp', credencial);
+    return CredencialSNMP.desdeJson(datos as Map<String, dynamic>);
+  }
+
+  Future<void> borrarCredencial(int id) => borrar('/api/credenciales-snmp/$id');
+
   Future<Map<String, dynamic>> estadoSonda() async =>
       await obtener('/api/sonda') as Map<String, dynamic>;
 
