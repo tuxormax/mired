@@ -92,7 +92,9 @@ class _PantallaMapaState extends State<PantallaMapa> {
           IconButton(
             tooltip: 'Actualizar',
             icon: const Icon(Icons.refresh),
-            onPressed: () => setState(() => _datos = _cargar()),
+            onPressed: () => setState(() {
+              _datos = _cargar();
+            }),
           ),
         ],
       ),

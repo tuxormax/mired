@@ -24,7 +24,9 @@ class _PantallaUsuariosState extends State<PantallaUsuarios> {
   }
 
   void _recargar() {
-    setState(() => _usuarios = Api.instancia.listarUsuarios());
+    setState(() {
+      _usuarios = Api.instancia.listarUsuarios();
+    });
   }
 
   Future<void> _crear() async {

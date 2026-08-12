@@ -21,12 +21,19 @@ class Api {
   /// con --dart-define=MIRED_API=http://127.0.0.1:60072
   static const String _apiDefinida = String.fromEnvironment('MIRED_API');
 
+  /// baseDePrueba deja apuntar el cliente a un servidor de mentira. Solo lo usan
+  /// las pruebas: en produccion la interfaz la sirve el mismo binario.
+  String? baseDePrueba;
+
   String? _token;
   Usuario? usuario;
   Map<String, String> permisos = {};
   String version = '';
 
-  String get _base => _apiDefinida.isNotEmpty ? _apiDefinida : Uri.base.origin;
+  String get _base {
+    if (baseDePrueba != null) return baseDePrueba!;
+    return _apiDefinida.isNotEmpty ? _apiDefinida : Uri.base.origin;
+  }
 
   Future<void> cargarToken() async {
     final guardado = await SharedPreferences.getInstance();

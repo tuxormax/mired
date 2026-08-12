@@ -51,6 +51,15 @@ errores tontos.
   formato. Si se cambia de un lado, se cambia del otro **el mismo dia**.
 - Un campo de solo despliegue **nunca** lleva el `name` de su columna.
 
+## Interfaz Flutter
+- **`setState` con cuerpo de flecha y una asignacion revienta** si lo asignado es
+  un Future: la expresion lo devuelve y hay una asercion contra eso. Usar
+  siempre llaves: `setState(() { _x = algo(); });`. Solo falla en compilacion de
+  **depuracion**, asi que probar en el navegador (release) NO lo detecta.
+- Las pruebas de pantalla necesitan **dos destrabes**: `HttpOverrides.global`
+  (el framework bloquea la red a proposito) y `probador.runAsync` (la respuesta
+  del servidor llega por el reloj de verdad, no por el falso de la prueba).
+
 ## Procesos
 - **Un solo escritor**: `mired-servidor`. La sonda escanea y entrega por socket.
 - **La sonda comprueba de verdad si puede abrir un socket crudo**, no supone por

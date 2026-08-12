@@ -33,7 +33,11 @@ class _PantallaRedesState extends State<PantallaRedes> {
   }
 
   void _recargar() {
-    setState(() => _redes = Api.instancia.listarRedes());
+    // El cuerpo va entre llaves a proposito: con flecha, la expresion devuelve
+    // el Future y setState revienta en compilacion de depuracion.
+    setState(() {
+      _redes = Api.instancia.listarRedes();
+    });
   }
 
   Future<void> _consultarSonda() async {

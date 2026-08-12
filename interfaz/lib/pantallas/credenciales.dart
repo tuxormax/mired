@@ -27,7 +27,9 @@ class _PantallaCredencialesState extends State<PantallaCredenciales> {
   }
 
   void _recargar() {
-    setState(() => _credenciales = Api.instancia.listarCredenciales());
+    setState(() {
+      _credenciales = Api.instancia.listarCredenciales();
+    });
   }
 
   Future<void> _crear() async {

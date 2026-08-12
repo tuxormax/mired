@@ -60,5 +60,21 @@ del tipo "¿esto cambio?" se responde con identificadores de corrida o con lista
 de lo observado, nunca con marcas de tiempo. Anotado como regla dura en
 [[gotchas]].
 
+## 2026-08-12 — Cuatro pantallas reventaban en compilacion de depuracion
+**Problema:** al escribir las primeras pruebas de pantalla, cuatro fallaron con
+*"setState() callback argument returned a Future"*. En una compilacion de
+**depuracion** eso deja la pantalla en rojo.
+**Causa:** `setState(() => _redes = Api.instancia.listarRedes())`. Con cuerpo de
+flecha, la expresion **devuelve** el Future de la asignacion, y `setState` tiene
+una asercion contra eso. En compilacion de **release** la asercion no corre, asi
+que la pantalla se veia bien: por eso no se habia notado probandola en el
+navegador.
+**Solucion:** cuerpo entre llaves en `redes.dart`, `usuarios.dart`,
+`credenciales.dart` y `mapa.dart`.
+**Aprendizaje general:** **probar en release no basta.** Las aserciones de Flutter
+solo corren en depuracion y son justo las que atrapan este tipo de error. Por eso
+`interfaz/test/pantallas_test.dart` dibuja todas las pantallas contra un servidor
+de mentira: es la unica prueba que las habria encontrado.
+
 **Ver tambien:** [[gotchas]], [[modulo-escaneo]], [[modulo-topologia]],
 [[modulo-alertas]]
