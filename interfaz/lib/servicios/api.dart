@@ -183,6 +183,27 @@ class Api {
     return Subred.desdeJson(datos as Map<String, dynamic>);
   }
 
+  // --------------------------------------------------- equipos y escaneos --
+
+  Future<List<Equipo>> listarEquipos(String clave, {bool soloPresentes = false}) async {
+    final ruta = '/api/redes/$clave/equipos${soloPresentes ? '?presentes=1' : ''}';
+    final datos = await obtener(ruta) as List<dynamic>;
+    return datos.map((fila) => Equipo.desdeJson(fila as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> ponerAlias(String clave, int equipoId, String alias) =>
+      modificar('/api/redes/$clave/equipos/$equipoId', {'alias': alias});
+
+  Future<int> lanzarEscaneo(String clave, {bool soloPresencia = false}) async {
+    final datos = await enviar('/api/redes/$clave/escaneos', {'soloPresencia': soloPresencia});
+    return (datos as Map<String, dynamic>)['escaneoId'] as int;
+  }
+
+  Future<List<Escaneo>> listarEscaneos(String clave) async {
+    final datos = await obtener('/api/redes/$clave/escaneos') as List<dynamic>;
+    return datos.map((fila) => Escaneo.desdeJson(fila as Map<String, dynamic>)).toList();
+  }
+
   Future<Map<String, dynamic>> estadoSonda() async =>
       await obtener('/api/sonda') as Map<String, dynamic>;
 

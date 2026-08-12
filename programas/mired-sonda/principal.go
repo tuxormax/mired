@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/tuxormax/mired/internal/configuracion"
+	"github.com/tuxormax/mired/internal/escaneo"
 	"github.com/tuxormax/mired/internal/sonda"
 	"github.com/tuxormax/mired/internal/version"
 )
@@ -128,6 +129,34 @@ func atender(conexion net.Conn, desde string, bitacora *slog.Logger) {
 		}
 		datos, _ := json.Marshal(estado)
 		responder(conexion, sonda.Respuesta{Ok: true, Datos: datos})
+
+	case sonda.OrdenEscanear:
+		var peticion sonda.PeticionEscaneo
+		if err := json.Unmarshal(orden.Datos, &peticion); err != nil {
+			responder(conexion, sonda.Respuesta{Ok: false, Error: "peticion de escaneo invalida: " + err.Error()})
+			return
+		}
+
+		// Un barrido tarda mas que el plazo normal de la conexion, asi que se
+		// amplia mientras dura.
+		conexion.SetDeadline(time.Now().Add(30 * time.Minute))
+		bitacora.Info("escaneo pedido", "subredes", peticion.Subredes, "soloPresencia", peticion.SoloPresencia)
+
+		resultado, err := escaneo.Barrer(context.Background(), peticion)
+		if err != nil {
+			responder(conexion, sonda.Respuesta{Ok: false, Error: err.Error()})
+			return
+		}
+		bitacora.Info("escaneo terminado",
+			"equipos", len(resultado.Equipos), "ms", resultado.DuracionMs)
+
+		datos, err := json.Marshal(resultado)
+		if err != nil {
+			responder(conexion, sonda.Respuesta{Ok: false, Error: "no se pudo armar el resultado: " + err.Error()})
+			return
+		}
+		responder(conexion, sonda.Respuesta{Ok: true, Datos: datos})
+
 	default:
 		bitacora.Warn("orden desconocida", "tipo", orden.Tipo)
 		responder(conexion, sonda.Respuesta{Ok: false, Error: "orden desconocida: " + orden.Tipo})

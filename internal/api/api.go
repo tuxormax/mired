@@ -54,6 +54,12 @@ func (a *API) Rutas() http.Handler {
 	mux.Handle("GET /api/redes/{clave}/subredes", a.conRed(a.listarSubredes))
 	mux.Handle("POST /api/redes/{clave}/subredes", a.conRed(a.crearSubred))
 
+	// Escaneo e inventario de equipos.
+	mux.Handle("POST /api/redes/{clave}/escaneos", a.conRed(a.lanzarEscaneo))
+	mux.Handle("GET /api/redes/{clave}/escaneos", a.conRed(a.listarEscaneos))
+	mux.Handle("GET /api/redes/{clave}/equipos", a.conRed(a.listarEquipos))
+	mux.Handle("PATCH /api/redes/{clave}/equipos/{equipo}", a.conRed(a.ponerAlias))
+
 	// Sonda: si esta viva y con que permisos. La interfaz lo usa para avisar
 	// por que el escaneo no esta disponible, en vez de dejar pantallas vacias.
 	mux.Handle("GET /api/sonda", a.conSesion(a.estadoSonda))
