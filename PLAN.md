@@ -26,8 +26,8 @@ Actualizado el **2026-08-12**, al cerrar la primera jornada de trabajo.
 | 3 — Presencia en vivo | ✅ terminada | Barrido rapido, historial de conexiones y agenda por red |
 | 4 — SNMP y capa 2 | ⚠️ hecha, sin probar en equipo real | Falta un switch administrable de verdad. Falta CDP y controladora WiFi |
 | 5 — El mapa | ⚠️ parcial | Mapa visual y exportacion a CSV listos. **Faltan PNG, SVG y PDF** |
-| 6 — Catalogo `.toml` | ⏳ pendiente | |
-| 7 — Alertas | ⏳ pendiente | |
+| 6 — Catalogo `.toml` | ✅ terminada | Formato, motor de reconocimiento, 15 definiciones semilla y "proponer definicion" |
+| 7 — Alertas | ⚠️ casi | 4 de 6 reglas detectan; faltan "cambio de puerto de switch" y "red sin reportar". Los 4 destinos de aviso, listos |
 | 8 — Ancho de banda | ⏳ pendiente | |
 | 9 — Publicacion | ⏳ pendiente | Falta decidir la licencia |
 | 10 — Inspeccion profunda | ⏳ pendiente | Opcional |

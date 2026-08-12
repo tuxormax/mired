@@ -46,4 +46,19 @@ contestaba SNMP.
 guardarlo; si no, la interfaz no puede distinguir entre "no se ha buscado" y "se
 busco y no hay".
 
-**Ver tambien:** [[gotchas]], [[modulo-escaneo]], [[modulo-topologia]]
+## 2026-08-12 — Todos los puertos parecian nuevos y disparaban alertas
+**Problema:** al probar el motor de alertas, un equipo conocido genero un aviso
+de "puerto nuevo" por CADA puerto que tenia, incluidos los de siempre.
+**Causa:** la MISMA de dos bugs atras. "¿Es nuevo este puerto?" se respondia con
+`primera_vez = ultima_vez`, y como las dos marcas se escriben en el mismo
+segundo, todos los puertos parecian recien aparecidos.
+**Solucion:** columna `puertos.escaneo_creado` (migracion 0006 de red): guarda en
+que escaneo se vio por primera vez. Un puerto es nuevo si `escaneo_creado` es el
+escaneo actual. El numero de escaneo no depende del reloj.
+**Aprendizaje general:** **tercera vez que el reloj enganya.** Cualquier pregunta
+del tipo "¿esto cambio?" se responde con identificadores de corrida o con listas
+de lo observado, nunca con marcas de tiempo. Anotado como regla dura en
+[[gotchas]].
+
+**Ver tambien:** [[gotchas]], [[modulo-escaneo]], [[modulo-topologia]],
+[[modulo-alertas]]

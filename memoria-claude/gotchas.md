@@ -28,6 +28,11 @@ errores tontos.
   restaurada de un respaldo viejo llega con esquema atrasado.
 - **`ON CONFLICT` contra un indice parcial exige repetir su condicion**:
   `ON CONFLICT (cidr) WHERE estatus >= 0 DO UPDATE …`.
+- **NUNCA decidir "esto es nuevo" o "esto ya no esta" comparando marcas de
+  tiempo.** `Ahora()` tiene resolucion de SEGUNDOS y dos escaneos seguidos en una
+  red chica caen en el mismo segundo. Ya mordio DOS veces (puertos que se cierran,
+  puertos nuevos). Se compara contra **la lista de lo observado** o contra el
+  **numero de escaneo**, que no mienten nunca. Ver [[historial-bugs]].
 
 ## Una base por red
 - **El enrutado vive solo en `internal/basedatos`.** Ningun otro paquete abre un

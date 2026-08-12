@@ -39,6 +39,8 @@ Arrancado el 2026-08-12.
   ritmos de barrido, identidad del equipo y la agenda.
 - [modulo-topologia](modulo-topologia.md) — SNMP, mapa de puertos, confirmado
   contra grupo, y el perfil de capacidades por red.
+- [modulo-alertas](modulo-alertas.md) — que se vigila, la huella que evita
+  repetir avisos, y los cuatro destinos de aviso.
 
 ### 🔗 Contratos / interconexion
 - [contrato-api](contrato-api.md) — sobre `{ok, datos, error}`, rutas, sesion por
