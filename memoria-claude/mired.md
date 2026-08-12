@@ -1,60 +1,71 @@
 ---
 name: mired
-description: MiRed, fork libre de Scanopy para mapear redes; estado, alcance y donde vive el plan
-metadata:
+description: "MiRed, servicio propio para mapear redes en Go + Flutter; estado, alcance y decisiones de fondo"
+metadata: 
+  node_type: memory
   type: project
+  originSessionId: 20376d18-adf7-4315-bb9c-98a3aa84ec95
+  modified: 2026-08-12T20:55:52.493Z
 ---
 
-# MiRed — fork libre de Scanopy
+# MiRed — servicio propio de mapeo de redes
 
-Proyecto propio en `/home/tuxor/www/mired`, definido el **2026-08-12**. Nacio
-como una herramienta mas del repo `linux`, pero el **2026-08-12** se saco a su
-propio repositorio: no es una utilidad de escritorio empaquetada como `.deb`
-suelto, es un servicio con su propio ciclo de vida.
-Fork de [Scanopy](https://github.com/scanopy/scanopy) (AGPL-3.0) para descubrir
-equipos, dibujar el mapa de la red y saber en que puerto de que switch esta
-conectado cada aparato.
+Proyecto en `/home/tuxor/www/mired`, definido el **2026-08-12**. Descubre los
+equipos de una red, dibuja su mapa y dice en que puerto de que switch esta cada
+aparato. El plan por fases esta en `PLAN.md` (versionado); esta memoria guarda
+**las decisiones y su porque**, que es lo que no se debe volver a discutir.
 
-**Estado: en planeacion, sin una sola linea escrita.** El plan completo esta en
-`PLAN.md` (versionado en el repo). Esta memoria guarda las decisiones y lo
-que costo investigar, no repite el plan.
+## El giro del 2026-08-12: ya NO es un fork
+El plan original era forkear [Scanopy](https://github.com/scanopy/scanopy)
+(AGPL-3.0) y quitarle los topes. **El usuario lo descarto el mismo dia**: quiere
+proyecto propio sin depender de nadie.
 
-## Por que un fork y no usar Scanopy tal cual
-La edicion Community es gratis y AGPL-3.0 pura, pero topa en **1 red y 1
-asiento**, y el usuario necesita **muchas redes** (una por sitio o cliente). El
-tope es una constante en codigo abierto, no un servidor de licencias: quitarlo es
-legal y trivial. Lo caro es lo demas.
+**Lo que eso cambio, y no es poco:**
+- **Lo legal**: la AGPL viaja con el codigo, no con el historial de git. Copiar
+  archivos —aunque sea sin historia— obligaria a MiRed a ser AGPL. Leyendo su
+  codigo para entender como resolvieron algo y escribiendo el nuestro, MiRed es
+  propio y su licencia se elige libre. **Scanopy = solo lectura de referencia.**
+- **Lo practico**: desaparecieron las tres fases mas caras y riesgosas del plan
+  viejo (rename de 2 509 apariciones, puerto a SQLite de codigo ajeno, romper su
+  suposicion de "una sola base"): entre 5 y 9 semanas de pelear contra decisiones
+  de otro.
+- **Se acabo la excepcion del ingles**: siendo codigo propio, **todo va en
+  espanol** como el resto de los proyectos de la casa.
 
-## Los cuatro cambios que definen el fork
-1. **Sin topes** de redes ni usuarios.
-2. **SQLite en vez de PostgreSQL**, para que quepa entero en un `.deb`.
-3. **Una base de datos por red** (Matriz, Sucursal 1...), no una para todas.
-4. **Catalogo de dispositivos en archivos `.toml`** que la comunidad amplia sin
-   recompilar — es el diferenciador y la apuesta para que el fork atraiga gente.
+## Stack elegido (2026-08-12)
+El usuario pidio "go o rust con flutter para generar un .deb instalable" y
+autorizo Python si hace falta. **Se eligio Go**, por tres razones concretas:
+1. Binario estatico sin dependencias → el `.deb` no pide runtime ni servidor de BD.
+2. Cruza a `arm64` (Raspberry Pi) con una variable de entorno; Rust exige montar
+   toolchain cruzado.
+3. ARP crudo, SNMP, mDNS y el driver de SQLite existen **en Go puro, sin cgo** —
+   que es lo que permite que el binario sea de verdad estatico.
+Ademas WatchYourLAN, la herramienta mas liviana de la categoria, es Go: el
+presupuesto de recursos es alcanzable. Rust daria algo menos de memoria a cambio
+de un lenguaje que hoy no se maneja en casa.
 
-Y ademas absorber lo mejor de tres herramientas mas: presencia en vivo estilo
-WatchYourLAN, alertas de cambio estilo NetAlertX y consumo de ancho de banda
-estilo ntopng. Detalle en [[mired-capacidades]].
+**Flutter compilado a web**, servido por el propio binario: se entra desde
+cualquier navegador de la red, es el entorno que ya se maneja en casa, y **el
+mismo codigo da despues la app de escritorio y Android** sin reescribir nada.
 
-## Tiempos acordados
-- **4-5 meses** para la primera version completa. La inspeccion profunda de
-  paquetes va aparte y se puede posponer.
-- **Al terminar la fase 3 ya hay un `.deb` utilizable** (mapa + redes ilimitadas
-  + base por red). Se saca y se usa en produccion propia mientras se construye el
-  resto, en vez de esperar cinco meses a estrenar.
+**Python solo auxiliar**: scripts, generadores del catalogo, laboratorio. Nunca
+en el servicio, para no romper el binario unico.
 
-## Lo que falta decidir / hacer
-- **Fase 0 pendiente**: instalar Scanopy Community con Docker contra una red real
-  (de preferencia mixta) para inventariar que switches son administrables. Docker
-  **no esta instalado** en el equipo del usuario.
-- El usuario confirmo que **unos switches seran administrables y otros no**: el
-  diseno contempla degradacion por capas, no es un si o no.
+## Herramental verificado en el equipo (2026-08-12)
+Go 1.26.4 y Flutter 3.35.6 **ya instalados**. No hay Rust, ni Docker, ni
+`sqlite3` de linea de comandos. Node es 18. PostgreSQL 16 esta (ya no hace falta).
 
-## Excepcion a la regla de nombrar en espanol (a proposito)
-Los proyectos de tuxor nombran todo en espanol. MiRed **no puede por dentro**: son 159 000
-lineas heredadas en ingles y traducir identificadores cerraria para siempre la
-puerta a integrar los cambios de arriba. El espanol manda en empaquetado,
-scripts, configuracion, formato del catalogo y documentacion.
+## Tiempos
+- **3-4 meses** hasta la fase 9 (publicable). La inspeccion profunda va aparte.
+- **Al cerrar la fase 2 ya hay `.deb` instalable que inventaria la red**, y eso
+  solo ya reemplaza varias herramientas. Se usa en produccion propia desde ahi.
+
+## Lo que falta decidir
+- **La licencia**: ya no se hereda ninguna. Se decide antes de publicar (fase 9).
+  AGPL protege contra versiones cerradas de terceros; MIT maximiza adopcion.
+- **Inventario de las redes reales** (marca/modelo de switches y puntos de acceso,
+  cuales son administrables). No bloquea hasta la fase 4, pero se necesita antes
+  de llegar ahi para probar SNMP contra equipo de verdad.
 
 **Ver tambien:** [[mired-arquitectura]], [[mired-capacidades]],
 [[mired-upstream-scanopy]]

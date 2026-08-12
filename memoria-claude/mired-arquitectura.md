@@ -1,95 +1,95 @@
 ---
 name: mired-arquitectura
-description: Decisiones de arquitectura de MiRed: SQLite, una base por red, catalogo .toml y empaquetado .deb
-metadata:
+description: "Arquitectura de MiRed: dos binarios Go, Flutter web, una base SQLite por red, catalogo .toml y empaquetado .deb"
+metadata: 
+  node_type: memory
   type: project
+  originSessionId: 20376d18-adf7-4315-bb9c-98a3aa84ec95
+  modified: 2026-08-12T20:56:19.900Z
 ---
 
 # MiRed — decisiones de arquitectura
 
-Acordadas el **2026-08-12**. El desarrollo detallado esta en `PLAN.md`;
-aqui queda **la decision y su porque**, que es lo que no se debe volver a
-discutir.
+Acordadas el **2026-08-12**. El desarrollo detallado esta en `PLAN.md`; aqui
+queda **la decision y su porque**.
 
-## 1. SQLite en vez de PostgreSQL
-**Por que:** para que el `.deb` se instale solo, sin pedir un servidor de base de
-datos aparte. Portabilidad por encima de todo.
+## 1. Dos procesos, no uno
+- **`mired-servidor`**: usuario de sistema `mired`, **sin privilegios**. Sirve la
+  API y la interfaz, y es el **unico que escribe en las bases**.
+- **`mired-sonda`**: la unica que necesita red cruda (ARP, sondeos, escucha
+  LLDP). Recibe `CAP_NET_RAW` y `CAP_NET_ADMIN`, **nunca root entero**, y **no
+  toca la base**: escanea y entrega el resultado por socket Unix local.
 
-**Como:** el acceso a datos vive casi entero en `shared/storage/` (~4 500
-lineas), asi que el cambio es grande pero acotado: se toca un lugar, no 159 000
-lineas. Hay que resolver marcadores (`$1` → `?`), `= ANY()` → `IN`, tipos que
-SQLite no tiene (UUID, INET, CIDR, MACADDR, TIMESTAMPTZ → TEXT canonico
-validado), JSONB → JSON1, dos triggers y `pgcrypto` (se sustituye por el hash que
-el backend ya trae).
+**Por que:** separar privilegios al principio es barato; retroajustarlo con
+veinte modulos escribiendo a la base es carisimo. Y como hay **un solo
+escritor**, desaparecen de raiz los problemas de concurrencia de SQLite.
 
-**Decision sobre las 116 migraciones: se aplanan.** Se levanta el esquema final
-en PostgreSQL, se vuelca, se traduce **una sola vez** a un esquema base de SQLite
-y MiRed arranca su propia numeracion. Traducirlas una por una es trabajo perdido
-y ademas imposibilitaria integrar los cambios de arriba (que luego serian 1-5
-migraciones nuevas por version, no 116).
+## 2. Una base de datos por red (la decision estructural)
+Al crear una red se crea **su propio archivo SQLite** con todo lo operativo. Ni
+una tabla compartida.
 
-## 2. Una base de datos por red (la decision mas invasiva)
-Al crear una red se crea **su propio archivo SQLite** con todo lo operativo de
-esa red. Ni una tabla compartida con las demas.
-
-**Por que:**
-- El limite de "una escritura a la vez" de SQLite es **por archivo**: veinte
-  redes escaneando en paralelo son veinte archivos escribiendo a la vez. Esto
-  elimino el mayor riesgo tecnico que tenia el plan.
-- Respaldar o mover un sitio = copiar un archivo. Borrar una red = borrarlo.
-- Una base corrupta se lleva una red, no el sistema.
-
-**Reparto:**
 - **Catalogo** (`/var/lib/mired/mired.db`, uno): usuarios, sesiones, claves de
   API, permisos de quien ve que red, credenciales SNMP reutilizables y el
-  registro de redes con un **resumen por red** (para que el panel de inicio no
-  abra treinta archivos).
-- **Red** (`/var/lib/mired/redes/matriz-a1b2.db`, una por red): todo lo
-  operativo. Cada archivo lleva dentro su propia ficha de red → es
-  **autodescriptivo** y se puede copiar a otra instalacion.
+  registro de redes con **resumen por red** (para que el panel de inicio no abra
+  treinta archivos).
+- **Red** (`/var/lib/mired/redes/matriz-a1b2.db`, una por red): equipos,
+  subredes, servicios, puertos, interfaces, VLAN, topologias, presencia, reglas
+  de alerta y trafico. Cada archivo lleva dentro su ficha de red → es
+  **autodescriptivo**: se copia a otra instalacion y se sabe que es.
 
-**Donde se enchufa:** en `storage/factory.rs`, que hoy construye un objeto de
-almacenamiento por entidad con la misma conexion. Cada entidad se marca como
-*global* o *de red*; las de red resuelven su archivo segun la **red activa del
-contexto de la tarea**, que fija el middleware de autenticacion (ya resuelve por
-peticion a que redes tiene acceso quien pregunta). Asi **no hay que cambiar la
-firma de las funciones** en 159 000 lineas.
+**Por que:** respaldar un sitio = copiar un archivo; borrar una red = borrarlo;
+una base corrupta se lleva una red, no el sistema; y el limite de "una escritura
+a la vez" de SQLite es **por archivo**.
 
-**Nombre del archivo:** `nombre-corto-<id>.db` (`matriz-a1b2.db`). `matriz.db` a
-secas se rompe con acentos, espacios, cambios de nombre y dos redes que se llamen
-igual. El nombre bonito vive dentro y se puede cambiar cuando sea.
+**Nombre del archivo:** `nombre-corto-<id>.db`. `matriz.db` a secas se rompe con
+acentos, espacios, cambios de nombre y dos redes que se llamen igual. El nombre
+bonito vive dentro y se puede cambiar cuando sea.
 
-**Lo que cuesta, y hay que vigilar siempre:**
-- Las consultas que **cruzan redes** (panel general, busqueda global) dejan de
-  ser un `SELECT` y pasan a ser recorrido de archivos o `ATTACH`.
+**Lo que cuesta, y hay que vigilar SIEMPRE:**
+- Las consultas que **cruzan redes** (buscar una MAC en todos los sitios, panel
+  general) no son un `SELECT`: son recorrido de archivos o `ATTACH`. Por eso el
+  resumen por red vive en el catalogo.
 - Las migraciones se aplican **a cada archivo**, incluso a uno viejo restaurado
-  de un respaldo.
-- No se pueden tener cien bases abiertas: juego de conexiones con cierre de las
-  que no se usan.
-- **El enrutador tiene que quedar concentrado en la capa de almacenamiento.** Si
-  se reparte por los modulos, el fork deja de poder sincronizarse con arriba. Es
-  el cambio que rompe la suposicion "todo esta en una sola base", y arriba van a
-  seguir dandola por buena para siempre.
+  de un respaldo: al abrir una base se comprueba su version antes de tocarla.
+- No se pueden tener cien bases abiertas: juego de conexiones que cierra las que
+  llevan rato sin usarse.
+- **El enrutado de conexiones vive solo en `internal/basedatos`.** Si se reparte
+  por los modulos, cada funcion nueva tendra que acordarse de a que archivo
+  escribe, y tarde o temprano una no se acordara.
 
 ## 3. Catalogo de dispositivos en `.toml` (el diferenciador)
-Hoy cada uno de los 257 dispositivos reconocidos es un archivo Rust: aportar uno
-exige saber Rust y recompilar. Ese es el cuello de botella que impide que un
-catalogo crezca por comunidad.
+Reconocer "esto es una impresora HP, esto una camara Hikvision" es lo que
+convierte una lista de IP en un inventario. Ese reconocimiento **no se escribe en
+codigo**: un `.toml` por dispositivo (nombre, categoria, icono, puertos, prefijo
+MAC del fabricante, ruta HTTP y respuesta esperada, cadena SNMP).
 
-Se convierten a `.toml` leidos al arrancar desde `/usr/share/mired/dispositivos/`
-(los del paquete) y `/etc/mired/dispositivos/` (los del usuario, que mandan). Los
-257 se convierten con un script, no a mano. En la interfaz, todo equipo sin
-identificar ofrece **"proponer definicion"**, que genera el `.toml` ya relleno con
-lo que se vio. El repo valida cada aportacion automaticamente.
+Se cargan de `/usr/share/mired/dispositivos/` (los del paquete) y
+`/etc/mired/dispositivos/` (los del usuario, que mandan). Agregar uno = copiar un
+archivo y reiniciar. En la interfaz, todo equipo sin identificar ofrece
+**"proponer definicion"**, que genera el `.toml` ya relleno con lo que se vio.
 
-## 4. Empaquetado: un solo `.deb`
-`/usr/bin/mired-servidor` y `/usr/bin/mired-daemon`, interfaz compilada en
-`/usr/share/mired/web/`, catalogo en `/usr/share/mired/dispositivos/`, bases en
-`/var/lib/mired/`, config en `/etc/mired/mired.toml`, dos unidades systemd.
+**Por que importa:** es la parte donde alguien puede aportar **sin saber Go**, y
+por lo tanto la unica apuesta real contra que esto lo mantenga una sola persona.
+
+## 4. Estructura del repo — todo en espanol
+Unica excepcion: la carpeta `internal/`, cuyo nombre el compilador de Go
+interpreta literalmente para impedir que otros proyectos importen esos paquetes.
+Adentro, todo vuelve al espanol.
+
+`programas/mired-servidor/`, `programas/mired-sonda/`, `internal/basedatos/`,
+`internal/configuracion/`, `internal/autenticacion/`, `internal/api/`,
+`internal/escaneo/`, `internal/snmp/`, `internal/topologia/`,
+`internal/catalogo/`, `internal/alertas/`, `internal/trafico/`, `interfaz/`
+(Flutter), `catalogo/dispositivos/`, `empaquetado/`, `herramientas/` (Python),
+`documentacion/`.
+
+## 5. Empaquetado: un solo `.deb`
+Binarios en `/usr/bin/`, interfaz compilada en `/usr/share/mired/web/`, catalogo
+en `/usr/share/mired/dispositivos/`, bases en `/var/lib/mired/`, config en
+`/etc/mired/mired.toml`, dos unidades systemd.
 
 - El servidor corre como usuario de sistema `mired`, **no root**.
-- El demonio necesita red cruda: se le dan capacidades acotadas
-  (`CAP_NET_RAW`, `CAP_NET_ADMIN`), no root entero. Mismo criterio que
+- La sonda con capacidades acotadas, no root. Mismo criterio que
   [[proyecto-patron-gui-root]].
 - El `postinst` crea el catalogo, habilita servicios y **nunca falla**, igual que
   [[driver-tickets]].
