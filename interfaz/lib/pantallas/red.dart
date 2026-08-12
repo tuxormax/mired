@@ -7,6 +7,7 @@ import '../modelos/modelos.dart';
 import '../servicios/api.dart';
 import '../servicios/trayectoria.dart';
 import '../widgets/mensajes.dart';
+import 'alertas.dart';
 import 'mapa.dart';
 
 /// PantallaRed es lo de un sitio: sus equipos y las subredes que se escanean.
@@ -212,6 +213,20 @@ class _PantallaRedState extends State<PantallaRed> {
                   ),
                 ],
               ),
+            IconButton(
+              tooltip: 'Alertas',
+              icon: Badge(
+                isLabelVisible: _red.alertasAbiertas > 0,
+                label: Text('${_red.alertasAbiertas}'),
+                child: const Icon(Icons.notifications_outlined),
+              ),
+              onPressed: () async {
+                await Navigator.of(contexto).push(
+                  MaterialPageRoute<void>(builder: (_) => PantallaAlertas(red: _red)),
+                );
+                _recargar();
+              },
+            ),
             IconButton(
               tooltip: 'Ver el mapa de la red',
               icon: const Icon(Icons.account_tree_outlined),

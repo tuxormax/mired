@@ -229,6 +229,48 @@ class Api {
     return Red.desdeJson(datos as Map<String, dynamic>);
   }
 
+  // ---------------------------------------------------------------- alertas --
+
+  Future<({List<Alerta> alertas, int abiertas})> listarAlertas(String clave,
+      {bool soloSinVer = false}) async {
+    final datos = await obtener(
+        '/api/redes/$clave/alertas${soloSinVer ? '?sinVer=1' : ''}') as Map<String, dynamic>;
+    final lista = (datos['alertas'] as List<dynamic>? ?? [])
+        .map((fila) => Alerta.desdeJson(fila as Map<String, dynamic>))
+        .toList();
+    return (alertas: lista, abiertas: datos['abiertas'] as int? ?? 0);
+  }
+
+  /// Con la lista vacia se marcan TODAS: es el boton de "ya las vi".
+  Future<int> marcarAlertasVistas(String clave, {List<int> ids = const []}) async {
+    final datos = await enviar('/api/redes/$clave/alertas/vistas', {'ids': ids});
+    return (datos as Map<String, dynamic>)['abiertas'] as int? ?? 0;
+  }
+
+  Future<List<Regla>> listarReglas(String clave) async {
+    final datos = await obtener('/api/redes/$clave/reglas') as List<dynamic>;
+    return datos.map((fila) => Regla.desdeJson(fila as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> guardarRegla(String clave, Regla regla) =>
+      reemplazar('/api/redes/$clave/reglas/${regla.tipo}',
+          {'activa': regla.activa, 'umbral': regla.umbral});
+
+  Future<List<DestinoAlerta>> listarDestinos(String clave) async {
+    final datos = await obtener('/api/redes/$clave/destinos') as List<dynamic>;
+    return datos
+        .map((fila) => DestinoAlerta.desdeJson(fila as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<DestinoAlerta> crearDestino(String clave, Map<String, dynamic> destino) async {
+    final datos = await enviar('/api/redes/$clave/destinos', destino);
+    return DestinoAlerta.desdeJson(datos as Map<String, dynamic>);
+  }
+
+  Future<void> borrarDestino(String clave, int id) =>
+      borrar('/api/redes/$clave/destinos/$id');
+
   // ------------------------------------------------ SNMP y mapa de puertos --
 
   Future<MapaPuertos> mapaDePuertos(String clave) async {

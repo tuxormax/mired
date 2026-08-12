@@ -74,6 +74,15 @@ func (a *API) Rutas() http.Handler {
 
 	mux.Handle("GET /api/redes/{clave}/mapa-puertos", a.conRed(a.mapaDePuertos))
 
+	// Alertas: lo que convierte el inventario en algo que avisa.
+	mux.Handle("GET /api/redes/{clave}/alertas", a.conRed(a.listarAlertas))
+	mux.Handle("POST /api/redes/{clave}/alertas/vistas", a.conRed(a.marcarAlertasVistas))
+	mux.Handle("GET /api/redes/{clave}/reglas", a.conRed(a.listarReglas))
+	mux.Handle("PUT /api/redes/{clave}/reglas/{tipo}", a.conRed(a.guardarRegla))
+	mux.Handle("GET /api/redes/{clave}/destinos", a.conRed(a.listarDestinos))
+	mux.Handle("POST /api/redes/{clave}/destinos", a.conRed(a.crearDestino))
+	mux.Handle("DELETE /api/redes/{clave}/destinos/{destino}", a.conRed(a.borrarDestino))
+
 	// Catalogo abierto de dispositivos.
 	mux.Handle("GET /api/catalogo", a.conSesion(a.listarCatalogo))
 	mux.Handle("GET /api/redes/{clave}/equipos/{equipo}/propuesta", a.conRed(a.proponerDefinicion))

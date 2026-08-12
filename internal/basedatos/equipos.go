@@ -127,7 +127,7 @@ func (b *Base) GuardarDescubrimiento(ctx context.Context, escaneoID int64, profu
 			}
 
 			if profundo {
-				if err := guardarPuertos(ctx, tx, equipoID, visto.Puertos, momento); err != nil {
+				if err := guardarPuertos(ctx, tx, escaneoID, equipoID, visto.Puertos, momento); err != nil {
 					return err
 				}
 			}
@@ -233,23 +233,26 @@ func guardarEquipo(ctx context.Context, tx *sql.Tx, identidad string, visto Equi
 	return equipoID, false, nil
 }
 
-func guardarPuertos(ctx context.Context, tx *sql.Tx, equipoID int64, puertos []PuertoDescubierto, momento string) error {
+func guardarPuertos(ctx context.Context, tx *sql.Tx, escaneoID, equipoID int64, puertos []PuertoDescubierto, momento string) error {
 	for _, puerto := range puertos {
 		protocolo := puerto.Protocolo
 		if protocolo == "" {
 			protocolo = "tcp"
 		}
+		// escaneo_creado NO se toca al actualizar: dice cuando aparecio por
+		// primera vez, y eso es lo que despues distingue un puerto nuevo de uno
+		// que lleva ahi meses.
 		_, err := tx.ExecContext(ctx, `
 			INSERT INTO puertos (equipo_id, numero, protocolo, servicio, banner,
-			                     abierto, primera_vez, ultima_vez)
-			VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+			                     abierto, primera_vez, ultima_vez, escaneo_creado)
+			VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)
 			ON CONFLICT (equipo_id, numero, protocolo) DO UPDATE SET
 				servicio = COALESCE(NULLIF(excluded.servicio, ''), puertos.servicio),
 				banner = COALESCE(NULLIF(excluded.banner, ''), puertos.banner),
 				abierto = 1,
 				ultima_vez = excluded.ultima_vez`,
 			equipoID, puerto.Numero, protocolo, nuloSiVacio(puerto.Servicio),
-			nuloSiVacio(puerto.Banner), momento, momento)
+			nuloSiVacio(puerto.Banner), momento, momento, escaneoID)
 		if err != nil {
 			return fmt.Errorf("no se pudo guardar el puerto %d: %w", puerto.Numero, err)
 		}

@@ -424,3 +424,105 @@ class CredencialSNMP {
         creada: json['creada'] as String? ?? '',
       );
 }
+
+/// Un aviso generado por el motor de alertas.
+class Alerta {
+  final int id;
+  final String tipo;
+  final String momento;
+  final int? equipoId;
+  final String titulo;
+  final String detalle;
+  final bool vista;
+  final bool enviada;
+
+  const Alerta({
+    required this.id,
+    required this.tipo,
+    required this.momento,
+    this.equipoId,
+    required this.titulo,
+    required this.detalle,
+    required this.vista,
+    required this.enviada,
+  });
+
+  factory Alerta.desdeJson(Map<String, dynamic> json) => Alerta(
+        id: json['id'] as int,
+        tipo: json['tipo'] as String? ?? '',
+        momento: json['momento'] as String? ?? '',
+        equipoId: json['equipoId'] as int?,
+        titulo: json['titulo'] as String? ?? '',
+        detalle: json['detalle'] as String? ?? '',
+        vista: json['vista'] as bool? ?? false,
+        enviada: json['enviada'] as bool? ?? false,
+      );
+}
+
+/// Que se vigila en una red y con que umbral.
+class Regla {
+  final String tipo;
+  final bool activa;
+  final int umbral;
+
+  const Regla({required this.tipo, required this.activa, required this.umbral});
+
+  factory Regla.desdeJson(Map<String, dynamic> json) => Regla(
+        tipo: json['tipo'] as String? ?? '',
+        activa: json['activa'] as bool? ?? false,
+        umbral: json['umbral'] as int? ?? 0,
+      );
+
+  /// Como se le dice a esta regla en lenguaje de persona.
+  String get comoSeLlama {
+    switch (tipo) {
+      case 'equipo_nuevo':
+        return 'Se conecto un equipo desconocido';
+      case 'equipo_ausente':
+        return 'Un equipo conocido lleva tiempo sin aparecer';
+      case 'puerto_nuevo':
+        return 'A un equipo conocido le abrieron un puerto';
+      case 'cambio_ip':
+        return 'Un equipo cambio de direccion';
+      case 'cambio_puerto_switch':
+        return 'Un equipo se cambio de puerto del switch';
+      case 'red_sin_reportar':
+        return 'La red entera dejo de reportar';
+      default:
+        return tipo;
+    }
+  }
+
+  bool get usaUmbral => tipo == 'equipo_ausente' || tipo == 'red_sin_reportar';
+}
+
+/// A donde se avisa.
+class DestinoAlerta {
+  final int id;
+  final String nombre;
+  final String tipo;
+  final String destino;
+  final bool activo;
+  final String ultimoEnvio;
+  final String ultimoError;
+
+  const DestinoAlerta({
+    required this.id,
+    required this.nombre,
+    required this.tipo,
+    required this.destino,
+    required this.activo,
+    required this.ultimoEnvio,
+    required this.ultimoError,
+  });
+
+  factory DestinoAlerta.desdeJson(Map<String, dynamic> json) => DestinoAlerta(
+        id: json['id'] as int,
+        nombre: json['nombre'] as String? ?? '',
+        tipo: json['tipo'] as String? ?? '',
+        destino: json['destino'] as String? ?? '',
+        activo: json['activo'] as bool? ?? true,
+        ultimoEnvio: json['ultimoEnvio'] as String? ?? '',
+        ultimoError: json['ultimoError'] as String? ?? '',
+      );
+}

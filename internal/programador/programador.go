@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/tuxormax/mired/internal/avisos"
 	"github.com/tuxormax/mired/internal/basedatos"
 	"github.com/tuxormax/mired/internal/catalogo"
 	"github.com/tuxormax/mired/internal/snmp"
@@ -182,6 +183,12 @@ func (s *Servicio) correr(clave string, escaneoID int64, subredes []string, solo
 	if err == nil && !soloPresencia {
 		s.consultarSNMP(ctx, clave, resultado.Equipos)
 		s.reconocer(ctx, clave)
+	}
+	// Las alertas se revisan tambien tras un barrido de presencia: enterarse de
+	// que se conecto algo desconocido es justo lo que no puede esperar al
+	// escaneo profundo de dentro de seis horas.
+	if err == nil {
+		s.revisarAlertas(ctx, clave, nombreRed(s, ctx, clave), escaneoID)
 	}
 	if err != nil {
 		s.Bitacora.Error("no se pudo guardar el escaneo", "red", clave, "error", err)
@@ -441,4 +448,113 @@ func (s *Servicio) reconocer(ctx context.Context, clave string) {
 	if err != nil {
 		s.Bitacora.Warn("no se pudo reconocer los equipos", "red", clave, "error", err)
 	}
+}
+
+// revisarAlertas genera los avisos de este escaneo y los manda hacia afuera.
+//
+// Va despues de todo lo demas: para entonces la foto de la red ya esta completa
+// y guardada, que es lo unico contra lo que se puede comparar sin inventar.
+func (s *Servicio) revisarAlertas(ctx context.Context, clave, nombreRed string, escaneoID int64) {
+	var nuevas []basedatos.Alerta
+	var destinos []basedatos.DestinoAlerta
+	var abiertas int
+
+	err := s.Datos.ConRed(ctx, clave, func(base *basedatos.Base) error {
+		var err error
+		nuevas, err = base.GenerarAlertas(ctx, escaneoID)
+		if err != nil {
+			return err
+		}
+		abiertas, err = base.ContarAlertasAbiertas(ctx)
+		if err != nil {
+			return err
+		}
+		destinos, err = base.ListarDestinos(ctx)
+		return err
+	})
+	if err != nil {
+		s.Bitacora.Error("no se pudieron generar las alertas", "red", clave, "error", err)
+		return
+	}
+
+	// El contador vive en el catalogo para que el panel de inicio lo pinte sin
+	// abrir el archivo de cada red.
+	if err := s.Datos.ActualizarAlertasEnCatalogo(ctx, clave, abiertas); err != nil {
+		s.Bitacora.Warn("no se pudo actualizar el contador de alertas", "red", clave, "error", err)
+	}
+
+	if len(nuevas) > 0 {
+		s.Bitacora.Info("alertas generadas", "red", clave, "nuevas", len(nuevas), "abiertas", abiertas)
+	}
+	if len(destinos) == 0 {
+		// Sin destinos las alertas se ven en la interfaz y ya. No es un error:
+		// es una red a la que todavia no se le dijo a donde avisar.
+		return
+	}
+
+	s.enviarAlertas(ctx, clave, nombreRed, destinos)
+}
+
+// enviarAlertas manda lo pendiente a cada destino activo.
+func (s *Servicio) enviarAlertas(ctx context.Context, clave, nombreRed string, destinos []basedatos.DestinoAlerta) {
+	var pendientes []basedatos.Alerta
+	err := s.Datos.ConRed(ctx, clave, func(base *basedatos.Base) error {
+		var err error
+		pendientes, err = base.AlertasSinEnviar(ctx)
+		return err
+	})
+	if err != nil || len(pendientes) == 0 {
+		return
+	}
+
+	for _, alerta := range pendientes {
+		mensaje := avisos.Alerta{
+			Tipo:    alerta.Tipo,
+			Momento: alerta.Momento,
+			Titulo:  alerta.Titulo,
+			Detalle: alerta.Detalle,
+			Red:     nombreRed,
+		}
+
+		// Se marca como enviada aunque algun destino falle: reintentar contra
+		// todos por culpa de uno significaria avisar tres veces a los que si
+		// funcionan, que es peor que perder un aviso en el que fallo.
+		for _, destino := range destinos {
+			if !destino.Activo {
+				continue
+			}
+			problema := ""
+			if err := avisos.Enviar(ctx, avisos.Destino{
+				Nombre:  destino.Nombre,
+				Tipo:    destino.Tipo,
+				Destino: destino.Destino,
+				Extra:   destino.Extra,
+			}, mensaje); err != nil {
+				problema = err.Error()
+				s.Bitacora.Warn("no se pudo avisar", "red", clave,
+					"destino", destino.Nombre, "error", err)
+			}
+
+			id := destino.ID
+			texto := problema
+			s.Datos.ConRed(ctx, clave, func(base *basedatos.Base) error {
+				return base.AnotarEnvio(ctx, id, texto)
+			})
+		}
+
+		idAlerta := alerta.ID
+		s.Datos.ConRed(ctx, clave, func(base *basedatos.Base) error {
+			return base.MarcarEnviada(ctx, idAlerta)
+		})
+	}
+}
+
+// nombreRed devuelve el nombre bonito de la red, para que los avisos digan de
+// que sitio hablan y no una clave de archivo.
+func nombreRed(s *Servicio, ctx context.Context, clave string) string {
+	red, err := s.Datos.BuscarRed(ctx, clave)
+	if err != nil {
+		return clave
+	}
+	return red.Nombre
 }
