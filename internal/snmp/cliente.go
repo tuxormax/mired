@@ -57,6 +57,13 @@ const (
 	// modernos cuando hay mas de una VLAN.
 	oidFdbPuertoVLAN = "1.3.6.1.2.1.17.7.1.2.2.1.2" // dot1qTpFdbPort
 
+	// Contadores de trafico. Los de 64 bits (ifHC*) son los buenos: los de 32
+	// se desbordan en minutos en un puerto gigabit y dan cifras absurdas.
+	oidIfEntradaHi = "1.3.6.1.2.1.31.1.1.1.6"  // ifHCInOctets
+	oidIfSalidaHi  = "1.3.6.1.2.1.31.1.1.1.10" // ifHCOutOctets
+	oidIfEntrada   = "1.3.6.1.2.1.2.2.1.10"    // ifInOctets, de 32 bits
+	oidIfSalida    = "1.3.6.1.2.1.2.2.1.16"    // ifOutOctets, de 32 bits
+
 	// LLDP: quien dice ser el vecino de cada puerto.
 	oidLldpRemNombre = "1.0.8802.1.1.2.1.4.1.1.9"  // lldpRemSysName
 	oidLldpRemPuerto = "1.0.8802.1.1.2.1.4.1.1.7"  // lldpRemPortId
@@ -79,6 +86,8 @@ type Ficha struct {
 	// MacsPorPuerto son las MAC que el switch ve colgando de cada boca. Es el
 	// dato que responde "¿que hay conectado en el puerto 7?".
 	MacsPorPuerto map[string][]string `json:"macsPorPuerto,omitempty"`
+	// Contadores son los bytes acumulados de cada boca, por indice de interfaz.
+	Contadores map[int]Contador `json:"contadores,omitempty"`
 	// Vecinos son los equipos que se anunciaron por LLDP en cada boca.
 	Vecinos []Vecino `json:"vecinos,omitempty"`
 }
@@ -93,6 +102,16 @@ type Interfaz struct {
 	Tipo          int    `json:"tipo"`
 	Activa        bool   `json:"activa"`
 	VelocidadMbps int    `json:"velocidadMbps"`
+}
+
+// Contador son los bytes que han pasado por una boca desde que el switch
+// encendio. El dato util es la resta entre dos lecturas.
+type Contador struct {
+	Entrada uint64 `json:"entrada"`
+	Salida  uint64 `json:"salida"`
+	// SesentaYCuatro dice si vino del contador de 64 bits. Con los de 32 hay que
+	// desconfiar de cualquier resta grande: se desbordan solos.
+	SesentaYCuatro bool `json:"sesentaYCuatro"`
 }
 
 // Vecino es un equipo que se anuncio por LLDP en una boca.
@@ -165,6 +184,7 @@ func consultarCon(ip string, credencial Credencial, espera time.Duration) (Ficha
 	}
 
 	ficha.Interfaces = leerInterfaces(conexion)
+	ficha.Contadores = leerContadores(conexion)
 	ficha.MacsPorPuerto = leerTablaMac(conexion)
 	ficha.Vecinos = leerVecinos(conexion, ficha.Interfaces)
 
@@ -353,6 +373,66 @@ func leerTablaMac(conexion *gosnmp.GoSNMP) map[string][]string {
 		recorrer(conexion, oidFdbPuerto, juntar)
 	}
 	return porPuerto
+}
+
+// leerContadores lee los bytes acumulados de cada boca.
+//
+// Se intentan primero los de 64 bits. Los de 32 se desbordan cada pocos minutos
+// en un puerto gigabit, asi que una resta hecha sobre ellos puede dar cualquier
+// cosa; por eso se anota de cual vinieron.
+func leerContadores(conexion *gosnmp.GoSNMP) map[int]Contador {
+	contadores := map[int]Contador{}
+
+	juntar := func(raiz string, sesentaYCuatro bool, entrada bool) bool {
+		encontro := false
+		recorrer(conexion, raiz, func(indice string, dato gosnmp.SnmpPDU) {
+			numero, err := strconv.Atoi(indice)
+			if err != nil {
+				return
+			}
+			encontro = true
+			contador := contadores[numero]
+			contador.SesentaYCuatro = sesentaYCuatro
+			if entrada {
+				contador.Entrada = comoSinSigno(dato)
+			} else {
+				contador.Salida = comoSinSigno(dato)
+			}
+			contadores[numero] = contador
+		})
+		return encontro
+	}
+
+	if !juntar(oidIfEntradaHi, true, true) {
+		juntar(oidIfEntrada, false, true)
+	}
+	if !juntar(oidIfSalidaHi, true, false) {
+		juntar(oidIfSalida, false, false)
+	}
+	return contadores
+}
+
+func comoSinSigno(dato gosnmp.SnmpPDU) uint64 {
+	switch valor := dato.Value.(type) {
+	case uint64:
+		return valor
+	case uint:
+		return uint64(valor)
+	case uint32:
+		return uint64(valor)
+	case int64:
+		if valor < 0 {
+			return 0
+		}
+		return uint64(valor)
+	case int:
+		if valor < 0 {
+			return 0
+		}
+		return uint64(valor)
+	default:
+		return 0
+	}
 }
 
 // leerVecinos junta lo que los switches se anuncian entre si por LLDP. Es lo que

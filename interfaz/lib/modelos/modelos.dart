@@ -526,3 +526,77 @@ class DestinoAlerta {
         ultimoError: json['ultimoError'] as String? ?? '',
       );
 }
+
+/// Cuanto gasta una boca de switch y quien cuelga de ella.
+class ConsumoDePuerto {
+  final int switchId;
+  final String switchNombre;
+  final int indice;
+  final String puerto;
+  final String equipoNombre;
+  final String equipoIp;
+  final bool confirmado;
+  final int cuantosEnBoca;
+  final int bpsEntrada;
+  final int bpsSalida;
+  final String momento;
+
+  const ConsumoDePuerto({
+    required this.switchId,
+    required this.switchNombre,
+    required this.indice,
+    required this.puerto,
+    required this.equipoNombre,
+    required this.equipoIp,
+    required this.confirmado,
+    required this.cuantosEnBoca,
+    required this.bpsEntrada,
+    required this.bpsSalida,
+    required this.momento,
+  });
+
+  factory ConsumoDePuerto.desdeJson(Map<String, dynamic> json) => ConsumoDePuerto(
+        switchId: json['switchId'] as int,
+        switchNombre: json['switchNombre'] as String? ?? '',
+        indice: json['indice'] as int? ?? 0,
+        puerto: json['puerto'] as String? ?? '',
+        equipoNombre: json['equipoNombre'] as String? ?? '',
+        equipoIp: json['equipoIp'] as String? ?? '',
+        confirmado: json['confirmado'] as bool? ?? false,
+        cuantosEnBoca: json['cuantosEnBoca'] as int? ?? 0,
+        bpsEntrada: json['bpsEntrada'] as int? ?? 0,
+        bpsSalida: json['bpsSalida'] as int? ?? 0,
+        momento: json['momento'] as String? ?? '',
+      );
+
+  int get total => bpsEntrada + bpsSalida;
+
+  String get quienEs {
+    if (equipoNombre.isNotEmpty) return equipoNombre;
+    if (cuantosEnBoca > 1) return '$cuantosEnBoca equipos en esta boca';
+    return puerto;
+  }
+
+  /// Los bits por segundo en algo que una persona lea de un vistazo.
+  static String enPalabras(int bps) {
+    if (bps >= 1000000000) return '${(bps / 1000000000).toStringAsFixed(2)} Gbps';
+    if (bps >= 1000000) return '${(bps / 1000000).toStringAsFixed(1)} Mbps';
+    if (bps >= 1000) return '${(bps / 1000).toStringAsFixed(0)} kbps';
+    return '$bps bps';
+  }
+}
+
+/// El consumo de una red, con que tan fiable es en este sitio.
+class Consumo {
+  final String explicacion;
+  final List<ConsumoDePuerto> puertos;
+
+  const Consumo({required this.explicacion, required this.puertos});
+
+  factory Consumo.desdeJson(Map<String, dynamic> json) => Consumo(
+        explicacion: json['explicacion'] as String? ?? '',
+        puertos: ((json['consumo'] as List<dynamic>?) ?? [])
+            .map((fila) => ConsumoDePuerto.desdeJson(fila as Map<String, dynamic>))
+            .toList(),
+      );
+}

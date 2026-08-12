@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // FichaSNMP es lo que un equipo administrable contesto por SNMP, listo para
@@ -434,4 +435,203 @@ func (b *Base) CalcularCapacidades(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("no se pudo guardar el perfil de capacidades: %w", err)
 	}
 	return capacidad, nil
+}
+
+// ContadorPuerto son los bytes acumulados de una boca en un momento dado.
+type ContadorPuerto struct {
+	Indice         int
+	Entrada        uint64
+	Salida         uint64
+	SesentaYCuatro bool
+}
+
+// PuntoTrafico es un renglon de la grafica de consumo de una boca.
+type PuntoTrafico struct {
+	Momento    string `json:"momento"`
+	BpsEntrada int64  `json:"bpsEntrada"`
+	BpsSalida  int64  `json:"bpsSalida"`
+}
+
+// ConsumoDePuerto es lo que gasta una boca, con quien cuelga de ella.
+type ConsumoDePuerto struct {
+	SwitchID      int64  `json:"switchId"`
+	SwitchNombre  string `json:"switchNombre"`
+	Indice        int    `json:"indice"`
+	Puerto        string `json:"puerto"`
+	EquipoNombre  string `json:"equipoNombre"`
+	EquipoIP      string `json:"equipoIp"`
+	Confirmado    bool   `json:"confirmado"`
+	CuantosEnBoca int    `json:"cuantosEnBoca"`
+	BpsEntrada    int64  `json:"bpsEntrada"`
+	BpsSalida     int64  `json:"bpsSalida"`
+	Momento       string `json:"momento"`
+}
+
+// GuardarTrafico anota los contadores y calcula la tasa contra la muestra
+// anterior.
+//
+// Los contadores son acumulados y se desbordan; el dato util es la RESTA entre
+// dos lecturas dividida por el tiempo. Una resta negativa significa que el
+// contador se reinicio (el switch se reinicio, o el de 32 bits dio la vuelta):
+// esa muestra se guarda sin tasa en vez de inventar un pico que no existio.
+func (b *Base) GuardarTrafico(ctx context.Context, switchIP string, contadores []ContadorPuerto) error {
+	if len(contadores) == 0 {
+		return nil
+	}
+	momento := Ahora()
+
+	return b.EnTransaccion(ctx, func(tx *sql.Tx) error {
+		switchID, hay := porIP(ctx, tx, switchIP)
+		if !hay {
+			return nil
+		}
+
+		for _, contador := range contadores {
+			var antesMomento string
+			var antesEntrada, antesSalida int64
+			err := tx.QueryRowContext(ctx, `
+				SELECT momento, bytes_entrada, bytes_salida
+				  FROM muestras_trafico
+				 WHERE switch_id = ? AND interfaz_indice = ?
+				 ORDER BY id DESC LIMIT 1`, switchID, contador.Indice).
+				Scan(&antesMomento, &antesEntrada, &antesSalida)
+
+			var bpsEntrada, bpsSalida any
+			if err == nil {
+				entrada, salida, ok := calcularTasa(antesMomento, momento,
+					antesEntrada, antesSalida, contador)
+				if ok {
+					bpsEntrada, bpsSalida = entrada, salida
+				}
+			}
+
+			_, err = tx.ExecContext(ctx, `
+				INSERT INTO muestras_trafico (switch_id, interfaz_indice, momento,
+				                              bytes_entrada, bytes_salida, bps_entrada, bps_salida)
+				VALUES (?, ?, ?, ?, ?, ?, ?)`,
+				switchID, contador.Indice, momento,
+				int64(contador.Entrada), int64(contador.Salida), bpsEntrada, bpsSalida)
+			if err != nil {
+				return fmt.Errorf("no se pudo guardar el trafico del puerto %d: %w", contador.Indice, err)
+			}
+		}
+		return nil
+	})
+}
+
+// calcularTasa convierte dos lecturas en bits por segundo.
+func calcularTasa(antes, ahora string, antesEntrada, antesSalida int64, contador ContadorPuerto) (int64, int64, bool) {
+	desde, err := time.Parse(time.RFC3339, antes)
+	if err != nil {
+		return 0, 0, false
+	}
+	hasta, err := time.Parse(time.RFC3339, ahora)
+	if err != nil {
+		return 0, 0, false
+	}
+
+	segundos := hasta.Sub(desde).Seconds()
+	// Menos de un segundo entre muestras da divisiones absurdas; mas de un dia
+	// promedia tanto que el numero deja de significar algo.
+	if segundos < 1 || segundos > 86400 {
+		return 0, 0, false
+	}
+
+	deltaEntrada := int64(contador.Entrada) - antesEntrada
+	deltaSalida := int64(contador.Salida) - antesSalida
+	if deltaEntrada < 0 || deltaSalida < 0 {
+		// El contador se reinicio: no se inventa un pico.
+		return 0, 0, false
+	}
+
+	return int64(float64(deltaEntrada) * 8 / segundos),
+		int64(float64(deltaSalida) * 8 / segundos), true
+}
+
+// ConsumoActual devuelve cuanto gasta cada boca en su ultima medicion, con el
+// equipo que cuelga de ella.
+//
+// Esto es lo que responde "quien se esta comiendo el internet" sin capturar un
+// solo paquete: el switch ya llevaba la cuenta y MiRed ya sabia quien esta en
+// cada boca.
+func (b *Base) ConsumoActual(ctx context.Context) ([]ConsumoDePuerto, error) {
+	filas, err := b.QueryContext(ctx, `
+		SELECT m.switch_id,
+		       COALESCE(sw.alias, sw.nombre, sw.ip),
+		       m.interfaz_indice,
+		       COALESCE(i.nombre, i.descripcion, CAST(m.interfaz_indice AS TEXT)),
+		       COALESCE(m.bps_entrada, 0), COALESCE(m.bps_salida, 0), m.momento,
+		       COALESCE(eq.alias, eq.nombre, eq.ip, ''), COALESCE(eq.ip, ''),
+		       COALESCE(MAX(c.confirmado), 0), COALESCE(COUNT(c.id), 0)
+		  FROM muestras_trafico m
+		  JOIN equipos sw ON sw.id = m.switch_id
+		  LEFT JOIN interfaces i ON i.equipo_id = m.switch_id AND i.indice = m.interfaz_indice
+		  LEFT JOIN conexiones_puerto c
+		         ON c.switch_id = m.switch_id AND c.interfaz_indice = m.interfaz_indice
+		  LEFT JOIN equipos eq ON eq.id = c.equipo_id
+		 WHERE m.id IN (
+		       SELECT MAX(id) FROM muestras_trafico GROUP BY switch_id, interfaz_indice)
+		   AND m.bps_entrada IS NOT NULL
+		 GROUP BY m.id
+		 ORDER BY (COALESCE(m.bps_entrada, 0) + COALESCE(m.bps_salida, 0)) DESC`)
+	if err != nil {
+		return nil, fmt.Errorf("no se pudo leer el consumo: %w", err)
+	}
+	defer filas.Close()
+
+	consumo := []ConsumoDePuerto{}
+	for filas.Next() {
+		var c ConsumoDePuerto
+		var confirmado int
+		if err := filas.Scan(&c.SwitchID, &c.SwitchNombre, &c.Indice, &c.Puerto,
+			&c.BpsEntrada, &c.BpsSalida, &c.Momento, &c.EquipoNombre, &c.EquipoIP,
+			&confirmado, &c.CuantosEnBoca); err != nil {
+			return nil, err
+		}
+		c.Confirmado = confirmado == 1
+		consumo = append(consumo, c)
+	}
+	return consumo, filas.Err()
+}
+
+// HistorialTrafico devuelve los puntos de la grafica de una boca.
+func (b *Base) HistorialTrafico(ctx context.Context, switchID int64, indice, limite int) ([]PuntoTrafico, error) {
+	if limite <= 0 || limite > 1000 {
+		limite = 200
+	}
+
+	filas, err := b.QueryContext(ctx, `
+		SELECT momento, COALESCE(bps_entrada, 0), COALESCE(bps_salida, 0)
+		  FROM muestras_trafico
+		 WHERE switch_id = ? AND interfaz_indice = ? AND bps_entrada IS NOT NULL
+		 ORDER BY id DESC LIMIT ?`, switchID, indice, limite)
+	if err != nil {
+		return nil, fmt.Errorf("no se pudo leer el historial de trafico: %w", err)
+	}
+	defer filas.Close()
+
+	puntos := []PuntoTrafico{}
+	for filas.Next() {
+		var punto PuntoTrafico
+		if err := filas.Scan(&punto.Momento, &punto.BpsEntrada, &punto.BpsSalida); err != nil {
+			return nil, err
+		}
+		puntos = append(puntos, punto)
+	}
+	return puntos, filas.Err()
+}
+
+// PodarTrafico borra las muestras viejas.
+//
+// Sin esto la tabla crece para siempre: una medicion por boca cada seis horas,
+// con cuarenta y ocho bocas, son siete mil renglones al mes por switch. En una
+// Raspberry eso importa.
+func (b *Base) PodarTrafico(ctx context.Context, diasAConservar int) error {
+	if diasAConservar <= 0 {
+		diasAConservar = 90
+	}
+	limite := time.Now().AddDate(0, 0, -diasAConservar).Format(time.RFC3339)
+
+	_, err := b.ExecContext(ctx, `DELETE FROM muestras_trafico WHERE momento < ?`, limite)
+	return err
 }

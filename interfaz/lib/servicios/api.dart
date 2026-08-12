@@ -287,6 +287,11 @@ class Api {
     return datos as Map<String, dynamic>;
   }
 
+  Future<Consumo> consumo(String clave) async {
+    final datos = await obtener('/api/redes/$clave/consumo');
+    return Consumo.desdeJson(datos as Map<String, dynamic>);
+  }
+
   Future<List<CredencialSNMP>> listarCredenciales() async {
     final datos = await obtener('/api/credenciales-snmp') as List<dynamic>;
     return datos

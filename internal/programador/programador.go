@@ -407,6 +407,10 @@ func (s *Servicio) consultarSNMP(ctx context.Context, clave string, vistos []son
 	}
 
 	fichas := make([]basedatos.FichaSNMP, 0, len(resultado.Fichas))
+	// Los contadores de trafico van aparte de la ficha: son una MEDICION del
+	// momento, no una descripcion del equipo, y por eso se acumulan en su propia
+	// tabla en vez de sobrescribirse.
+	porIP := map[string][]basedatos.ContadorPuerto{}
 	for _, ficha := range resultado.Fichas {
 		interfaces := make([]basedatos.InterfazSNMP, 0, len(ficha.Interfaces))
 		for _, puerto := range ficha.Interfaces {
@@ -431,6 +435,17 @@ func (s *Servicio) consultarSNMP(ctx context.Context, clave string, vistos []son
 				ChasisID:      vecino.ChasisID,
 			})
 		}
+		contadores := make([]basedatos.ContadorPuerto, 0, len(ficha.Contadores))
+		for indice, contador := range ficha.Contadores {
+			contadores = append(contadores, basedatos.ContadorPuerto{
+				Indice:         indice,
+				Entrada:        contador.Entrada,
+				Salida:         contador.Salida,
+				SesentaYCuatro: contador.SesentaYCuatro,
+			})
+		}
+		porIP[ficha.IP] = contadores
+
 		fichas = append(fichas, basedatos.FichaSNMP{
 			IP:            ficha.IP,
 			Nombre:        ficha.Nombre,
@@ -461,6 +476,17 @@ func (s *Servicio) consultarSNMP(ctx context.Context, clave string, vistos []son
 			s.Bitacora.Info("equipos que cambiaron de puerto", "red", clave,
 				"cuantos", len(movimientos))
 		}
+		for ip, contadores := range porIP {
+			if err := base.GuardarTrafico(ctx, ip, contadores); err != nil {
+				return err
+			}
+		}
+		// Las muestras viejas se podan aqui: sin esto la tabla crece para
+		// siempre, y en una Raspberry eso importa.
+		if err := base.PodarTrafico(ctx, 90); err != nil {
+			s.Bitacora.Warn("no se pudo podar el trafico viejo", "red", clave, "error", err)
+		}
+
 		capacidad, err := base.CalcularCapacidades(ctx)
 		if err != nil {
 			return err

@@ -24,6 +24,7 @@ class _PantallaRedState extends State<PantallaRed> {
   late Future<List<Equipo>> _equipos;
   late Future<List<Subred>> _subredes;
   late Future<MapaPuertos> _mapa;
+  late Future<Consumo> _consumo;
   late Red _red;
 
   final _busqueda = TextEditingController();
@@ -52,6 +53,7 @@ class _PantallaRedState extends State<PantallaRed> {
       _equipos = Api.instancia.listarEquipos(_red.clave, soloPresentes: _soloPresentes);
       _subredes = Api.instancia.listarSubredes(_red.clave);
       _mapa = Api.instancia.mapaDePuertos(_red.clave);
+      _consumo = Api.instancia.consumo(_red.clave);
     });
   }
 
@@ -174,13 +176,14 @@ class _PantallaRedState extends State<PantallaRed> {
   @override
   Widget build(BuildContext contexto) {
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           title: Text(_red.nombre),
           bottom: const TabBar(tabs: [
             Tab(icon: Icon(Icons.devices_other), text: 'Equipos'),
             Tab(icon: Icon(Icons.settings_input_component), text: 'Puertos'),
+            Tab(icon: Icon(Icons.speed), text: 'Consumo'),
             Tab(icon: Icon(Icons.route_outlined), text: 'Subredes'),
           ]),
           actions: [
@@ -258,6 +261,7 @@ class _PantallaRedState extends State<PantallaRed> {
           children: [
             _pestanaEquipos(contexto),
             _pestanaPuertos(contexto),
+            _pestanaConsumo(contexto),
             _pestanaSubredes(contexto),
           ],
         ),
@@ -467,6 +471,99 @@ class _PantallaRedState extends State<PantallaRed> {
               ),
               const SizedBox(height: 12),
             ],
+          ],
+        );
+      },
+    );
+  }
+
+  /// _pestanaConsumo responde "quien se esta comiendo el internet".
+  ///
+  /// El numero sale de los contadores que el switch ya llevaba, cruzados con el
+  /// mapa de puertos. Cuando la boca tiene varios equipos se dice: ese consumo
+  /// es del grupo, no de uno.
+  Widget _pestanaConsumo(BuildContext contexto) {
+    return FutureBuilder<Consumo>(
+      future: _consumo,
+      builder: (_, resultado) {
+        if (resultado.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (resultado.hasError) {
+          return Center(
+            child: TextButton(
+              onPressed: () => mostrarProblema(contexto, resultado.error!),
+              child: const Text('No se pudo cargar el consumo. Ver detalles'),
+            ),
+          );
+        }
+
+        final consumo = resultado.data!;
+        final colores = Theme.of(contexto).colorScheme;
+        final tope = consumo.puertos.isEmpty
+            ? 1
+            : consumo.puertos.map((p) => p.total).reduce((a, b) => a > b ? a : b);
+
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
+          children: [
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.info_outline),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(consumo.explicacion)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            for (final puerto in consumo.puertos)
+              Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(puerto.quienEs,
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                                overflow: TextOverflow.ellipsis),
+                          ),
+                          Text(ConsumoDePuerto.enPalabras(puerto.total),
+                              style: Theme.of(contexto).textTheme.titleMedium),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text([
+                        '${puerto.switchNombre} ${puerto.puerto}',
+                        if (puerto.equipoIp.isNotEmpty) puerto.equipoIp,
+                        'baja ${ConsumoDePuerto.enPalabras(puerto.bpsEntrada)}',
+                        'sube ${ConsumoDePuerto.enPalabras(puerto.bpsSalida)}',
+                        if (!puerto.confirmado && puerto.cuantosEnBoca > 1)
+                          'del grupo entero',
+                      ].join(' · '), style: Theme.of(contexto).textTheme.bodySmall),
+                      const SizedBox(height: 8),
+                      LinearProgressIndicator(
+                        value: tope == 0 ? 0 : puerto.total / tope,
+                        backgroundColor: colores.surfaceContainerHighest,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            if (consumo.puertos.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(24),
+                child: Text('Todavia no hay mediciones de consumo.',
+                    textAlign: TextAlign.center),
+              ),
           ],
         );
       },
