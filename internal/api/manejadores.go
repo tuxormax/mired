@@ -223,6 +223,11 @@ func (a *API) crearRed(escritor http.ResponseWriter, peticion *http.Request) {
 	}
 
 	a.anotarActividad(peticion, "Redes", "Crear red "+red.Nombre)
+	// El receptor de flujos necesita saber que estos rangos ya son de una red,
+	// o tirara su trafico hasta la siguiente recarga.
+	if a.Programador != nil {
+		a.Programador.RecargarSubredes(peticion.Context())
+	}
 	responderOk(escritor, red)
 }
 
@@ -379,6 +384,9 @@ func (a *API) crearSubred(escritor http.ResponseWriter, peticion *http.Request) 
 	}
 
 	a.anotarActividad(peticion, "Subredes", "Agregar "+subred.CIDR+" a "+clave)
+	if a.Programador != nil {
+		a.Programador.RecargarSubredes(peticion.Context())
+	}
 	responderOk(escritor, subred)
 }
 

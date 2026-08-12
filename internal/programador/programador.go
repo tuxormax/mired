@@ -44,8 +44,9 @@ type Servicio struct {
 	// servicio funciona igual, solo que los equipos quedan sin tipo.
 	Catalogo *catalogo.Catalogo
 
-	mu      sync.Mutex
-	enCurso map[string]bool
+	mu         sync.Mutex
+	enCurso    map[string]bool
+	mapaFlujos *mapaDeSubredes
 }
 
 // Nuevo arma el servicio.

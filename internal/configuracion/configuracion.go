@@ -23,6 +23,7 @@ type Configuracion struct {
 	Servidor Servidor `toml:"servidor"`
 	Datos    Datos    `toml:"datos"`
 	Sonda    Sonda    `toml:"sonda"`
+	Flujos   Flujos   `toml:"flujos"`
 	Catalogo Catalogo `toml:"catalogo"`
 	Registro Registro `toml:"registro"`
 }
@@ -53,6 +54,12 @@ type Datos struct {
 type Sonda struct {
 	// Socket es el socket Unix por donde la sonda entrega lo que descubre.
 	Socket string `toml:"socket"`
+}
+
+// Flujos ajusta el receptor de NetFlow que exporta el router.
+type Flujos struct {
+	// Escucha es donde se reciben los flujos. Vacio lo apaga.
+	Escucha string `toml:"escucha"`
 }
 
 // Catalogo ajusta de donde se leen las definiciones de dispositivos.
@@ -104,6 +111,9 @@ func PorOmision() Configuracion {
 		},
 		Sonda: Sonda{
 			Socket: "/run/mired/sonda.sock",
+		},
+		Flujos: Flujos{
+			Escucha: ":2055",
 		},
 		Catalogo: Catalogo{
 			Carpetas: []string{
@@ -178,6 +188,7 @@ func aplicarEntorno(cfg *Configuracion) {
 	entero("MIRED_REDES_ABIERTAS", &cfg.Datos.RedesAbiertas)
 	duracion("MIRED_INACTIVIDAD_RED", &cfg.Datos.InactividadRed)
 	texto("MIRED_SOCKET_SONDA", &cfg.Sonda.Socket)
+	texto("MIRED_ESCUCHA_FLUJOS", &cfg.Flujos.Escucha)
 	if valor, hay := os.LookupEnv("MIRED_DISPOSITIVOS"); hay && valor != "" {
 		cfg.Catalogo.Carpetas = strings.Split(valor, ":")
 	}

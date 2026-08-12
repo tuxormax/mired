@@ -109,6 +109,17 @@ func correr(cfg configuracion.Configuracion, bitacora *slog.Logger) error {
 	// El programador corre los barridos automaticos de las redes que lo tengan
 	// encendido: presencia frecuente y escaneo profundo espaciado.
 	go agenda.Vigilar(ctx)
+	// El receptor de flujos es lo que mide consumo en los sitios sin switches
+	// administrables. Que no se pueda abrir el puerto NO tumba el servicio: se
+	// avisa y todo lo demas sigue funcionando.
+	if cfg.Flujos.Escucha != "" {
+		go func() {
+			if err := agenda.RecibirFlujos(ctx, cfg.Flujos.Escucha); err != nil {
+				bitacora.Warn("no se pudieron recibir flujos del router",
+					"direccion", cfg.Flujos.Escucha, "error", err)
+			}
+		}()
+	}
 
 	servidor := &http.Server{
 		Addr:              cfg.Servidor.Escucha,

@@ -500,9 +500,10 @@ class _PantallaRedState extends State<PantallaRed> {
 
         final consumo = resultado.data!;
         final colores = Theme.of(contexto).colorScheme;
-        final tope = consumo.puertos.isEmpty
+        final todos = [...consumo.puertos, ...consumo.porFlujos];
+        final tope = todos.isEmpty
             ? 1
-            : consumo.puertos.map((p) => p.total).reduce((a, b) => a > b ? a : b);
+            : todos.map((p) => p.total).reduce((a, b) => a > b ? a : b);
 
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
@@ -521,6 +522,12 @@ class _PantallaRedState extends State<PantallaRed> {
               ),
             ),
             const SizedBox(height: 16),
+            if (consumo.puertos.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text('Medido en las bocas del switch',
+                    style: Theme.of(contexto).textTheme.titleSmall),
+              ),
             for (final puerto in consumo.puertos)
               Card(
                 margin: const EdgeInsets.only(bottom: 8),
@@ -558,7 +565,48 @@ class _PantallaRedState extends State<PantallaRed> {
                   ),
                 ),
               ),
-            if (consumo.puertos.isEmpty)
+            if (consumo.porFlujos.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text('Medido en el router, ultimas 24 horas',
+                    style: Theme.of(contexto).textTheme.titleSmall),
+              ),
+              for (final equipo in consumo.porFlujos)
+                Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(equipo.equipoNombre,
+                                  style: const TextStyle(fontWeight: FontWeight.w600),
+                                  overflow: TextOverflow.ellipsis),
+                            ),
+                            Text(ConsumoDePuerto.enPalabras(equipo.total)),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text([
+                          equipo.equipoIp,
+                          'bajo ${ConsumoDePuerto.enPalabras(equipo.bpsEntrada)}',
+                          'subio ${ConsumoDePuerto.enPalabras(equipo.bpsSalida)}',
+                        ].join(' · '), style: Theme.of(contexto).textTheme.bodySmall),
+                        const SizedBox(height: 8),
+                        LinearProgressIndicator(
+                          value: tope == 0 ? 0 : equipo.total / tope,
+                          backgroundColor: colores.surfaceContainerHighest,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+            if (!consumo.hayAlgo)
               const Padding(
                 padding: EdgeInsets.all(24),
                 child: Text('Todavia no hay mediciones de consumo.',

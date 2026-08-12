@@ -16,11 +16,18 @@ import (
 func (a *API) consumoActual(escritor http.ResponseWriter, peticion *http.Request) {
 	clave, _ := autenticacion.RedActivaDe(peticion.Context())
 
-	var consumo []basedatos.ConsumoDePuerto
+	var consumo, porFlujos []basedatos.ConsumoDePuerto
 	var capacidad string
 	err := a.Datos.ConRed(peticion.Context(), clave, func(base *basedatos.Base) error {
 		var err error
 		consumo, err = base.ConsumoActual(peticion.Context())
+		if err != nil {
+			return err
+		}
+		// Lo del router complementa lo del switch: en un sitio sin switches
+		// administrables es lo UNICO que hay, y en uno con ellos agrega el
+		// trafico que sale a internet.
+		porFlujos, err = base.ConsumoPorEquipo(peticion.Context(), 24)
 		if err != nil {
 			return err
 		}
@@ -37,7 +44,8 @@ func (a *API) consumoActual(escritor http.ResponseWriter, peticion *http.Request
 
 	responderOk(escritor, map[string]any{
 		"consumo":     consumo,
-		"explicacion": explicarTrafico(capacidad, len(consumo)),
+		"porFlujos":   porFlujos,
+		"explicacion": explicarTrafico(capacidad, len(consumo), len(porFlujos)),
 	})
 }
 
@@ -72,8 +80,12 @@ func (a *API) historialTrafico(escritor http.ResponseWriter, peticion *http.Requ
 	responderOk(escritor, puntos)
 }
 
-func explicarTrafico(capacidad string, cuantos int) string {
+func explicarTrafico(capacidad string, cuantos, porFlujos int) string {
 	switch {
+	case cuantos == 0 && porFlujos > 0:
+		return "El consumo sale de los flujos que exporta el router: dice cuanto mueve cada " +
+			"equipo, aunque no en que puerto esta. Es la medicion que funciona sin switches " +
+			"administrables."
 	case cuantos > 0 && capacidad == basedatos.CapacidadExacta:
 		return "El consumo sale de los contadores de cada boca del switch, cruzados con el equipo " +
 			"que cuelga de ella. Da volumen, no aplicaciones."
@@ -82,10 +94,11 @@ func explicarTrafico(capacidad string, cuantos int) string {
 			"numero es del grupo entero, no de un aparato."
 	case capacidad == basedatos.CapacidadNoDisponible:
 		return "En esta red no se puede medir consumo por puerto: ningun switch contesto SNMP. " +
-			"Para medirlo sin switches administrables haria falta que el router exporte flujos " +
-			"(NetFlow o sFlow), que todavia no esta implementado."
+			"Configure el router para que exporte NetFlow al puerto 2055 de este servidor y " +
+			"MiRed medira igual quien consume, aunque sin decir en que boca esta."
 	default:
-		return "Todavia no hay mediciones. Hacen falta al menos dos escaneos completos con " +
-			"credenciales SNMP cargadas: el consumo se calcula restando dos lecturas."
+		return "Todavia no hay mediciones. Con switches administrables hacen falta al menos dos " +
+			"escaneos completos (el consumo se calcula restando dos lecturas); sin ellos, " +
+			"configure el router para exportar NetFlow al puerto 2055 de este servidor."
 	}
 }

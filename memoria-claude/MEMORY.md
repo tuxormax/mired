@@ -41,6 +41,8 @@ Arrancado el 2026-08-12.
   contra grupo, y el perfil de capacidades por red.
 - [modulo-alertas](modulo-alertas.md) — que se vigila, la huella que evita
   repetir avisos, y los cuatro destinos de aviso.
+- [modulo-trafico](modulo-trafico.md) — ancho de banda por contadores del switch
+  y por flujos del router; por que la resta es el dato.
 
 ### 🔗 Contratos / interconexion
 - [contrato-api](contrato-api.md) — sobre `{ok, datos, error}`, rutas, sesion por

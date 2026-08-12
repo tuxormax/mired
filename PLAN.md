@@ -28,7 +28,7 @@ Actualizado el **2026-08-12**, al cerrar la primera jornada de trabajo.
 | 5 — El mapa | ⚠️ parcial | Mapa visual y exportacion a CSV listos. **Faltan PNG, SVG y PDF** |
 | 6 — Catalogo `.toml` | ✅ terminada | Formato, motor de reconocimiento, 15 definiciones semilla y "proponer definicion" |
 | 7 — Alertas | ✅ terminada | Las 6 reglas detectan y los 4 destinos de aviso funcionan |
-| 8 — Ancho de banda | ⚠️ parcial | Contadores SNMP por puerto listos (medicion, tasa y pantalla). **Falta el receptor de flujos NetFlow/sFlow**, que es lo que cubre los sitios sin switches administrables |
+| 8 — Ancho de banda | ✅ terminada | Contadores SNMP por puerto y receptor de flujos NetFlow v5 del router. Falta sFlow e IPFIX |
 | 9 — Publicacion | ⏳ pendiente | Falta decidir la licencia |
 | 10 — Inspeccion profunda | ⏳ pendiente | Opcional |
 

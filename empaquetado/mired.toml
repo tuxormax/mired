@@ -30,6 +30,16 @@ redes_abiertas = 8
 # Cuanto puede estar una base de red sin usarse antes de cerrarse sola.
 inactividad_red = "15m"
 
+[flujos]
+# Puerto donde MiRed escucha los flujos que exporta el router (NetFlow v5).
+#
+# Es lo que permite medir quien consume en un sitio SIN switches administrables:
+# el router ya sabe quien habla con quien, solo hay que decirle que lo reporte
+# aqui. En MikroTik: IP > Traffic Flow. En pfSense: el paquete softflowd.
+#
+# Dejarlo vacio apaga el receptor.
+escucha = ":2055"
+
 [sonda]
 # Socket por donde el servidor le habla a la sonda de escaneo. Es local: la
 # sonda nunca escucha en la red.

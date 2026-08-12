@@ -589,14 +589,29 @@ class ConsumoDePuerto {
 /// El consumo de una red, con que tan fiable es en este sitio.
 class Consumo {
   final String explicacion;
+
+  /// Lo medido con los contadores del switch: dice en que boca esta cada quien.
   final List<ConsumoDePuerto> puertos;
 
-  const Consumo({required this.explicacion, required this.puertos});
+  /// Lo medido con los flujos del router: no dice la boca, pero funciona sin
+  /// switches administrables.
+  final List<ConsumoDePuerto> porFlujos;
+
+  const Consumo({
+    required this.explicacion,
+    required this.puertos,
+    required this.porFlujos,
+  });
 
   factory Consumo.desdeJson(Map<String, dynamic> json) => Consumo(
         explicacion: json['explicacion'] as String? ?? '',
         puertos: ((json['consumo'] as List<dynamic>?) ?? [])
             .map((fila) => ConsumoDePuerto.desdeJson(fila as Map<String, dynamic>))
             .toList(),
+        porFlujos: ((json['porFlujos'] as List<dynamic>?) ?? [])
+            .map((fila) => ConsumoDePuerto.desdeJson(fila as Map<String, dynamic>))
+            .toList(),
       );
+
+  bool get hayAlgo => puertos.isNotEmpty || porFlujos.isNotEmpty;
 }

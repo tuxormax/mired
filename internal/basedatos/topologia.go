@@ -635,3 +635,131 @@ func (b *Base) PodarTrafico(ctx context.Context, diasAConservar int) error {
 	_, err := b.ExecContext(ctx, `DELETE FROM muestras_trafico WHERE momento < ?`, limite)
 	return err
 }
+
+// ConsumoPorFlujo es lo que una direccion movio en un periodo, segun el router.
+type ConsumoPorFlujo struct {
+	IP             string
+	BytesSube      uint64
+	BytesBaja      uint64
+	Conversaciones int
+}
+
+// GuardarFlujos anota lo que el router reporto y lo enlaza con el equipo que ya
+// se conocia.
+//
+// A diferencia de los contadores del switch, aqui NO hay que restar: el router
+// manda lo que paso en el periodo, no un acumulado.
+func (b *Base) GuardarFlujos(ctx context.Context, consumos []ConsumoPorFlujo) error {
+	if len(consumos) == 0 {
+		return nil
+	}
+	momento := Ahora()
+
+	return b.EnTransaccion(ctx, func(tx *sql.Tx) error {
+		for _, consumo := range consumos {
+			var equipoID any
+			if id, hay := porIP(ctx, tx, consumo.IP); hay {
+				equipoID = id
+			}
+			_, err := tx.ExecContext(ctx, `
+				INSERT INTO trafico_flujos (equipo_id, ip, momento, bytes_sube, bytes_baja, conversaciones)
+				VALUES (?, ?, ?, ?, ?, ?)`,
+				equipoID, consumo.IP, momento, int64(consumo.BytesSube),
+				int64(consumo.BytesBaja), consumo.Conversaciones)
+			if err != nil {
+				return fmt.Errorf("no se pudo guardar el flujo de %s: %w", consumo.IP, err)
+			}
+		}
+		return nil
+	})
+}
+
+// ConsumoPorEquipo suma lo que cada equipo movio en las ultimas horas, segun los
+// flujos del router.
+//
+// Es lo que responde "quien se esta comiendo el internet" en un sitio SIN
+// switches administrables: no dice en que puerto esta, pero si cuanto gasta.
+func (b *Base) ConsumoPorEquipo(ctx context.Context, horas int) ([]ConsumoDePuerto, error) {
+	if horas <= 0 || horas > 720 {
+		horas = 24
+	}
+	desde := time.Now().Add(-time.Duration(horas) * time.Hour).Format(time.RFC3339)
+
+	filas, err := b.QueryContext(ctx, `
+		SELECT f.ip,
+		       COALESCE(e.alias, e.nombre, f.ip),
+		       SUM(f.bytes_sube), SUM(f.bytes_baja), MAX(f.momento)
+		  FROM trafico_flujos f
+		  LEFT JOIN equipos e ON e.id = f.equipo_id
+		 WHERE f.momento >= ?
+		 GROUP BY f.ip
+		 ORDER BY (SUM(f.bytes_sube) + SUM(f.bytes_baja)) DESC
+		 LIMIT 100`, desde)
+	if err != nil {
+		return nil, fmt.Errorf("no se pudo leer el consumo por flujos: %w", err)
+	}
+	defer filas.Close()
+
+	// Se reusa la misma forma que el consumo por puerto para que la interfaz no
+	// tenga que pintar dos cosas distintas: lo que cambia es de donde salio el
+	// numero, no que significa.
+	consumo := []ConsumoDePuerto{}
+	for filas.Next() {
+		var c ConsumoDePuerto
+		var sube, baja int64
+		if err := filas.Scan(&c.EquipoIP, &c.EquipoNombre, &sube, &baja, &c.Momento); err != nil {
+			return nil, err
+		}
+		// Los flujos son bytes del periodo; se muestran como bits para poder
+		// compararlos con lo del switch.
+		c.BpsSalida = sube * 8
+		c.BpsEntrada = baja * 8
+		c.Puerto = "por el router"
+		c.SwitchNombre = "Router"
+		consumo = append(consumo, c)
+	}
+	return consumo, filas.Err()
+}
+
+// PodarFlujos borra las mediciones viejas de flujos.
+func (b *Base) PodarFlujos(ctx context.Context, diasAConservar int) error {
+	if diasAConservar <= 0 {
+		diasAConservar = 30
+	}
+	limite := time.Now().AddDate(0, 0, -diasAConservar).Format(time.RFC3339)
+
+	_, err := b.ExecContext(ctx, `DELETE FROM trafico_flujos WHERE momento < ?`, limite)
+	return err
+}
+
+// SubredesDeTodasLasRedes devuelve, para el receptor de flujos, que rangos
+// pertenecen a que red.
+//
+// El receptor escucha un solo puerto para TODAS las redes: el router no dice a
+// que red de MiRed pertenece un flujo, asi que hay que resolverlo por la
+// direccion.
+func (e *Enrutador) SubredesDeTodasLasRedes(ctx context.Context) (map[string][]string, error) {
+	redes, err := e.ListarRedes(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	porRed := map[string][]string{}
+	for _, red := range redes {
+		clave := red.Clave
+		err := e.ConRed(ctx, clave, func(base *Base) error {
+			subredes, err := base.ListarSubredes(ctx)
+			if err != nil {
+				return err
+			}
+			for _, subred := range subredes {
+				porRed[clave] = append(porRed[clave], subred.CIDR)
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+	return porRed, nil
+}
