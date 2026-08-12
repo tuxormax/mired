@@ -68,9 +68,9 @@ Go 1.26.4 y Flutter 3.35.6 **ya instalados**. No hay Rust, ni Docker, ni
 5. **Parcial**: mapa visual en Flutter y exportacion a CSV. Faltan PNG, SVG y PDF.
 6. Catalogo abierto de dispositivos en `.toml`, con 15 definiciones semilla y el
    boton "proponer definicion" que genera el archivo ya relleno.
-7. **Casi**: motor de alertas con 4 reglas detectando (equipo nuevo, ausente,
-   puerto nuevo, cambio de IP) y avisos por ntfy, Telegram, correo y webhook.
-   Faltan las reglas de cambio de puerto de switch y red sin reportar.
+7. Motor de alertas completo: las 6 reglas detectan (equipo nuevo, ausente,
+   puerto nuevo, cambio de IP, cambio de puerto de switch y red que dejo de
+   reportar) y avisa por ntfy, Telegram, correo y webhook.
 
 Pruebas en verde (Go y Flutter). El `.deb` se **verifico extrayendolo a un arbol
 aparte y corriendo los binarios desde ahi**: sirve la interfaz, entra, crea redes

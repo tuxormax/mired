@@ -53,16 +53,36 @@ const (
 	CapacidadNoDisponible = "no_disponible"
 )
 
+// MovimientoDePuerto es un equipo que cambio de boca entre dos consultas.
+type MovimientoDePuerto struct {
+	EquipoID int64
+	Nombre   string
+	Antes    string
+	Ahora    string
+}
+
 // GuardarSNMP guarda lo que contestaron los equipos administrables y arma con
 // eso el mapa de puertos.
-func (b *Base) GuardarSNMP(ctx context.Context, fichas []FichaSNMP) error {
+//
+// Devuelve tambien que equipos se cambiaron de boca: es un hecho que solo se
+// puede ver aqui, comparando la foto anterior con la nueva, y de ahi sale la
+// alerta de "se movio de lugar".
+func (b *Base) GuardarSNMP(ctx context.Context, fichas []FichaSNMP) ([]MovimientoDePuerto, error) {
 	momento := Ahora()
+	var movimientos []MovimientoDePuerto
 
-	return b.EnTransaccion(ctx, func(tx *sql.Tx) error {
+	err := b.EnTransaccion(ctx, func(tx *sql.Tx) error {
 		// Las MAC conocidas permiten enlazar cada boca con el equipo que ya se
 		// descubrio, en vez de dejar una direccion suelta que no le dice nada a
 		// nadie.
 		porMAC, err := equiposPorMAC(ctx, tx)
+		if err != nil {
+			return err
+		}
+
+		// Donde estaba cada MAC antes de esta consulta. Se toma ANTES de tocar
+		// nada: despues del borrado ya no hay con que comparar.
+		antes, err := bocaPorMac(ctx, tx)
 		if err != nil {
 			return err
 		}
@@ -89,8 +109,71 @@ func (b *Base) GuardarSNMP(ctx context.Context, fichas []FichaSNMP) error {
 				return err
 			}
 		}
+
+		despues, err := bocaPorMac(ctx, tx)
+		if err != nil {
+			return err
+		}
+		movimientos = compararBocas(ctx, tx, antes, despues, porMAC)
 		return nil
 	})
+
+	return movimientos, err
+}
+
+// bocaPorMac dice en que boca esta cada MAC, como texto legible.
+func bocaPorMac(ctx context.Context, tx *sql.Tx) (map[string]string, error) {
+	filas, err := tx.QueryContext(ctx, `
+		SELECT c.mac,
+		       COALESCE(sw.alias, sw.nombre, sw.ip) || ' ' ||
+		       COALESCE(i.nombre, i.descripcion, CAST(c.interfaz_indice AS TEXT))
+		  FROM conexiones_puerto c
+		  JOIN equipos sw ON sw.id = c.switch_id
+		  LEFT JOIN interfaces i ON i.equipo_id = c.switch_id AND i.indice = c.interfaz_indice
+		 WHERE c.confirmado = 1`)
+	if err != nil {
+		return nil, fmt.Errorf("no se pudo leer donde esta cada equipo: %w", err)
+	}
+	defer filas.Close()
+
+	// Solo se miran las bocas CONFIRMADAS: en una boca con varios equipos no se
+	// puede decir que alguno se movio, porque nunca se supo cual estaba donde.
+	donde := map[string]string{}
+	for filas.Next() {
+		var mac, boca string
+		if err := filas.Scan(&mac, &boca); err != nil {
+			return nil, err
+		}
+		donde[mac] = boca
+	}
+	return donde, filas.Err()
+}
+
+func compararBocas(ctx context.Context, tx *sql.Tx, antes, despues map[string]string, porMAC map[string]int64) []MovimientoDePuerto {
+	var movimientos []MovimientoDePuerto
+
+	for mac, ahora := range despues {
+		anterior, habia := antes[mac]
+		if !habia || anterior == ahora {
+			continue
+		}
+
+		equipoID, hay := porMAC[mac]
+		if !hay {
+			continue
+		}
+		nombre := mac
+		tx.QueryRowContext(ctx,
+			`SELECT COALESCE(alias, nombre, ip) FROM equipos WHERE id = ?`, equipoID).Scan(&nombre)
+
+		movimientos = append(movimientos, MovimientoDePuerto{
+			EquipoID: equipoID,
+			Nombre:   nombre,
+			Antes:    anterior,
+			Ahora:    ahora,
+		})
+	}
+	return movimientos
 }
 
 func equiposPorMAC(ctx context.Context, tx *sql.Tx) (map[string]int64, error) {

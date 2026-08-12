@@ -232,14 +232,78 @@ func (s *Servicio) Vigilar(ctx context.Context) {
 	reloj := time.NewTicker(10 * time.Second)
 	defer reloj.Stop()
 
+	// La comprobacion de "redes que dejaron de reportar" va mucho mas espaciada:
+	// implica abrir el archivo de cada red programada, y preguntarlo cada diez
+	// segundos seria trabajo constante para contestar casi siempre que no.
+	vueltas := 0
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-reloj.C:
 			s.revisarAgenda(ctx)
+			vueltas++
+			if vueltas%30 == 0 { // cada cinco minutos
+				s.revisarRedesCaidas(ctx)
+			}
 		}
 	}
+}
+
+// revisarRedesCaidas avisa de las redes programadas que llevan demasiado sin un
+// escaneo terminado.
+//
+// Es la unica alerta que no nace de un escaneo, por definicion: nace de que no
+// hubo ninguno. Si la sonda se cayo o el sitio quedo incomunicado, esta es la
+// unica forma de enterarse.
+func (s *Servicio) revisarRedesCaidas(ctx context.Context) {
+	redes, err := s.Datos.ListarRedes(ctx)
+	if err != nil {
+		s.Bitacora.Warn("no se pudieron listar las redes para revisar caidas", "error", err)
+		return
+	}
+
+	for _, red := range redes {
+		if !red.Programado || s.EnCurso(red.Clave) {
+			continue
+		}
+
+		clave := red.Clave
+		nombre := red.Nombre
+		err := s.Datos.ConRed(ctx, clave, func(base *basedatos.Base) error {
+			nuevas, err := base.AlertaSiDejoDeReportar(ctx)
+			if err != nil || len(nuevas) == 0 {
+				return err
+			}
+			s.Bitacora.Warn("una red dejo de reportar", "red", clave)
+
+			abiertas, err := base.ContarAlertasAbiertas(ctx)
+			if err != nil {
+				return err
+			}
+			return s.Datos.ActualizarAlertasEnCatalogo(ctx, clave, abiertas)
+		})
+		if err != nil {
+			s.Bitacora.Warn("no se pudo revisar si la red reporta", "red", clave, "error", err)
+			continue
+		}
+
+		destinos, err := s.destinosDe(ctx, clave)
+		if err == nil && len(destinos) > 0 {
+			s.enviarAlertas(ctx, clave, nombre, destinos)
+		}
+	}
+}
+
+func (s *Servicio) destinosDe(ctx context.Context, clave string) ([]basedatos.DestinoAlerta, error) {
+	var destinos []basedatos.DestinoAlerta
+	err := s.Datos.ConRed(ctx, clave, func(base *basedatos.Base) error {
+		var err error
+		destinos, err = base.ListarDestinos(ctx)
+		return err
+	})
+	return destinos, err
 }
 
 func (s *Servicio) revisarAgenda(ctx context.Context) {
@@ -384,8 +448,18 @@ func (s *Servicio) consultarSNMP(ctx context.Context, clave string, vistos []son
 	}
 
 	err = s.Datos.ConRed(ctx, clave, func(base *basedatos.Base) error {
-		if err := base.GuardarSNMP(ctx, fichas); err != nil {
+		movimientos, err := base.GuardarSNMP(ctx, fichas)
+		if err != nil {
 			return err
+		}
+		// Que un equipo se cambie de boca es un hecho que solo se ve aqui, y en
+		// una red con puertos documentados es justo lo que interesa saber.
+		if len(movimientos) > 0 {
+			if err := base.AlertasDeMovimiento(ctx, movimientos); err != nil {
+				return err
+			}
+			s.Bitacora.Info("equipos que cambiaron de puerto", "red", clave,
+				"cuantos", len(movimientos))
 		}
 		capacidad, err := base.CalcularCapacidades(ctx)
 		if err != nil {

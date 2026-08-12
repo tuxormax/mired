@@ -339,6 +339,86 @@ func (b *Base) alertasCambioIP(ctx context.Context, escaneoID int64) ([]Alerta, 
 	return alertas, filas.Err()
 }
 
+// AlertasDeMovimiento avisa de los equipos que se cambiaron de boca del switch.
+//
+// Solo se llama con movimientos entre bocas CONFIRMADAS: en una boca compartida
+// nunca se supo cual equipo estaba donde, asi que decir que se movio seria
+// inventar.
+func (b *Base) AlertasDeMovimiento(ctx context.Context, movimientos []MovimientoDePuerto) error {
+	reglas, err := b.Reglas(ctx)
+	if err != nil {
+		return err
+	}
+	if regla, hay := reglas[AlertaCambioPuertoSwitch]; !hay || !regla.Activa {
+		return nil
+	}
+
+	momento := Ahora()
+	alertas := make([]Alerta, 0, len(movimientos))
+	for _, movimiento := range movimientos {
+		id := movimiento.EquipoID
+		alertas = append(alertas, Alerta{
+			Tipo:     AlertaCambioPuertoSwitch,
+			Momento:  momento,
+			EquipoID: &id,
+			Titulo:   "Se movio de lugar: " + movimiento.Nombre,
+			Detalle:  "Antes en " + movimiento.Antes + ", ahora en " + movimiento.Ahora,
+		})
+	}
+
+	_, err = b.guardarAlertas(ctx, alertas)
+	return err
+}
+
+// AlertaSiDejoDeReportar avisa cuando la red entera lleva demasiado sin un
+// escaneo terminado.
+//
+// Es la unica alerta que NO nace de un escaneo, por definicion: nace de que no
+// hubo ninguno. La revisa el programador cada tanto.
+func (b *Base) AlertaSiDejoDeReportar(ctx context.Context) ([]Alerta, error) {
+	reglas, err := b.Reglas(ctx)
+	if err != nil {
+		return nil, err
+	}
+	regla, hay := reglas[AlertaRedSinReportar]
+	if !hay || !regla.Activa {
+		return nil, nil
+	}
+	umbral := regla.Umbral
+	if umbral <= 0 {
+		umbral = 120
+	}
+
+	var ultimo sql.NullString
+	err = b.QueryRowContext(ctx,
+		`SELECT MAX(terminado) FROM escaneos WHERE estado = 'terminado'`).Scan(&ultimo)
+	if err != nil {
+		return nil, fmt.Errorf("no se pudo leer el ultimo escaneo: %w", err)
+	}
+	if !ultimo.Valid || ultimo.String == "" {
+		// Una red que nunca se ha escaneado no "dejo de reportar": todavia no
+		// empieza. Avisar aqui seria ruido el dia que se crea el sitio.
+		return nil, nil
+	}
+
+	cuando, err := time.Parse(time.RFC3339, ultimo.String)
+	if err != nil {
+		return nil, nil
+	}
+	if time.Since(cuando) < time.Duration(umbral)*time.Minute {
+		return nil, nil
+	}
+
+	return b.guardarAlertas(ctx, []Alerta{{
+		Tipo:    AlertaRedSinReportar,
+		Momento: Ahora(),
+		Titulo:  "Esta red dejo de reportar",
+		// La huella lleva la fecha del ultimo escaneo: si vuelve a fallar
+		// despues de recuperarse, eso es un hecho nuevo y vuelve a avisar.
+		Detalle: "El ultimo escaneo que termino fue el " + ultimo.String,
+	}})
+}
+
 // ListarAlertas devuelve las mas recientes.
 func (b *Base) ListarAlertas(ctx context.Context, soloSinVer bool, limite int) ([]Alerta, error) {
 	if limite <= 0 || limite > 500 {

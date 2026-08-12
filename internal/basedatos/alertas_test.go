@@ -177,3 +177,70 @@ func TestDestinosDeAviso(t *testing.T) {
 		t.Fatalf("el destino borrado sigue ahi: %+v", destinos)
 	}
 }
+
+func TestAvisaCuandoUnEquipoSeCambiaDeBoca(t *testing.T) {
+	_, base, devolver := conRedDePrueba(t)
+	defer devolver()
+	ctx := context.Background()
+
+	sembrarEquipos(t, base, []EquipoDescubierto{
+		{IP: "192.168.1.1", MAC: "aa:aa:aa:00:00:01", Metodo: "arp"},
+		{IP: "192.168.1.10", MAC: "bb:bb:bb:00:00:10", Nombre: "laptop", Metodo: "arp"},
+	})
+
+	ficha := FichaSNMP{
+		IP: "192.168.1.1", Nombre: "sw-principal", EsSwitch: true,
+		Interfaces: []InterfazSNMP{
+			{Indice: 5, Nombre: "Gi0/5"},
+			{Indice: 9, Nombre: "Gi0/9"},
+		},
+		MacsPorPuerto: map[string][]string{"5": {"bb:bb:bb:00:00:10"}},
+	}
+	if _, err := base.GuardarSNMP(ctx, []FichaSNMP{ficha}); err != nil {
+		t.Fatalf("primera consulta: %v", err)
+	}
+
+	// Alguien lo cambio de la boca 5 a la 9.
+	ficha.MacsPorPuerto = map[string][]string{"9": {"bb:bb:bb:00:00:10"}}
+	movimientos, err := base.GuardarSNMP(ctx, []FichaSNMP{ficha})
+	if err != nil {
+		t.Fatalf("segunda consulta: %v", err)
+	}
+	if len(movimientos) != 1 {
+		t.Fatalf("se esperaba un movimiento: %+v", movimientos)
+	}
+	if movimientos[0].Nombre != "laptop" {
+		t.Fatalf("el movimiento deberia decir de quien es: %+v", movimientos[0])
+	}
+
+	if err := base.AlertasDeMovimiento(ctx, movimientos); err != nil {
+		t.Fatalf("no se pudo generar la alerta: %v", err)
+	}
+	alertas, _ := base.ListarAlertas(ctx, true, 50)
+	encontrada := false
+	for _, alerta := range alertas {
+		if alerta.Tipo == AlertaCambioPuertoSwitch {
+			encontrada = true
+			if alerta.Detalle == "" {
+				t.Fatal("la alerta deberia decir de que boca a que boca")
+			}
+		}
+	}
+	if !encontrada {
+		t.Fatalf("no se genero la alerta de cambio de puerto: %+v", alertas)
+	}
+}
+
+func TestUnaRedQueNuncaSeEscaneoNoAvisaDeCaida(t *testing.T) {
+	// Avisar aqui seria ruido el mismo dia que se crea el sitio.
+	_, base, devolver := conRedDePrueba(t)
+	defer devolver()
+
+	nuevas, err := base.AlertaSiDejoDeReportar(context.Background())
+	if err != nil {
+		t.Fatalf("no deberia fallar: %v", err)
+	}
+	if len(nuevas) != 0 {
+		t.Fatalf("una red sin escaneos no deberia avisar: %+v", nuevas)
+	}
+}

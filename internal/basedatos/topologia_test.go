@@ -29,7 +29,7 @@ func TestUnaBocaConUnaMacEsUnEnlaceConfirmado(t *testing.T) {
 		{IP: "192.168.1.10", MAC: "bb:bb:bb:00:00:10", Metodo: "arp"}, // una laptop
 	})
 
-	err := base.GuardarSNMP(ctx, []FichaSNMP{{
+	_, err := base.GuardarSNMP(ctx, []FichaSNMP{{
 		IP: "192.168.1.1", Nombre: "sw-principal", EsSwitch: true, Credencial: "publica",
 		Interfaces: []InterfazSNMP{{Indice: 5, Nombre: "Gi0/5", Activa: true, VelocidadMbps: 1000}},
 		MacsPorPuerto: map[string][]string{
@@ -82,7 +82,7 @@ func TestVariasMacEnLaMismaBocaSonUnGrupo(t *testing.T) {
 		{IP: "192.168.1.22", MAC: "cc:cc:cc:00:00:22", Metodo: "arp"},
 	})
 
-	err := base.GuardarSNMP(ctx, []FichaSNMP{{
+	_, err := base.GuardarSNMP(ctx, []FichaSNMP{{
 		IP: "192.168.1.1", EsSwitch: true,
 		Interfaces: []InterfazSNMP{{Indice: 7, Nombre: "Gi0/7", Activa: true}},
 		MacsPorPuerto: map[string][]string{
@@ -151,13 +151,13 @@ func TestElMapaSeRehaceEnCadaConsulta(t *testing.T) {
 		},
 		MacsPorPuerto: map[string][]string{"5": {"bb:bb:bb:00:00:10"}},
 	}
-	if err := base.GuardarSNMP(ctx, []FichaSNMP{ficha}); err != nil {
+	if _, err := base.GuardarSNMP(ctx, []FichaSNMP{ficha}); err != nil {
 		t.Fatalf("primera consulta: %v", err)
 	}
 
 	// Se movio de la boca 5 a la 9.
 	ficha.MacsPorPuerto = map[string][]string{"9": {"bb:bb:bb:00:00:10"}}
-	if err := base.GuardarSNMP(ctx, []FichaSNMP{ficha}); err != nil {
+	if _, err := base.GuardarSNMP(ctx, []FichaSNMP{ficha}); err != nil {
 		t.Fatalf("segunda consulta: %v", err)
 	}
 
@@ -180,7 +180,7 @@ func TestSeGuardanLosVecinosDeLLDP(t *testing.T) {
 		{IP: "192.168.1.2", MAC: "aa:aa:aa:00:00:02", Metodo: "arp"},
 	})
 
-	err := base.GuardarSNMP(ctx, []FichaSNMP{{
+	_, err := base.GuardarSNMP(ctx, []FichaSNMP{{
 		IP: "192.168.1.1", EsSwitch: true,
 		Interfaces: []InterfazSNMP{{Indice: 1, Nombre: "Gi0/1"}},
 		Vecinos: []VecinoSNMP{{

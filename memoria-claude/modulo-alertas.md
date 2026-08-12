@@ -21,8 +21,8 @@ herramienta util: el valor no es escanear, es enterarse.
 | `equipo_ausente` | minutos sin aparecer (1440 = 24 h) | encendida |
 | `puerto_nuevo` | — | encendida |
 | `cambio_ip` | — | encendida |
-| `cambio_puerto_switch` | — | encendida (falta implementar la deteccion) |
-| `red_sin_reportar` | minutos (120) | encendida (falta implementar) |
+| `cambio_puerto_switch` | — | encendida |
+| `red_sin_reportar` | minutos (120) | encendida |
 
 ## Las tres decisiones que sostienen el modulo
 1. **Huella unica por hecho**, no por momento: `tipo|equipo|detalle`. Sin esto se
@@ -32,6 +32,12 @@ herramienta util: el valor no es escanear, es enterarse.
    debe poder decir algo distinto de lo que quedo escrito.
 3. **Un puerto nuevo solo alerta en un equipo CONOCIDO.** En uno recien
    descubierto la noticia era el equipo, no sus puertos.
+4. **El cambio de boca solo se detecta entre bocas CONFIRMADAS**: en una boca
+   compartida nunca se supo cual equipo estaba donde, asi que decir que se movio
+   seria inventar.
+5. **"Red sin reportar" es la unica alerta que no nace de un escaneo** — nace de
+   que no hubo ninguno. La revisa el programador cada cinco minutos, y una red
+   que nunca se escaneo NO avisa: seria ruido el dia que se crea el sitio.
 
 ## Envio
 Destinos por red (tabla `destinos_alerta`): `ntfy`, `telegram`, `correo` (SMTP) y
