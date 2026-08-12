@@ -505,3 +505,103 @@ func nuloSiVacio(texto string) any {
 	}
 	return texto
 }
+
+// DatosParaReconocer es todo lo que se sabe de un equipo, para que el catalogo
+// decida que es.
+type DatosParaReconocer struct {
+	ID         int64
+	IP         string
+	MAC        string
+	Fabricante string
+	Nombre     string
+	Puertos    []int
+	Banners    []string
+	SnmpDescr  string
+}
+
+// ParaReconocer junta lo que el catalogo necesita de cada equipo.
+//
+// Se arma desde la base y no desde el resultado del escaneo a proposito: asi el
+// reconocimiento usa TODO lo que se sabe del equipo (incluido lo que dijo por
+// SNMP y lo que trajo un barrido anterior), no solo lo de la ultima corrida.
+func (b *Base) ParaReconocer(ctx context.Context) ([]DatosParaReconocer, error) {
+	filas, err := b.QueryContext(ctx, `
+		SELECT e.id, e.ip, COALESCE(e.mac, ''), COALESCE(e.fabricante, ''),
+		       COALESCE(e.nombre, ''), COALESCE(s.descripcion, '')
+		  FROM equipos e
+		  LEFT JOIN equipos_snmp s ON s.equipo_id = e.id
+		 WHERE e.estatus = 1`)
+	if err != nil {
+		return nil, fmt.Errorf("no se pudieron leer los equipos a reconocer: %w", err)
+	}
+	defer filas.Close()
+
+	equipos := []DatosParaReconocer{}
+	porID := map[int64]int{}
+	for filas.Next() {
+		var d DatosParaReconocer
+		if err := filas.Scan(&d.ID, &d.IP, &d.MAC, &d.Fabricante, &d.Nombre, &d.SnmpDescr); err != nil {
+			return nil, err
+		}
+		porID[d.ID] = len(equipos)
+		equipos = append(equipos, d)
+	}
+	if err := filas.Err(); err != nil {
+		return nil, err
+	}
+	if len(equipos) == 0 {
+		return equipos, nil
+	}
+
+	puertos, err := b.QueryContext(ctx,
+		`SELECT equipo_id, numero, COALESCE(banner, '') FROM puertos WHERE abierto = 1`)
+	if err != nil {
+		return nil, fmt.Errorf("no se pudieron leer los puertos: %w", err)
+	}
+	defer puertos.Close()
+
+	for puertos.Next() {
+		var equipoID int64
+		var numero int
+		var banner string
+		if err := puertos.Scan(&equipoID, &numero, &banner); err != nil {
+			return nil, err
+		}
+		if indice, hay := porID[equipoID]; hay {
+			equipos[indice].Puertos = append(equipos[indice].Puertos, numero)
+			if banner != "" {
+				equipos[indice].Banners = append(equipos[indice].Banners, banner)
+			}
+		}
+	}
+	return equipos, puertos.Err()
+}
+
+// PonerTipos guarda lo que el catalogo reconocio.
+//
+// Solo se escribe cuando el tipo CAMBIA: reescribir la misma fila en cada
+// escaneo ensucia la columna de modificado y no aporta nada.
+func (b *Base) PonerTipos(ctx context.Context, tipos map[int64]string) (int, error) {
+	if len(tipos) == 0 {
+		return 0, nil
+	}
+
+	cambiados := 0
+	momento := Ahora()
+	err := b.EnTransaccion(ctx, func(tx *sql.Tx) error {
+		for id, tipo := range tipos {
+			resultado, err := tx.ExecContext(ctx,
+				`UPDATE equipos SET tipo = ?, modificado = ?
+				  WHERE id = ? AND COALESCE(tipo, '') <> ?`,
+				nuloSiVacio(tipo), momento, id, tipo)
+			if err != nil {
+				return fmt.Errorf("no se pudo guardar el tipo del equipo %d: %w", id, err)
+			}
+			if filas, _ := resultado.RowsAffected(); filas > 0 {
+				cambiados++
+			}
+		}
+		return nil
+	})
+	return cambiados, err
+}

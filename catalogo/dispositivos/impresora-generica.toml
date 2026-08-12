@@ -1,0 +1,10 @@
+# Cualquier cosa que hable IPP o impresion cruda es una impresora, sin importar
+# la marca. Es una definicion amplia a proposito: mas vale decir "impresora" que
+# no decir nada.
+nombre = "Impresora de red"
+categoria = "impresora"
+icono = "print"
+descripcion = "Equipo que expone servicios de impresion (IPP, LPD o puerto crudo)."
+
+[coincidencias]
+puertos_alguno = [9100, 631, 515]

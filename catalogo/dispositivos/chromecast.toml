@@ -1,0 +1,8 @@
+nombre = "Chromecast o Google Home"
+categoria = "multimedia"
+icono = "cast"
+descripcion = "Dispositivo de Google para transmitir a la television."
+
+[coincidencias]
+fabricantes = ["Google"]
+puertos_alguno = [8008, 8009, 8443]

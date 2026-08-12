@@ -1,0 +1,9 @@
+# Compartir archivos y escritorio remoto juntos: es un Windows atendiendo gente.
+nombre = "Equipo Windows"
+categoria = "computadora"
+icono = "desktop_windows"
+descripcion = "Equipo con Windows: comparte archivos y acepta escritorio remoto."
+
+[coincidencias]
+puertos_todos = [445]
+puertos_alguno = [135, 139, 3389]

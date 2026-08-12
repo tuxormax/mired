@@ -1,0 +1,7 @@
+nombre = "Servidor web"
+categoria = "servidor"
+icono = "dns"
+descripcion = "Equipo que sirve paginas web."
+
+[coincidencias]
+puertos_alguno = [80, 443, 8080, 8443]

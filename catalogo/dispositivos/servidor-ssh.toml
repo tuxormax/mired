@@ -1,0 +1,8 @@
+nombre = "Equipo Linux o Unix"
+categoria = "computadora"
+icono = "terminal"
+descripcion = "Equipo que acepta conexiones SSH."
+
+[coincidencias]
+puertos_todos = [22]
+banner_contiene = ["ssh", "openssh"]

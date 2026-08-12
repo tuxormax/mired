@@ -1,0 +1,7 @@
+nombre = "Servidor Proxmox"
+categoria = "servidor"
+icono = "dns"
+descripcion = "Virtualizador Proxmox VE."
+
+[coincidencias]
+puertos_todos = [8006]

@@ -236,6 +236,15 @@ class Api {
     return MapaPuertos.desdeJson(datos as Map<String, dynamic>);
   }
 
+  /// Genera el `.toml` de un equipo que nadie reconocio, ya relleno con lo que
+  /// se vio. Es como se aporta al catalogo sin saber programar.
+  Future<Map<String, dynamic>> proponerDefinicion(
+      String clave, int equipoId, String nombre) async {
+    final datos = await obtener(
+        '/api/redes/$clave/equipos/$equipoId/propuesta?nombre=${Uri.encodeQueryComponent(nombre)}');
+    return datos as Map<String, dynamic>;
+  }
+
   Future<List<CredencialSNMP>> listarCredenciales() async {
     final datos = await obtener('/api/credenciales-snmp') as List<dynamic>;
     return datos

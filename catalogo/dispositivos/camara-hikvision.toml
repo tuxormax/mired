@@ -1,0 +1,8 @@
+nombre = "Camara Hikvision"
+categoria = "camara"
+icono = "videocam"
+descripcion = "Camara o grabador Hikvision. Suele exponer RTSP y su panel web."
+
+[coincidencias]
+fabricantes = ["Hikvision"]
+puertos_alguno = [554, 80, 8000]

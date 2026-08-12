@@ -1,0 +1,7 @@
+nombre = "Ubiquiti"
+categoria = "punto_de_acceso"
+icono = "wifi"
+descripcion = "Equipo Ubiquiti: punto de acceso, switch o antena."
+
+[coincidencias]
+fabricantes = ["Ubiquiti"]

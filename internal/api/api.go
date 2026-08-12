@@ -15,6 +15,7 @@ import (
 
 	"github.com/tuxormax/mired/internal/autenticacion"
 	"github.com/tuxormax/mired/internal/basedatos"
+	"github.com/tuxormax/mired/internal/catalogo"
 	"github.com/tuxormax/mired/internal/programador"
 )
 
@@ -33,6 +34,8 @@ type API struct {
 	SocketSonda string
 	// Programador lanza los barridos, pedidos o por agenda.
 	Programador *programador.Servicio
+	// Catalogo reconoce que es cada aparato. Puede ser nil.
+	Catalogo *catalogo.Catalogo
 }
 
 // Rutas arma el enrutador HTTP completo.
@@ -70,6 +73,10 @@ func (a *API) Rutas() http.Handler {
 	mux.Handle("GET /api/sonda", a.conSesion(a.estadoSonda))
 
 	mux.Handle("GET /api/redes/{clave}/mapa-puertos", a.conRed(a.mapaDePuertos))
+
+	// Catalogo abierto de dispositivos.
+	mux.Handle("GET /api/catalogo", a.conSesion(a.listarCatalogo))
+	mux.Handle("GET /api/redes/{clave}/equipos/{equipo}/propuesta", a.conRed(a.proponerDefinicion))
 
 	// Credenciales SNMP: son secretos compartidos entre redes, asi que las
 	// administra solo el superadministrador.

@@ -20,6 +20,7 @@ import (
 	"github.com/tuxormax/mired/internal/api"
 	"github.com/tuxormax/mired/internal/autenticacion"
 	"github.com/tuxormax/mired/internal/basedatos"
+	"github.com/tuxormax/mired/internal/catalogo"
 	"github.com/tuxormax/mired/internal/configuracion"
 	"github.com/tuxormax/mired/internal/programador"
 	"github.com/tuxormax/mired/internal/version"
@@ -72,7 +73,23 @@ func correr(cfg configuracion.Configuracion, bitacora *slog.Logger) error {
 			"clave", autenticacion.ClaveSuperadmin)
 	}
 
+	// El catalogo de dispositivos se carga al arrancar. Que falte o tenga
+	// archivos rotos NO impide arrancar: solo deja equipos sin reconocer, y eso
+	// se dice en la bitacora en vez de tumbar el servicio.
+	dispositivos, err := catalogo.Cargar(cfg.Catalogo.Carpetas)
+	if err != nil {
+		bitacora.Warn("no se pudo cargar el catalogo de dispositivos", "error", err)
+	}
+	if dispositivos != nil {
+		bitacora.Info("catalogo de dispositivos cargado",
+			"definiciones", len(dispositivos.Definiciones()))
+		for _, problema := range dispositivos.Problemas() {
+			bitacora.Warn("definicion de dispositivo con problemas", "detalle", problema)
+		}
+	}
+
 	agenda := programador.Nuevo(datos, cfg.Sonda.Socket, bitacora)
+	agenda.Catalogo = dispositivos
 
 	servicio := &api.API{
 		Datos:       datos,
@@ -81,6 +98,7 @@ func correr(cfg configuracion.Configuracion, bitacora *slog.Logger) error {
 		RutaWeb:     cfg.Servidor.RutaWeb,
 		SocketSonda: cfg.Sonda.Socket,
 		Programador: agenda,
+		Catalogo:    dispositivos,
 	}
 
 	// Tareas de fondo: cerrar bases de red que ya nadie usa y limpiar sesiones

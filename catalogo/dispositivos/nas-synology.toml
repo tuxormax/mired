@@ -1,0 +1,8 @@
+nombre = "NAS Synology"
+categoria = "almacenamiento"
+icono = "storage"
+descripcion = "Almacenamiento en red Synology."
+
+[coincidencias]
+fabricantes = ["Synology"]
+puertos_alguno = [5000, 5001, 445]

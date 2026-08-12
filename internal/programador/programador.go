@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/tuxormax/mired/internal/basedatos"
+	"github.com/tuxormax/mired/internal/catalogo"
 	"github.com/tuxormax/mired/internal/snmp"
 	"github.com/tuxormax/mired/internal/sonda"
 )
@@ -38,6 +39,9 @@ type Servicio struct {
 	Datos       *basedatos.Enrutador
 	SocketSonda string
 	Bitacora    *slog.Logger
+	// Catalogo reconoce que es cada aparato. Puede ser nil: sin catalogo el
+	// servicio funciona igual, solo que los equipos quedan sin tipo.
+	Catalogo *catalogo.Catalogo
 
 	mu      sync.Mutex
 	enCurso map[string]bool
@@ -177,6 +181,7 @@ func (s *Servicio) correr(clave string, escaneoID int64, subredes []string, solo
 	// que da el mapa de puertos.
 	if err == nil && !soloPresencia {
 		s.consultarSNMP(ctx, clave, resultado.Equipos)
+		s.reconocer(ctx, clave)
 	}
 	if err != nil {
 		s.Bitacora.Error("no se pudo guardar el escaneo", "red", clave, "error", err)
@@ -385,5 +390,55 @@ func (s *Servicio) consultarSNMP(ctx context.Context, clave string, vistos []son
 	})
 	if err != nil {
 		s.Bitacora.Error("no se pudo guardar lo consultado por SNMP", "red", clave, "error", err)
+	}
+}
+
+// reconocer le pone tipo a los equipos usando el catalogo de dispositivos.
+//
+// Va al final del barrido profundo, despues de SNMP, porque para entonces ya se
+// sabe todo lo que se puede saber del aparato: puertos, banners, fabricante y lo
+// que dijo por SNMP. Reconocer antes seria hacerlo con menos datos.
+func (s *Servicio) reconocer(ctx context.Context, clave string) {
+	if s.Catalogo == nil || len(s.Catalogo.Definiciones()) == 0 {
+		return
+	}
+
+	err := s.Datos.ConRed(ctx, clave, func(base *basedatos.Base) error {
+		equipos, err := base.ParaReconocer(ctx)
+		if err != nil {
+			return err
+		}
+
+		tipos := make(map[int64]string, len(equipos))
+		for _, equipo := range equipos {
+			definicion := s.Catalogo.Reconocer(catalogo.Equipo{
+				IP:         equipo.IP,
+				MAC:        equipo.MAC,
+				Fabricante: equipo.Fabricante,
+				Nombre:     equipo.Nombre,
+				Puertos:    equipo.Puertos,
+				Banners:    equipo.Banners,
+				SnmpDescr:  equipo.SnmpDescr,
+			})
+			if definicion == nil {
+				// Sin coincidencia se deja vacio a proposito: la interfaz lo usa
+				// para ofrecer "proponer definicion", que es como crece el catalogo.
+				tipos[equipo.ID] = ""
+				continue
+			}
+			tipos[equipo.ID] = definicion.Nombre
+		}
+
+		cambiados, err := base.PonerTipos(ctx, tipos)
+		if err != nil {
+			return err
+		}
+		if cambiados > 0 {
+			s.Bitacora.Info("equipos reconocidos", "red", clave, "cambiados", cambiados)
+		}
+		return nil
+	})
+	if err != nil {
+		s.Bitacora.Warn("no se pudo reconocer los equipos", "red", clave, "error", err)
 	}
 }

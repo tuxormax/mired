@@ -1,0 +1,7 @@
+nombre = "Raspberry Pi"
+categoria = "computadora"
+icono = "memory"
+descripcion = "Placa Raspberry Pi. Se reconoce por el prefijo de su MAC."
+
+[coincidencias]
+prefijos_mac = ["b8:27:eb", "dc:a6:32", "e4:5f:01", "2c:cf:67", "d8:3a:dd", "88:a2:9e"]

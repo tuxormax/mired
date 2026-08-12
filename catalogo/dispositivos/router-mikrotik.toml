@@ -1,0 +1,7 @@
+nombre = "MikroTik"
+categoria = "router"
+icono = "router"
+descripcion = "Router o switch MikroTik (RouterOS)."
+
+[coincidencias]
+fabricantes = ["Mikrotik"]

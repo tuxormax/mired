@@ -1,0 +1,9 @@
+# El 62078 es el servicio de sincronizacion de iOS: solo lo abren los iPhone y
+# los iPad.
+nombre = "iPhone o iPad"
+categoria = "telefono"
+icono = "smartphone"
+descripcion = "Dispositivo iOS."
+
+[coincidencias]
+puertos_todos = [62078]

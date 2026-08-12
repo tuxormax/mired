@@ -1,0 +1,9 @@
+# Impresoras de red HP: casi todas exponen impresion cruda en el 9100.
+nombre = "Impresora HP"
+categoria = "impresora"
+icono = "print"
+descripcion = "Impresora de red HP con puerto de impresion cruda (JetDirect)."
+
+[coincidencias]
+fabricantes = ["HP", "Hewlett"]
+puertos_todos = [9100]

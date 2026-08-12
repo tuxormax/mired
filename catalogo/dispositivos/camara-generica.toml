@@ -1,0 +1,8 @@
+# RTSP es el protocolo de video de casi todas las camaras IP.
+nombre = "Camara IP"
+categoria = "camara"
+icono = "videocam"
+descripcion = "Equipo que transmite video por RTSP."
+
+[coincidencias]
+puertos_todos = [554]

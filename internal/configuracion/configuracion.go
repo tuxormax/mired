@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pelletier/go-toml/v2"
@@ -22,6 +23,7 @@ type Configuracion struct {
 	Servidor Servidor `toml:"servidor"`
 	Datos    Datos    `toml:"datos"`
 	Sonda    Sonda    `toml:"sonda"`
+	Catalogo Catalogo `toml:"catalogo"`
 	Registro Registro `toml:"registro"`
 }
 
@@ -51,6 +53,13 @@ type Datos struct {
 type Sonda struct {
 	// Socket es el socket Unix por donde la sonda entrega lo que descubre.
 	Socket string `toml:"socket"`
+}
+
+// Catalogo ajusta de donde se leen las definiciones de dispositivos.
+type Catalogo struct {
+	// Carpetas se leen en orden: las ultimas mandan sobre las primeras, para que
+	// una definicion propia pueda corregir a una que trae el paquete.
+	Carpetas []string `toml:"carpetas"`
 }
 
 // Registro ajusta el detalle de la bitacora.
@@ -95,6 +104,12 @@ func PorOmision() Configuracion {
 		},
 		Sonda: Sonda{
 			Socket: "/run/mired/sonda.sock",
+		},
+		Catalogo: Catalogo{
+			Carpetas: []string{
+				"/usr/share/mired/dispositivos",
+				"/etc/mired/dispositivos",
+			},
 		},
 		Registro: Registro{
 			Nivel: "info",
@@ -163,6 +178,9 @@ func aplicarEntorno(cfg *Configuracion) {
 	entero("MIRED_REDES_ABIERTAS", &cfg.Datos.RedesAbiertas)
 	duracion("MIRED_INACTIVIDAD_RED", &cfg.Datos.InactividadRed)
 	texto("MIRED_SOCKET_SONDA", &cfg.Sonda.Socket)
+	if valor, hay := os.LookupEnv("MIRED_DISPOSITIVOS"); hay && valor != "" {
+		cfg.Catalogo.Carpetas = strings.Split(valor, ":")
+	}
 	texto("MIRED_NIVEL_REGISTRO", &cfg.Registro.Nivel)
 }
 

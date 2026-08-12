@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../modelos/modelos.dart';
 import '../servicios/api.dart';
@@ -551,6 +552,7 @@ class _TarjetaEquipo extends StatelessWidget {
           ],
         ),
         subtitle: Text([
+          if (equipo.tipo.isNotEmpty) equipo.tipo,
           if (equipo.fabricante.isNotEmpty) equipo.fabricante,
           if (equipo.mac.isNotEmpty) equipo.mac,
           if (equipo.puertos.isNotEmpty) '${equipo.puertos.length} puertos abiertos',
@@ -583,6 +585,7 @@ class _TarjetaEquipo extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                 ],
+                _Renglon(etiqueta: 'Reconocido como', valor: equipo.tipo),
                 _Renglon(etiqueta: 'Nombre descubierto', valor: equipo.nombre),
                 _Renglon(etiqueta: 'MAC', valor: equipo.mac),
                 _Renglon(etiqueta: 'Fabricante', valor: equipo.fabricante),
@@ -593,16 +596,29 @@ class _TarjetaEquipo extends StatelessWidget {
                 _Renglon(etiqueta: 'Visto por primera vez', valor: equipo.primeraVez),
                 _Renglon(etiqueta: 'Visto por ultima vez', valor: equipo.ultimaVez),
                 const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    icon: const Icon(Icons.history),
-                    label: const Text('Historial de conexiones'),
-                    onPressed: () => showDialog<void>(
-                      context: contexto,
-                      builder: (_) => _DialogoPresencia(clave: clave, equipo: equipo),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    TextButton.icon(
+                      icon: const Icon(Icons.history),
+                      label: const Text('Historial de conexiones'),
+                      onPressed: () => showDialog<void>(
+                        context: contexto,
+                        builder: (_) => _DialogoPresencia(clave: clave, equipo: equipo),
+                      ),
                     ),
-                  ),
+                    // Solo se ofrece cuando nadie lo reconocio: es exactamente
+                    // ahi donde el catalogo necesita crecer.
+                    if (equipo.tipo.isEmpty)
+                      TextButton.icon(
+                        icon: const Icon(Icons.add_box_outlined),
+                        label: const Text('Proponer definicion'),
+                        onPressed: () => showDialog<void>(
+                          context: contexto,
+                          builder: (_) => _DialogoPropuesta(clave: clave, equipo: equipo),
+                        ),
+                      ),
+                  ],
                 ),
               ],
             ),
@@ -998,6 +1014,140 @@ class _DialogoAgendaState extends State<_DialogoAgenda> {
             child: _ocupado
                 ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
                 : const Text('Guardar'),
+          ),
+        ],
+      );
+}
+
+/// _DialogoPropuesta genera el `.toml` de un equipo sin identificar.
+///
+/// Es la puerta de entrada del catalogo comunitario: quien tenga un aparato que
+/// MiRed no reconoce le pone nombre, copia el archivo y lo manda. No hace falta
+/// saber Go ni entender el formato: ya viene relleno con lo que se vio.
+class _DialogoPropuesta extends StatefulWidget {
+  const _DialogoPropuesta({required this.clave, required this.equipo});
+
+  final String clave;
+  final Equipo equipo;
+
+  @override
+  State<_DialogoPropuesta> createState() => _DialogoPropuestaState();
+}
+
+class _DialogoPropuestaState extends State<_DialogoPropuesta> {
+  late TextEditingController _nombre;
+  Map<String, dynamic>? _propuesta;
+  bool _ocupado = false;
+  bool _copiado = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nombre = TextEditingController(
+        text: widget.equipo.fabricante.isNotEmpty
+            ? '${widget.equipo.fabricante} sin identificar'
+            : '');
+    _generar();
+  }
+
+  @override
+  void dispose() {
+    _nombre.dispose();
+    super.dispose();
+  }
+
+  Future<void> _generar() async {
+    setState(() => _ocupado = true);
+    try {
+      final propuesta = await Api.instancia
+          .proponerDefinicion(widget.clave, widget.equipo.id, _nombre.text.trim());
+      if (mounted) setState(() => _propuesta = propuesta);
+    } catch (problema, pila) {
+      if (mounted) await mostrarProblema(context, problema, pila: pila.toString());
+    } finally {
+      if (mounted) setState(() => _ocupado = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext contexto) => AlertDialog(
+        title: const Text('Proponer definicion'),
+        content: SizedBox(
+          width: 620,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'MiRed no supo que es este aparato. Pongale nombre, revise el archivo y '
+                  'mandelo al repositorio para que lo reconozca todo el mundo. Tambien puede '
+                  'guardarlo en /etc/mired/dispositivos/ para usarlo solo aqui.',
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _nombre,
+                        maxLength: 80,
+                        decoration: const InputDecoration(
+                          labelText: 'Como se llama este tipo de aparato',
+                          hintText: 'Camara Acme, Termostato Zeta...',
+                          border: OutlineInputBorder(),
+                          counterText: '',
+                        ),
+                        onSubmitted: (_) => _generar(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton(
+                      onPressed: _ocupado ? null : _generar,
+                      child: const Text('Generar'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                if (_ocupado)
+                  const Center(child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: CircularProgressIndicator(),
+                  ))
+                else if (_propuesta != null) ...[
+                  Text('Archivo sugerido: ${_propuesta!['archivo']}',
+                      style: Theme.of(contexto).textTheme.labelMedium),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(contexto).colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: SelectableText(
+                      _propuesta!['contenido'] as String,
+                      style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          if (_propuesta != null)
+            FilledButton.icon(
+              icon: Icon(_copiado ? Icons.check : Icons.copy),
+              label: Text(_copiado ? 'Copiado' : 'Copiar archivo'),
+              onPressed: () async {
+                await Clipboard.setData(
+                    ClipboardData(text: _propuesta!['contenido'] as String));
+                if (contexto.mounted) setState(() => _copiado = true);
+              },
+            ),
+          TextButton(
+            onPressed: () => Navigator.of(contexto).pop(),
+            child: const Text('Cerrar'),
           ),
         ],
       );
