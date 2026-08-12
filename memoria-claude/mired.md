@@ -65,9 +65,12 @@ Go 1.26.4 y Flutter 3.35.6 **ya instalados**. No hay Rust, ni Docker, ni
 3. Presencia en vivo, historial de conexiones y barridos programados por red.
 4. SNMP v1/v2c/v3, tabla de MAC del switch, LLDP, mapa de puertos y perfil de
    capacidades.
+5. **Parcial**: mapa visual en Flutter y exportacion a CSV. Faltan PNG, SVG y PDF.
 
-Pruebas en verde (Go y Flutter). **Falta**: probar el `.deb` instalado de verdad,
-probar SNMP contra un switch real, y las fases 5 a 10.
+Pruebas en verde (Go y Flutter). El `.deb` se **verifico extrayendolo a un arbol
+aparte y corriendo los binarios desde ahi**: sirve la interfaz, entra, crea redes
+y escanea. **Falta**: instalarlo de verdad con `dpkg -i` (necesita sudo), y
+probar SNMP contra un switch administrable real.
 
 ## Tiempos
 - **3-4 meses** hasta la fase 9 (publicable). La inspeccion profunda va aparte.
