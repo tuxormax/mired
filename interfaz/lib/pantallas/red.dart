@@ -6,6 +6,7 @@ import '../modelos/modelos.dart';
 import '../servicios/api.dart';
 import '../servicios/trayectoria.dart';
 import '../widgets/mensajes.dart';
+import 'mapa.dart';
 
 /// PantallaRed es lo de un sitio: sus equipos y las subredes que se escanean.
 class PantallaRed extends StatefulWidget {
@@ -210,6 +211,13 @@ class _PantallaRedState extends State<PantallaRed> {
                   ),
                 ],
               ),
+            IconButton(
+              tooltip: 'Ver el mapa de la red',
+              icon: const Icon(Icons.account_tree_outlined),
+              onPressed: () => Navigator.of(contexto).push(
+                MaterialPageRoute<void>(builder: (_) => PantallaMapa(red: _red)),
+              ),
+            ),
             IconButton(
               tooltip: _red.programado
                   ? 'Barridos automaticos encendidos'
