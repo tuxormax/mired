@@ -1,11 +1,21 @@
 ---
 name: mired-upstream-scanopy
-description: Radiografia del codigo de Scanopy (donde esta cada cosa) y licencias de las herramientas que MiRed absorbe
-metadata:
+description: "Scanopy como material de consulta (NO se copia codigo): donde esta cada cosa y licencias del sector"
+metadata: 
+  node_type: memory
   type: reference
+  originSessionId: 20376d18-adf7-4315-bb9c-98a3aa84ec95
+  modified: 2026-08-12T20:56:27.680Z
 ---
 
-# Radiografia del codigo heredado (Scanopy)
+# Scanopy — material de consulta, NO codigo heredado
+
+> ⚠️ **MiRed ya no es un fork** (decidido el 2026-08-12, ver [[mired]]). Scanopy
+> se **lee** para entender como resolvieron la topologia de capa 2, LLDP/CDP o el
+> reconocimiento de dispositivos. **No se copia una sola linea**: copiar
+> obligaria a MiRed a heredar la AGPL. Las ideas no llevan licencia; las lineas
+> si. Las menciones a "codigo heredado" de mas abajo son de la epoca del fork y
+> hoy se leen como "donde mirar si hace falta una referencia".
 
 Investigado el **2026-08-12** sobre un clon superficial de
 `github.com/scanopy/scanopy`. **Esto es lo que costo trabajo averiguar**: sin

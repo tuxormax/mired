@@ -1,8 +1,11 @@
 ---
 name: mired-capacidades
-description: Las cuatro capacidades que MiRed junta (mapa, presencia, alertas, ancho de banda) y como degrada en redes mixtas
-metadata:
+description: "Las cuatro capacidades que MiRed junta (mapa, presencia, alertas, ancho de banda) y como degrada en redes mixtas"
+metadata: 
+  node_type: memory
   type: project
+  originSessionId: 20376d18-adf7-4315-bb9c-98a3aa84ec95
+  modified: 2026-08-12T20:56:40.237Z
 ---
 
 # MiRed — las cuatro capacidades y las redes mixtas
@@ -11,16 +14,21 @@ Decidido el **2026-08-12** a partir de una comparativa que trajo el usuario entr
 Scanopy, NetAlertX, WatchYourLAN y ntopng: **lo mejor de cada una en una sola
 herramienta**.
 
-## Cuatro preguntas, cuatro capacidades
-| Pregunta | De quien se toma | Que hay ya en el codigo heredado |
-|---|---|---|
-| Como esta conectada mi red | Scanopy | Todo. Es la base del fork |
-| Que dispositivo se conecto ahora | NetAlertX | La fontaneria de aviso (webhook, correo, ntfy) existe pero **apagada por ser de pago**. Falta el motor de reglas |
-| Que esta encendido ya mismo | WatchYourLAN | El dato ya se guarda (`last_seen`). Falta el barrido rapido y la pantalla |
-| Quien consume mi ancho de banda | ntopng | **Nada**. Unico subsistema nuevo de verdad |
+> ⚠️ **Actualizado el 2026-08-12**: MiRed dejo de ser un fork y se construye
+> desde cero en Go. Las cuatro capacidades siguen siendo estas, pero **las cuatro
+> se escriben**, no se "terminan" — la columna de "que hay ya heredado" del plan
+> viejo dejo de aplicar. Ver [[mired]].
 
-Tres de las cuatro son terminar algo a medias; solo la cuarta se construye desde
-cero. Detalle de los conteos en [[mired-upstream-scanopy]].
+## Cuatro preguntas, cuatro capacidades
+| Pregunta | De quien se toma la idea | En que fase se hace |
+|---|---|---|
+| Como esta conectada mi red | Scanopy | Fases 4 (SNMP/capa 2) y 5 (mapa) |
+| Que esta encendido ya mismo | WatchYourLAN | Fase 3 |
+| Que dispositivo se conecto ahora | NetAlertX | Fase 7 |
+| Quien consume mi ancho de banda | ntopng | Fase 8 |
+
+Antes de eso, la fase 2 da el inventario (ARP, ICMP, puertos, mDNS, fabricante),
+que es la base sobre la que se apoyan las cuatro.
 
 ## Presencia: dos ritmos, no uno
 Barrido ARP corto cada 30-60 segundos que **solo responde "esta o no esta"**,
