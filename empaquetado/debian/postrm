@@ -1,0 +1,23 @@
+#!/bin/sh
+# Se ejecuta despues de quitar el paquete.
+#
+# Los datos de /var/lib/mired NO se borran, ni siquiera al purgar: ahi vive el
+# historico de todas las redes, y recuperarlo es imposible. Si se quiere borrar,
+# se hace a mano y a proposito.
+set -e
+
+case "$1" in
+    remove|purge)
+        if command -v systemctl >/dev/null 2>&1; then
+            systemctl daemon-reload >/dev/null 2>&1 || true
+        fi
+        if [ "$1" = "purge" ] && [ -d /var/lib/mired ]; then
+            echo ""
+            echo "  Los datos de MiRed se conservaron en /var/lib/mired"
+            echo "  Para borrarlos:  sudo rm -rf /var/lib/mired"
+            echo ""
+        fi
+        ;;
+esac
+
+exit 0

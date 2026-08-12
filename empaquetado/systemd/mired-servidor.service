@@ -1,0 +1,40 @@
+[Unit]
+Description=MiRed — servidor web y API
+Documentation=https://github.com/tuxormax/mired
+After=network-online.target
+Wants=network-online.target mired-sonda.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/mired-servidor --configuracion /etc/mired/mired.toml
+Restart=on-failure
+RestartSec=5
+
+# Corre sin privilegios: es el proceso expuesto a la red, asi que es el que menos
+# permisos debe tener. Todo lo que necesita red cruda lo hace mired-sonda.
+User=mired
+Group=mired
+
+# Solo puede escribir donde viven sus datos. /run/mired hace falta para poder
+# conectarse al socket de la sonda: con ProtectSystem=strict todo lo demas queda
+# de solo lectura, y conectar a un socket exige permiso de escritura sobre el.
+StateDirectory=mired
+ReadWritePaths=/var/lib/mired /run/mired
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+NoNewPrivileges=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+[Install]
+WantedBy=multi-user.target

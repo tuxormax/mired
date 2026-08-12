@@ -1,0 +1,178 @@
+// Paquete configuracion lee los ajustes del servicio desde /etc/mired/mired.toml
+// y deja valores por omision razonables para que MiRed arranque sin configurar
+// nada. Cualquier valor se puede sobrescribir con variables de entorno MIRED_*,
+// que es lo comodo para desarrollo y para contenedores.
+package configuracion
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"time"
+
+	"github.com/pelletier/go-toml/v2"
+)
+
+// RutaPorOmision es donde el paquete .deb deja el archivo de configuracion.
+const RutaPorOmision = "/etc/mired/mired.toml"
+
+// Configuracion son todos los ajustes del servicio.
+type Configuracion struct {
+	Servidor Servidor `toml:"servidor"`
+	Datos    Datos    `toml:"datos"`
+	Sonda    Sonda    `toml:"sonda"`
+	Registro Registro `toml:"registro"`
+}
+
+// Servidor ajusta como escucha y que sirve el binario mired-servidor.
+type Servidor struct {
+	// Escucha es la direccion y puerto del servicio, por ejemplo ":60072".
+	Escucha string `toml:"escucha"`
+	// RutaWeb es la carpeta con la interfaz Flutter ya compilada.
+	RutaWeb string `toml:"ruta_web"`
+	// DuracionSesion es cuanto vale una sesion desde el ultimo uso.
+	DuracionSesion Duracion `toml:"duracion_sesion"`
+}
+
+// Datos ajusta donde viven las bases de datos.
+type Datos struct {
+	// Ruta es la carpeta base: adentro van mired.db y la carpeta redes/.
+	Ruta string `toml:"ruta"`
+	// RedesAbiertas es el tope de bases de red abiertas a la vez. Pasado ese
+	// numero se cierran las que llevan mas tiempo sin usarse.
+	RedesAbiertas int `toml:"redes_abiertas"`
+	// InactividadRed es cuanto puede estar sin usarse una base de red antes de
+	// cerrarse sola.
+	InactividadRed Duracion `toml:"inactividad_red"`
+}
+
+// Sonda ajusta el canal entre el servidor y la sonda de escaneo.
+type Sonda struct {
+	// Socket es el socket Unix por donde la sonda entrega lo que descubre.
+	Socket string `toml:"socket"`
+}
+
+// Registro ajusta el detalle de la bitacora.
+type Registro struct {
+	// Nivel es debug, info, aviso o error.
+	Nivel string `toml:"nivel"`
+}
+
+// Duracion permite escribir "30m" o "24h" en el archivo .toml.
+type Duracion struct {
+	time.Duration
+}
+
+// UnmarshalText interpreta el texto del .toml como duracion de Go.
+func (d *Duracion) UnmarshalText(texto []byte) error {
+	valor, err := time.ParseDuration(string(texto))
+	if err != nil {
+		return fmt.Errorf("duracion invalida %q: %w", texto, err)
+	}
+	d.Duration = valor
+	return nil
+}
+
+// MarshalText escribe la duracion en el formato que se lee de vuelta.
+func (d Duracion) MarshalText() ([]byte, error) {
+	return []byte(d.String()), nil
+}
+
+// PorOmision devuelve la configuracion con la que MiRed arranca si no hay
+// archivo. Coincide con las rutas que crea el paquete .deb.
+func PorOmision() Configuracion {
+	return Configuracion{
+		Servidor: Servidor{
+			Escucha:        ":60072",
+			RutaWeb:        "/usr/share/mired/web",
+			DuracionSesion: Duracion{12 * time.Hour},
+		},
+		Datos: Datos{
+			Ruta:           "/var/lib/mired",
+			RedesAbiertas:  8,
+			InactividadRed: Duracion{15 * time.Minute},
+		},
+		Sonda: Sonda{
+			Socket: "/run/mired/sonda.sock",
+		},
+		Registro: Registro{
+			Nivel: "info",
+		},
+	}
+}
+
+// Cargar lee el archivo indicado y aplica encima las variables de entorno. Si el
+// archivo no existe no es un error: se usan los valores por omision, que es lo
+// que permite arrancar recien instalado.
+func Cargar(ruta string) (Configuracion, error) {
+	cfg := PorOmision()
+
+	if ruta == "" {
+		ruta = RutaPorOmision
+	}
+	contenido, err := os.ReadFile(ruta)
+	switch {
+	case err == nil:
+		if err := toml.Unmarshal(contenido, &cfg); err != nil {
+			return cfg, fmt.Errorf("configuracion invalida en %s: %w", ruta, err)
+		}
+	case os.IsNotExist(err):
+		// Sin archivo se usan los valores por omision, a proposito.
+	default:
+		return cfg, fmt.Errorf("no se pudo leer %s: %w", ruta, err)
+	}
+
+	aplicarEntorno(&cfg)
+
+	if cfg.Datos.RedesAbiertas < 1 {
+		cfg.Datos.RedesAbiertas = 1
+	}
+	if cfg.Datos.InactividadRed.Duration <= 0 {
+		cfg.Datos.InactividadRed = Duracion{15 * time.Minute}
+	}
+	return cfg, nil
+}
+
+// aplicarEntorno deja que las variables MIRED_* manden sobre el archivo.
+func aplicarEntorno(cfg *Configuracion) {
+	texto := func(clave string, destino *string) {
+		if valor, hay := os.LookupEnv(clave); hay && valor != "" {
+			*destino = valor
+		}
+	}
+	entero := func(clave string, destino *int) {
+		if valor, hay := os.LookupEnv(clave); hay && valor != "" {
+			if numero, err := strconv.Atoi(valor); err == nil {
+				*destino = numero
+			}
+		}
+	}
+	duracion := func(clave string, destino *Duracion) {
+		if valor, hay := os.LookupEnv(clave); hay && valor != "" {
+			if lapso, err := time.ParseDuration(valor); err == nil {
+				destino.Duration = lapso
+			}
+		}
+	}
+
+	texto("MIRED_ESCUCHA", &cfg.Servidor.Escucha)
+	texto("MIRED_RUTA_WEB", &cfg.Servidor.RutaWeb)
+	duracion("MIRED_DURACION_SESION", &cfg.Servidor.DuracionSesion)
+	texto("MIRED_DATOS", &cfg.Datos.Ruta)
+	entero("MIRED_REDES_ABIERTAS", &cfg.Datos.RedesAbiertas)
+	duracion("MIRED_INACTIVIDAD_RED", &cfg.Datos.InactividadRed)
+	texto("MIRED_SOCKET_SONDA", &cfg.Sonda.Socket)
+	texto("MIRED_NIVEL_REGISTRO", &cfg.Registro.Nivel)
+}
+
+// ArchivoCatalogo es la ruta de la base global: usuarios, permisos y el registro
+// de redes.
+func (c Configuracion) ArchivoCatalogo() string {
+	return filepath.Join(c.Datos.Ruta, "mired.db")
+}
+
+// CarpetaRedes es donde vive un archivo .db por cada red.
+func (c Configuracion) CarpetaRedes() string {
+	return filepath.Join(c.Datos.Ruta, "redes")
+}

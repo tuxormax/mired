@@ -1,0 +1,65 @@
+#!/bin/sh
+# Se ejecuta despues de desempaquetar. Deja el sistema listo para usar.
+#
+# REGLA: este script NUNCA falla. Si algo no se puede hacer, lo avisa y sigue.
+# Un postinst que aborta deja el paquete a medio instalar y el equipo con un
+# servicio roto, que es peor que una instalacion incompleta pero avisada.
+set -e
+
+USUARIO=mired
+GRUPO=mired
+DATOS=/var/lib/mired
+
+crear_usuario() {
+    if getent passwd "$USUARIO" >/dev/null 2>&1; then
+        return 0
+    fi
+    adduser --system --group --no-create-home \
+            --home "$DATOS" \
+            --gecos "MiRed" "$USUARIO" >/dev/null 2>&1 \
+        || echo "AVISO: no se pudo crear el usuario de sistema $USUARIO"
+}
+
+preparar_datos() {
+    mkdir -p "$DATOS/redes" || echo "AVISO: no se pudo crear $DATOS/redes"
+    chown -R "$USUARIO:$GRUPO" "$DATOS" 2>/dev/null \
+        || echo "AVISO: no se pudo asignar $DATOS a $USUARIO"
+    # 0750: las bases de datos de las redes no las lee cualquiera del equipo.
+    chmod 750 "$DATOS" 2>/dev/null || true
+    chmod 750 "$DATOS/redes" 2>/dev/null || true
+}
+
+habilitar_servicios() {
+    if ! command -v systemctl >/dev/null 2>&1; then
+        echo "AVISO: este sistema no usa systemd; arranque MiRed a mano."
+        return 0
+    fi
+    systemctl daemon-reload 2>/dev/null || true
+    for servicio in mired-sonda mired-servidor; do
+        systemctl enable "$servicio" >/dev/null 2>&1 \
+            || echo "AVISO: no se pudo habilitar $servicio"
+        systemctl restart "$servicio" >/dev/null 2>&1 \
+            || echo "AVISO: no se pudo arrancar $servicio (revise: journalctl -u $servicio)"
+    done
+}
+
+case "$1" in
+    configure)
+        crear_usuario
+        preparar_datos
+        habilitar_servicios
+
+        PUERTO=$(sed -n 's/^escucha *= *"\(.*\)"/\1/p' /etc/mired/mired.toml 2>/dev/null | head -1)
+        [ -n "$PUERTO" ] || PUERTO=":60072"
+        echo ""
+        echo "  MiRed quedo instalado."
+        echo "  Entre desde el navegador:  http://$(hostname -I 2>/dev/null | awk '{print $1}')${PUERTO}"
+        echo "  Usuario: usuario-quitado    Clave: clave-quitada"
+        echo "  CAMBIE LA CLAVE al entrar."
+        echo ""
+        echo "  Los datos viven en $DATOS — es lo unico que hay que respaldar."
+        echo ""
+        ;;
+esac
+
+exit 0

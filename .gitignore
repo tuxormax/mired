@@ -1,5 +1,23 @@
 .claude/
 compilado/
 *.db
+*.db-shm
+*.db-wal
 *.sqlite
 __pycache__/
+
+# Binarios y paquetes generados
+/mired-servidor
+/mired-sonda
+/empaquetado/salida/
+*.deb
+
+# Interfaz Flutter
+/interfaz/build/
+/interfaz/.dart_tool/
+/interfaz/.flutter-plugins
+/interfaz/.flutter-plugins-dependencies
+/interfaz/.packages
+
+# Interfaz ya compilada que el servidor sirve: se genera al construir
+/programas/mired-servidor/web/

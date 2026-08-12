@@ -1,0 +1,40 @@
+# Configuracion de MiRed.
+#
+# Todo lo de aqui tiene un valor por omision razonable: si borra este archivo, el
+# servicio sigue arrancando igual. Cualquier valor se puede sobrescribir tambien
+# con variables de entorno MIRED_* (util para pruebas).
+
+[servidor]
+# Direccion y puerto donde escucha la interfaz web.
+# Para exponerlo solo en este equipo: "127.0.0.1:60072"
+escucha = ":60072"
+
+# Carpeta con la interfaz ya compilada. La deja el paquete.
+ruta_web = "/usr/share/mired/web"
+
+# Cuanto dura una sesion desde el ultimo uso.
+duracion_sesion = "12h"
+
+[datos]
+# Carpeta de las bases de datos. Adentro:
+#   mired.db      el catalogo: usuarios, permisos y el registro de redes
+#   redes/        un archivo .db por cada red
+#
+# ESTA CARPETA ES LO UNICO QUE HAY QUE RESPALDAR.
+ruta = "/var/lib/mired"
+
+# Cuantas bases de red se mantienen abiertas a la vez. Con muchas redes, subirlo
+# gasta memoria y descriptores de archivo; bajarlo hace que se reabran seguido.
+redes_abiertas = 8
+
+# Cuanto puede estar una base de red sin usarse antes de cerrarse sola.
+inactividad_red = "15m"
+
+[sonda]
+# Socket por donde el servidor le habla a la sonda de escaneo. Es local: la
+# sonda nunca escucha en la red.
+socket = "/run/mired/sonda.sock"
+
+[registro]
+# debug, info, aviso o error.
+nivel = "info"
