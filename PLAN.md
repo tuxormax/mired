@@ -32,16 +32,26 @@ Actualizado el **2026-08-13**, en **v1.1 Rev 8**.
 | 9 — Publicacion | ⚠️ parcial | AGPL-3.0, repo publico y documentacion (ES y EN). **Falta subir los paquetes a una release y firmarlos** |
 | 10 — Inspeccion profunda | ✅ terminada | `mired-dpi` en el mismo paquete pero APAGADO: nombre del servidor por TLS, HTTP y DNS. Falta probarlo con un puerto espejo real |
 
-**Probado de verdad:** el `dpkg -i` en un equipo (2026-08-13, funcionó), el
-descubrimiento contra la red real de casa, los barridos programados corriendo
-solos, el motor de alertas, el catálogo de dispositivos, el receptor de flujos, y
-el `.deb` desempaquetado y corriendo desde su propio árbol.
+**Probado de verdad:** el `dpkg -i` en un equipo y **el programa abriéndose desde
+el menú y levantando sus servicios** (2026-08-13), el primer acceso creando el
+administrador, el descubrimiento contra la red real de casa, los barridos
+programados corriendo solos, el motor de alertas, el catálogo de dispositivos, el
+receptor de flujos, y el `.deb` desempaquetado corriendo desde su propio árbol.
 
-**NO probado todavía:** el programa de escritorio abriéndose y levantando sus
-servicios; SNMP y CDP contra un switch administrable real; la controladora UniFi
+**NO probado todavía:** que los servicios mueran al cerrar la ventana; un escaneo
+completo lanzado desde el programa; SNMP y CDP contra un switch administrable real; la controladora UniFi
 contra una de verdad (sólo contra un servidor de mentira que imita las dos
 generaciones); y la inspección profunda contra un puerto espejo real. El switch
 administrable sigue siendo el riesgo abierto más grande del proyecto.
+
+### Lo que enseñó la primera sesión de uso real
+
+Los dos fallos del 2026-08-13 **no los encontró ninguna prueba: los encontró
+alguien usando el programa.** Uno dejaba la pantalla en gris al teclear el
+usuario; el otro pedía un dato —la subred en notación con barra— que el programa
+ya sabía. Ninguno era un fallo de lógica: los dos eran de **lo que el usuario ve y
+de lo que se le pide**. Conviene abrir cada pantalla a mano antes de darla por
+buena.
 
 ### Versionado
 
@@ -71,7 +81,7 @@ Raspberry Pi, que era el requisito.
 
 ### Cobertura de pruebas
 
-**108 pruebas en Go y 15 en Flutter**, sobre ~16 500 líneas de Go y ~7 300 de
+**108 pruebas en Go y 30 en Flutter**, sobre ~16 500 líneas de Go y ~7 900 de
 Dart, en 14 paquetes.
 
 En Go: almacenamiento, agenda, alertas, topologia, catalogo, la lectura de SNMP,
@@ -82,8 +92,9 @@ de otro router, colgar un vecino de la boca equivocada, o multiplicar mal la tas
 de muestreo de sFlow. Ninguna de esas tres revienta nada; todas dan cifras
 plausibles y falsas.
 
-En Flutter: 5 dibujan cada pantalla contra un servidor de mentira y 10 comprueban
-la exportación del mapa —que el PDF tenga bien la tabla de referencias cruzadas y
+En Flutter: 5 dibujan cada pantalla contra un servidor de mentira, 10 comprueban
+la exportación del mapa, 10 la traducción de lo que el usuario escribe como red, y
+5 que el primer acceso no reviente al teclear ni deje la pantalla en gris —que el PDF tenga bien la tabla de referencias cruzadas y
 escape acentos y parentesis, que el SVG salga bien formado, que el PNG lleve su
 firma, que el CSV entrecomille lo que debe y que un cable visto por LLDP y por
 CDP se dibuje una sola vez—.

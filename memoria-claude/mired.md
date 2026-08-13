@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 20376d18-adf7-4315-bb9c-98a3aa84ec95
-  modified: 2026-08-13T21:00:00.000Z
+  modified: 2026-08-13T22:30:00.000Z
 ---
 
 # MiRed — servicio propio de mapeo de redes
@@ -101,14 +101,18 @@ Go 1.26.4 y Flutter 3.35.6 **ya instalados**. No hay Rust, ni Docker, ni
 el descubrimiento contra la red de casa, los barridos programados, las alertas,
 el catalogo, el receptor de flujos y el `.deb` desempaquetado corriendo aparte.
 
-**NO probado:** el programa de escritorio abriendose y levantando los servicios
-—se instalo la version anterior, no esta—; SNMP y CDP contra un switch
-administrable real; la controladora UniFi contra una de verdad; y la inspeccion
-profunda contra un puerto espejo. El switch administrable sigue siendo el riesgo
-abierto mas grande.
+**Probado el 2026-08-13 en el equipo del usuario:** `dpkg -i`, el programa
+abriendose desde el menu, **el supervisor levantando los dos servicios**, el
+primer acceso creando el administrador, y el formulario de red proponiendo la red
+detectada.
+
+**NO probado:** que los servicios mueran al cerrar la ventana; un escaneo
+completo desde el programa; SNMP y CDP contra un switch administrable real; la
+controladora UniFi contra una de verdad; y la inspeccion profunda contra un
+puerto espejo. El switch administrable sigue siendo el riesgo abierto mas grande.
 
 ## Cobertura (2026-08-13)
-**108 pruebas en Go y 15 en Flutter**, sobre ~16 500 lineas de Go y ~7 300 de
+**108 pruebas en Go y 30 en Flutter**, sobre ~16 500 lineas de Go y ~7 900 de
 Dart, en 14 paquetes. Mas `herramientas/probar.sh` con **32 comprobaciones**:
 construye el `.deb`, lo desempaqueta y recorre el flujo completo. Es la unica que
 prueba lo que de verdad se entrega.
@@ -162,31 +166,46 @@ practica.
 
 ## ▶ POR DONDE SEGUIR (al 2026-08-13, fin de la segunda jornada)
 
-Lo primero, y es de un minuto:
+**El programa ya se instalo y se uso de verdad**, y ahi salieron los dos fallos
+del dia. Lo que quedo comprobado en el equipo del usuario:
 
-1. **Abrir el programa por primera vez.** Se instala con
-   `sudo dpkg -i instaladores/mired_1.1-8_amd64.deb` y se busca "MiRed" en el
-   menu. **Nunca se ha abierto**: no esta comprobado que el supervisor levante
-   `mired-servidor` y `mired-sonda`, ni que los mate al cerrar. Es lo unico de la
-   jornada que quedo sin verificar, y toca todo lo demas.
-   Para probar en limpio: `sudo ./herramientas/desinstalar.sh`.
+- `dpkg -i` funciona y el programa aparece en el menu.
+- **El supervisor levanta `mired-servidor` y `mired-sonda` al abrir.** Se vieron
+  los tres procesos corriendo.
+- El primer acceso crea el administrador y entra.
+- El formulario de nueva red propone la red detectada.
 
-Despues, en orden de valor:
+**Lo que NO se ha visto todavia:** que los servicios se maten al cerrar la
+ventana, un escaneo terminando, y todo lo que dependa de equipo real.
 
-2. **Cerrar la fase 9.** Falta subir los `.deb` a una release de GitHub. El
+En orden de valor:
+
+1. **Terminar el primer escaneo** y ver el inventario, el mapa y las alertas con
+   datos de verdad. Es el siguiente paso natural donde se quedo el usuario.
+2. **Comprobar que al cerrar el programa mueren los servicios.** Es la mitad del
+   trato del supervisor y la unica parte sin verificar. Basta cerrar la ventana y
+   mirar si quedan procesos.
+3. **Cerrar la fase 9.** Falta subir los `.deb` a una release de GitHub. El
    usuario **ya eligio la opcion 1: publicar SIN firmar**, con las sumas SHA-256.
    No hay clave GPG en el equipo y crear una es decision suya, no de la sesion.
-3. **Probar contra equipo real** — el riesgo abierto mas grande del proyecto:
+4. **Probar contra equipo real** — el riesgo abierto mas grande del proyecto:
    SNMP y CDP contra un switch administrable, la controladora UniFi contra una de
    verdad, y la inspeccion profunda contra un puerto espejo. Nada de eso se ha
    visto funcionar fuera de servidores de mentira.
-4. **Medir el consumo de la inspeccion profunda.** El plan obliga a medir al
+5. **Medir el consumo de la inspeccion profunda.** El plan obliga a medir al
    cerrar cada fase y la 10 se cerro sin medir, porque sin puerto espejo no hay
    nada que capturar. Es justo el proceso donde mas importa: el unico que trabaja
    de continuo.
-5. **El programa para arm64.** Hoy el `.deb` de arm64 sale sin el, porque Flutter
+6. **El programa para arm64.** Hoy el `.deb` de arm64 sale sin el, porque Flutter
    no cruza desde amd64. Para una Raspberry hay que compilarlo en ella o montar
    compilacion cruzada.
+
+**Lo que enseño la primera sesion de uso real, y vale para todo el proyecto:** los
+dos fallos del dia no los encontro ninguna prueba, los encontro alguien usando el
+programa. Uno dejaba la pantalla en gris al teclear; el otro pedia un dato que el
+programa ya sabia. Ninguno era un fallo de logica: eran de **lo que el usuario ve
+y de lo que se le pide**. Conviene probar cada pantalla a mano, no solo con
+pruebas.
 
 ## Lo que falta decidir
 - **Inventario de las redes reales** (marca/modelo de switches y puntos de acceso,
