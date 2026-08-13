@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 20376d18-adf7-4315-bb9c-98a3aa84ec95
-  modified: 2026-08-13T22:30:00.000Z
+  modified: 2026-08-13T23:59:00.000Z
 ---
 
 # MiRed — servicio propio de mapeo de redes
@@ -90,7 +90,7 @@ Tres pruebas lo vigilan: que el binario y el historial digan la misma version,
 que la revision **no tenga huecos ni repetidos**, y que sembrar mil veces no
 duplique filas.
 
-## Estado real (2026-08-13, v1.14 Rev 12)
+## Estado real (2026-08-13, v1.14 Rev 15)
 **Las 10 fases cerradas**, salvo publicar los paquetes. Lo hecho:
 1. Cimientos: servidor + sonda, una base SQLite por red, autenticacion con
    permisos por red, API con el estandar de errores de la casa, programa de
@@ -132,8 +132,8 @@ controladora UniFi contra una de verdad; y la inspeccion profunda contra un
 puerto espejo. El switch administrable sigue siendo el riesgo abierto mas grande.
 
 ## Cobertura (2026-08-13)
-**108 pruebas en Go y 30 en Flutter**, sobre ~16 500 lineas de Go y ~7 900 de
-Dart, en 14 paquetes. Mas `herramientas/probar.sh` con **32 comprobaciones**:
+**113 pruebas en Go y 31 en Flutter**, sobre ~17 000 lineas de Go y ~8 700 de
+Dart, en 14 paquetes. Mas 34 comprobaciones en la prueba de humo. Mas `herramientas/probar.sh` con **32 comprobaciones**:
 construye el `.deb`, lo desempaqueta y recorre el flujo completo. Es la unica que
 prueba lo que de verdad se entrega.
 
@@ -186,22 +186,22 @@ practica.
 
 ## ▶ POR DONDE SEGUIR (al 2026-08-13, fin de la segunda jornada)
 
-**El programa ya se instalo y se uso de verdad**, y ahi salieron los dos fallos
-del dia. Lo que quedo comprobado en el equipo del usuario:
+**El programa se instalo y se uso de verdad**, y de ahi salieron TODOS los fallos
+de la jornada. Comprobado en el equipo del usuario:
 
 - `dpkg -i` funciona y el programa aparece en el menu.
-- **El supervisor levanta `mired-servidor` y `mired-sonda` al abrir.** Se vieron
-  los tres procesos corriendo.
+- **El supervisor levanta `mired-servidor` y `mired-sonda` al abrir.**
 - El primer acceso crea el administrador y entra.
-- El formulario de nueva red propone la red detectada.
+- Crear una red.
 
-**Lo que NO se ha visto todavia:** que los servicios se maten al cerrar la
-ventana, un escaneo terminando, y todo lo que dependa de equipo real.
+**Lo que NO se ha visto todavia:** un escaneo terminando con datos, que los
+servicios se maten al cerrar la ventana, y todo lo que dependa de equipo real.
 
 En orden de valor:
 
 1. **Terminar el primer escaneo** y ver el inventario, el mapa y las alertas con
-   datos de verdad. Es el siguiente paso natural donde se quedo el usuario.
+   datos de verdad. Es donde se quedo el usuario, y desbloquea comprobar el mapa,
+   la exportacion y las alertas de una sola vez.
 2. **Comprobar que al cerrar el programa mueren los servicios.** Es la mitad del
    trato del supervisor y la unica parte sin verificar. Basta cerrar la ventana y
    mirar si quedan procesos.
@@ -220,12 +220,21 @@ En orden de valor:
    no cruza desde amd64. Para una Raspberry hay que compilarlo en ella o montar
    compilacion cruzada.
 
-**Lo que enseño la primera sesion de uso real, y vale para todo el proyecto:** los
-dos fallos del dia no los encontro ninguna prueba, los encontro alguien usando el
-programa. Uno dejaba la pantalla en gris al teclear; el otro pedia un dato que el
-programa ya sabia. Ninguno era un fallo de logica: eran de **lo que el usuario ve
-y de lo que se le pide**. Conviene probar cada pantalla a mano, no solo con
-pruebas.
+**Lo que enseño la primera sesion de uso real, y vale para todo el proyecto:**
+NINGUNO de los cuatro fallos del dia lo encontro una prueba. Los encontro alguien
+usando el programa, con 144 pruebas en verde:
+
+1. La pantalla se quedaba **en gris** al teclear el usuario (expresion regular).
+2. Pedia la subred en **notacion con barra**, que el usuario no tenia por que
+   conocer — y que el programa ya sabia.
+3. Dejaba crear una red **sin nada que escanear**, y el barrido no encontraba
+   nada sin decir por que.
+4. Los reportes decian **cuando se exportaron**, no de cuando eran los datos.
+
+Ninguno era un fallo de logica: los cuatro eran de **lo que el usuario ve y de lo
+que se le pide**. Las pruebas comprobaban que el codigo hace lo que dice, no que
+lo que dice tenga sentido para quien lo usa. **Abrir cada pantalla a mano antes
+de darla por buena** no es opcional en este proyecto.
 
 ## Lo que falta decidir
 - **Inventario de las redes reales** (marca/modelo de switches y puntos de acceso,

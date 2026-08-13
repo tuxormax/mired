@@ -17,7 +17,7 @@ a heredar la AGPL de otro.
 
 ## Estado del desarrollo
 
-Actualizado el **2026-08-13**, en **v1.1 Rev 8**.
+Actualizado el **2026-08-13**, en **v1.14 Rev 15**.
 
 | Fase | Estado | Nota |
 |---|---|---|
@@ -59,12 +59,16 @@ siendo cierto?*
 
 ### Lo que enseñó la primera sesión de uso real
 
-Los dos fallos del 2026-08-13 **no los encontró ninguna prueba: los encontró
-alguien usando el programa.** Uno dejaba la pantalla en gris al teclear el
-usuario; el otro pedía un dato —la subred en notación con barra— que el programa
-ya sabía. Ninguno era un fallo de lógica: los dos eran de **lo que el usuario ve y
-de lo que se le pide**. Conviene abrir cada pantalla a mano antes de darla por
-buena.
+**Ninguno de los cuatro fallos del 2026-08-13 lo encontró una prueba.** Los
+encontró alguien usando el programa, con 144 pruebas en verde: la pantalla en
+gris al teclear, la subred en notación con barra que nadie tiene por qué conocer,
+una red que se podía crear sin nada que escanear, y unos reportes que decían
+cuándo se exportaron en vez de de cuándo eran los datos.
+
+Ninguno era un fallo de lógica: los cuatro eran de **lo que el usuario ve y de lo
+que se le pide**. Las pruebas comprobaban que el código hace lo que dice, no que
+lo que dice tenga sentido para quien lo usa. **Abrir cada pantalla a mano antes
+de darla por buena** no es opcional en este proyecto.
 
 ### Versionado
 
@@ -102,7 +106,7 @@ Raspberry Pi, que era el requisito.
 
 ### Cobertura de pruebas
 
-**112 pruebas en Go y 30 en Flutter**, sobre ~16 500 líneas de Go y ~7 900 de
+**113 pruebas en Go y 31 en Flutter**, sobre ~16 500 líneas de Go y ~7 900 de
 Dart, en 14 paquetes.
 
 En Go: almacenamiento, agenda, alertas, topologia, catalogo, la lectura de SNMP,
