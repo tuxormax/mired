@@ -5,6 +5,7 @@ import '../servicios/api.dart';
 import '../servicios/descarga.dart';
 import '../servicios/trayectoria.dart';
 import '../widgets/mensajes.dart';
+import 'controladoras.dart';
 import 'credenciales.dart';
 import 'entrar.dart';
 import 'red.dart';
@@ -80,6 +81,14 @@ class _PantallaRedesState extends State<PantallaRedes> {
               icon: const Icon(Icons.vpn_key_outlined),
               onPressed: () => Navigator.of(contexto).push(
                 MaterialPageRoute<void>(builder: (_) => const PantallaCredenciales()),
+              ),
+            ),
+          if (usuario?.superadmin == true)
+            IconButton(
+              tooltip: 'Controladoras WiFi',
+              icon: const Icon(Icons.wifi_tethering),
+              onPressed: () => Navigator.of(contexto).push(
+                MaterialPageRoute<void>(builder: (_) => const PantallaControladoras()),
               ),
             ),
           if (usuario?.superadmin == true)

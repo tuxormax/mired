@@ -84,6 +84,29 @@ Si sus switches no son administrables, MiRed se lo dice claramente en esa
 pantalla y le explica qué sigue funcionando sin ellos (que es casi todo:
 inventario, presencia y alertas).
 
+### El WiFi: dé de alta su controladora
+
+Un punto de acceso **no tiene puertos, tiene antenas**, y quien sabe qué aparato
+está colgado de cuál es la controladora, no el aparato. Sin darla de alta, en una
+oficina moderna la mitad de los equipos —teléfonos, portátiles, cámaras— salen
+como *«sin ubicar»* en el mapa.
+
+En el panel de inicio, el ícono de la antena → **Nueva controladora**. Necesita
+la misma dirección con la que usted entra desde el navegador
+(`https://192.168.1.10:8443`), un usuario —basta uno de sólo lectura— y el
+*sitio*, que en casi todas se llama `default`.
+
+Deje **apagado** «exigir certificado válido»: casi toda controladora casera usa
+un certificado que ella misma se firmó, y exigirlo dejaría la función inservible.
+
+Después de eso, cada equipo por WiFi aparece en el mapa colgando de su antena, y
+la boca lleva el nombre de la red a la que se conectó (`Oficina`, `Invitados`).
+Si la controladora deja de contestar, la pantalla lo dice con el motivo: el WiFi
+no desaparece del mapa en silencio.
+
+De momento se entiende **UniFi (Ubiquiti)**, que es la que hay instalada en la
+mayoría de los sitios chicos.
+
 ### Guardar el mapa
 
 En la pantalla del mapa, el ícono de la flecha hacia abajo. Cuatro formatos:

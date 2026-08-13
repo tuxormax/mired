@@ -313,6 +313,22 @@ class Api {
 
   Future<void> borrarCredencial(int id) => borrar('/api/credenciales-snmp/$id');
 
+  // ------------------------------------------------------- controladoras --
+
+  Future<List<Controladora>> listarControladoras() async {
+    final datos = await obtener('/api/controladoras') as List<dynamic>;
+    return datos
+        .map((fila) => Controladora.desdeJson(fila as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<Controladora> crearControladora(Map<String, dynamic> controladora) async {
+    final datos = await enviar('/api/controladoras', controladora);
+    return Controladora.desdeJson(datos as Map<String, dynamic>);
+  }
+
+  Future<void> borrarControladora(int id) => borrar('/api/controladoras/$id');
+
   Future<Map<String, dynamic>> estadoSonda() async =>
       await obtener('/api/sonda') as Map<String, dynamic>;
 

@@ -24,7 +24,7 @@ Actualizado el **2026-08-12**, al cerrar la primera jornada de trabajo.
 | 1 — Cimientos | ✅ terminada | Servidor, sonda, base por red, auth, API, interfaz y `.deb` |
 | 2 — Descubrimiento | ✅ terminada | ARP, ICMP y TCP; puertos, DNS inverso y fabricante por OUI |
 | 3 — Presencia en vivo | ✅ terminada | Barrido rapido, historial de conexiones y agenda por red |
-| 4 — SNMP y capa 2 | ⚠️ hecha, sin probar en equipo real | LLDP y CDP listos, y los enlaces entre switches ya se dibujan. **Falta un switch administrable de verdad** y la controladora WiFi |
+| 4 — SNMP y capa 2 | ⚠️ hecha, sin probar en equipo real | LLDP, CDP, enlaces entre switches dibujados y controladora UniFi. **Falta probarla contra equipo de verdad** |
 | 5 — El mapa | ✅ terminada | Mapa visual y exportacion a PNG, SVG, PDF y CSV |
 | 6 — Catalogo `.toml` | ✅ terminada | Formato, motor de reconocimiento, 15 definiciones semilla y "proponer definicion" |
 | 7 — Alertas | ✅ terminada | Las 6 reglas detectan y los 4 destinos de aviso funcionan |
@@ -316,7 +316,17 @@ Es la fase que da lo que ninguna herramienta gratuita da bien, y la más técnic
 - Cliente SNMP v1, v2c y v3, con credenciales guardadas en el catálogo.
 - Tabla de reenvío de MAC del switch, tabla de interfaces, VLAN y estado de cada
   puerto.
-- LLDP y CDP para los enlaces entre switches.
+- LLDP y CDP para los enlaces entre switches. Los dos, porque **CDP viene
+  encendido de fabrica en los Cisco y LLDP no**: cada uno cubre la mitad del
+  parque instalado. Un mismo cable visto por los dos se guarda dos veces y se
+  dibuja una, marcado como confirmado por ambos.
+- **Controladora WiFi.** Un punto de acceso no tiene puertos, tiene antenas, y
+  quien sabe quien cuelga de cual es la controladora. Lo que contesta se guarda
+  por el MISMO camino que SNMP —el punto de acceso es, para el mapa, un switch
+  cuyas bocas son redes WiFi—, y asi hereda gratis el mapa, la exportacion y la
+  alerta de "se movio de lugar" en vez de ser un segundo mapa que mantener
+  aparte. Corre en el servidor y no en la sonda: es HTTPS, no necesita
+  privilegios.
 - Armado del árbol: qué aparato cuelga de qué boca, distinguiendo **enlace
   confirmado** de **inferido**, y detectando las bocas con varias MAC como
   «grupo detrás de un switch no administrable».

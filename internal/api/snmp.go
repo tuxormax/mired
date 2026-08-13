@@ -127,3 +127,63 @@ func explicarCapacidad(capacidad string) string {
 			"y corra un escaneo completo."
 	}
 }
+
+// -------------------------------------------------------- controladoras WiFi --
+
+// Las controladoras viven en el catalogo, como las credenciales SNMP, y por la
+// misma razon: una controladora suele atender varios sitios a la vez.
+
+func (a *API) listarControladoras(escritor http.ResponseWriter, peticion *http.Request) {
+	controladoras, err := a.Datos.ListarControladoras(peticion.Context())
+	if err != nil {
+		a.responderError(escritor, peticion, contextoError{
+			Modulo: "Controladoras WiFi", Accion: "Listar", Causa: CausaBaseDatos,
+			Tabla: "controladoras", Codigo: http.StatusInternalServerError,
+		}, "No se pudieron listar las controladoras.", err)
+		return
+	}
+
+	publicas := make([]basedatos.Controladora, 0, len(controladoras))
+	for _, controladora := range controladoras {
+		publicas = append(publicas, controladora.SinSecretos())
+	}
+	responderOk(escritor, publicas)
+}
+
+func (a *API) crearControladora(escritor http.ResponseWriter, peticion *http.Request) {
+	var cuerpo basedatos.Controladora
+	if !a.leerCuerpo(escritor, peticion, &cuerpo, "Controladoras WiFi", "Crear") {
+		return
+	}
+
+	controladora, err := a.Datos.CrearControladora(peticion.Context(), cuerpo)
+	if errors.Is(err, basedatos.ErrControladoraRepetida) {
+		a.errorValidacion(escritor, peticion, "Controladoras WiFi", "Crear",
+			"Ya existe una controladora con ese nombre.")
+		return
+	}
+	if err != nil {
+		a.errorValidacion(escritor, peticion, "Controladoras WiFi", "Crear", err.Error())
+		return
+	}
+
+	a.anotarActividad(peticion, "Controladoras WiFi", "Crear controladora "+controladora.Nombre)
+	responderOk(escritor, controladora.SinSecretos())
+}
+
+func (a *API) borrarControladora(escritor http.ResponseWriter, peticion *http.Request) {
+	id, err := strconv.ParseInt(peticion.PathValue("id"), 10, 64)
+	if err != nil || id <= 0 {
+		a.errorValidacion(escritor, peticion, "Controladoras WiFi", "Borrar",
+			"El identificador no es valido.")
+		return
+	}
+
+	if err := a.Datos.BorrarControladora(peticion.Context(), id); err != nil {
+		a.errorValidacion(escritor, peticion, "Controladoras WiFi", "Borrar", err.Error())
+		return
+	}
+
+	a.anotarActividad(peticion, "Controladoras WiFi", "Borrar controladora")
+	responderOk(escritor, map[string]any{"borrada": true})
+}

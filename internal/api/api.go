@@ -96,6 +96,9 @@ func (a *API) Rutas() http.Handler {
 	mux.Handle("GET /api/credenciales-snmp", a.conSuperadmin(a.listarCredenciales))
 	mux.Handle("POST /api/credenciales-snmp", a.conSuperadmin(a.crearCredencial))
 	mux.Handle("DELETE /api/credenciales-snmp/{id}", a.conSuperadmin(a.borrarCredencial))
+	mux.Handle("GET /api/controladoras", a.conSuperadmin(a.listarControladoras))
+	mux.Handle("POST /api/controladoras", a.conSuperadmin(a.crearControladora))
+	mux.Handle("DELETE /api/controladoras/{id}", a.conSuperadmin(a.borrarControladora))
 
 	// Usuarios y permisos: solo el superadministrador.
 	mux.Handle("GET /api/usuarios", a.conSuperadmin(a.listarUsuarios))

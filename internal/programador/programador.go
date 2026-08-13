@@ -183,6 +183,10 @@ func (s *Servicio) correr(clave string, escaneoID int64, subredes []string, solo
 	// que da el mapa de puertos.
 	if err == nil && !soloPresencia {
 		s.consultarSNMP(ctx, clave, resultado.Equipos)
+		// Las controladoras WiFi van DESPUES de SNMP: lo que dicen se guarda por
+		// el mismo camino, y asi el punto de acceso ya existe como equipo con sus
+		// bocas antes de colgarle los equipos inalambricos.
+		s.consultarControladoras(ctx, clave)
 		s.reconocer(ctx, clave)
 	}
 	// Las alertas se revisan tambien tras un barrido de presencia: enterarse de

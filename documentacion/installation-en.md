@@ -72,6 +72,28 @@ If your switches are unmanaged, MiRed says so explicitly on that screen and
 explains what still works without them — which is nearly everything: inventory,
 presence and alerts.
 
+### Wi-Fi: add your controller
+
+An access point **has no ports, it has radios**, and the one who knows which
+device hangs off which is the controller, not the access point. Without adding
+it, half the devices in a modern office — phones, laptops, cameras — show up as
+*"unplaced"* on the map.
+
+Antenna icon on the home panel → *New controller*. It needs the same address you
+use in your own browser (`https://192.168.1.10:8443`), a user — read-only is
+enough — and the *site*, which is called `default` on nearly every install.
+
+Leave "require a valid certificate" **off**: almost every on-premise controller
+uses a certificate it signed itself, and requiring one would make the feature
+useless.
+
+After that, each Wi-Fi device appears on the map under its access point, and the
+port carries the name of the network it joined (`Office`, `Guest`). If the
+controller stops answering, the screen says so and why — the Wi-Fi does not
+quietly vanish from the map.
+
+**UniFi (Ubiquiti)** is supported today, which is what most small sites run.
+
 ### Saving the map
 
 The download icon on the map screen. Four formats:

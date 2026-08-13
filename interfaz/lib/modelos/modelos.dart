@@ -479,6 +479,52 @@ class EnlaceDibujable {
   bool get porAmbos => origenes.length > 1;
 }
 
+/// Una controladora WiFi (UniFi y compatibles).
+///
+/// Un punto de acceso no tiene puertos: tiene antenas, y quien sabe que aparato
+/// esta colgado de cual es la controladora, no el aparato.
+class Controladora {
+  final int id;
+  final String nombre;
+  final String tipo;
+  final String url;
+  final String usuario;
+  final String sitio;
+  final bool verificarTls;
+  final String creada;
+
+  /// Cuando contesto por ultima vez y que dijo. Que una controladora lleve dias
+  /// sin contestar es un dato, no un silencio.
+  final String ultimoExito;
+  final String ultimoError;
+
+  const Controladora({
+    required this.id,
+    required this.nombre,
+    required this.tipo,
+    required this.url,
+    required this.usuario,
+    required this.sitio,
+    required this.verificarTls,
+    required this.creada,
+    this.ultimoExito = '',
+    this.ultimoError = '',
+  });
+
+  factory Controladora.desdeJson(Map<String, dynamic> json) => Controladora(
+        id: json['id'] as int,
+        nombre: json['nombre'] as String? ?? '',
+        tipo: json['tipo'] as String? ?? 'unifi',
+        url: json['url'] as String? ?? '',
+        usuario: json['usuario'] as String? ?? '',
+        sitio: json['sitio'] as String? ?? 'default',
+        verificarTls: json['verificarTls'] as bool? ?? false,
+        creada: json['creada'] as String? ?? '',
+        ultimoExito: json['ultimoExito'] as String? ?? '',
+        ultimoError: json['ultimoError'] as String? ?? '',
+      );
+}
+
 /// Una credencial para hablarle a los switches por SNMP.
 class CredencialSNMP {
   final int id;
