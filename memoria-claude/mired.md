@@ -124,10 +124,13 @@ Lo exportado (mapas y demas archivos) **se guarda en el equipo y punto**: sin
 Google Drive, sin subida a ninguna nube, sin envio automatico. El PNG, el SVG y
 el PDF se arman **dentro del navegador** —el PNG con Flutter, el SVG y el PDF
 escritos a mano en `interfaz/lib/servicios/exportar_mapa.dart`, sin biblioteca de
-terceros— y ni siquiera pasan por el servidor. **Pendiente de aclarar con el
-usuario**: si esa regla alcanza tambien a los cuatro destinos de aviso de la fase
-7 (ntfy, Telegram, correo, webhook), que si salen a internet cuando el usuario
-los configura.
+terceros— y ni siquiera pasan por el servidor.
+
+**Aclarado el 2026-08-13: la regla es solo para archivos.** Los cuatro destinos
+de aviso de la fase 7 (ntfy, Telegram, correo SMTP, webhook) **se quedan como
+estan; el usuario dijo explicitamente que no se muevan**. Conviven con la regla
+porque **ninguno se activa solo**: sin un destino dado de alta a mano en la
+pantalla de alertas de la red, MiRed no manda nada a ningun lado.
 
 **Ver tambien:** [[mired-arquitectura]], [[mired-capacidades]],
 [[mired-upstream-scanopy]]
