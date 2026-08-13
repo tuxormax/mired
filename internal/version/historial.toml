@@ -156,6 +156,14 @@ tipo = "fix"
 modulo = "Programa de escritorio"
 notas = "Al actualizar sin cerrar el programa, el servidor viejo seguia vivo con su codigo en memoria y el programa se colgaba de el: interfaz nueva contra motor viejo. Ahora el instalador para los procesos al actualizar y el programa compara su version con la del servidor vivo, reemplazandolo si no coinciden. Solo toca lo de este equipo."
 
+[[sistema]]
+version = "1.14"
+revision = 17
+fecha = "2026-08-13"
+tipo = "change"
+modulo = "Mapa de puertos"
+notas = "MiRed averigua solo si hay switches administrables: en cada escaneo prueba la comunidad de fabrica, sin pedir nada. Si nadie contesta lo dice claro —son switches simples, es lo normal en una red de casa— en vez de pedir una credencial SNMP para unos switches que no existen."
+
 # ----------------------------------------------------------------- la base --
 #
 # Cada entrada apunta al numero de migracion que la trae. El esquema de las bases

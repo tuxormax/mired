@@ -263,3 +263,32 @@ func TestUnMismoEnlaceVistoPorLLDPyPorCDPSeGuardaDosVeces(t *testing.T) {
 		t.Fatal("el vecino de CDP deberia haberse enlazado por la IP que anuncio")
 	}
 }
+
+func TestUnaRedSinSwitchesAdministrablesLoDiceClaro(t *testing.T) {
+	// Es el caso NORMAL en una red de casa, y durante un dia MiRed lo trato como
+	// si al usuario le faltara configurar algo: le pedia cargar una credencial
+	// SNMP para unos switches que no existen. La capacidad tiene que quedar en
+	// "no disponible", que es una respuesta, no un "todavia no se sabe".
+	_, base, devolver := conRedDePrueba(t)
+	defer devolver()
+	ctx := context.Background()
+
+	sembrarEquipos(t, base, []EquipoDescubierto{
+		{IP: "192.168.1.10", MAC: "aa:aa:aa:00:00:10", Metodo: "arp"},
+		{IP: "192.168.1.11", MAC: "aa:aa:aa:00:00:11", Metodo: "arp"},
+	})
+
+	// Se consulto y NADIE contesto: eso es lo que pasa con switches simples.
+	if _, err := base.GuardarSNMP(ctx, nil); err != nil {
+		t.Fatalf("no se pudo guardar: %v", err)
+	}
+	capacidad, err := base.CalcularCapacidades(ctx)
+	if err != nil {
+		t.Fatalf("no se pudo calcular la capacidad: %v", err)
+	}
+
+	if capacidad != CapacidadNoDisponible {
+		t.Fatalf("sin switches administrables la capacidad deberia ser %q y es %q",
+			CapacidadNoDisponible, capacidad)
+	}
+}

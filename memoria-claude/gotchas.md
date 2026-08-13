@@ -67,6 +67,13 @@ Regla del proyecto (2026-08-13, la pidio el usuario):
   switches. Son cosas distintas y se sienten distintas al mirarlas.
 
 ## Interfaz: no pedir lo que el programa ya sabe
+- **SNMP se prueba SIEMPRE, aunque nadie haya cargado credenciales.** Se agrega
+  la comunidad de fabrica `public` (v2c, solo lectura) a la lista en cada escaneo
+  profundo. Antes, sin credenciales, la consulta se saltaba entera: MiRed nunca
+  podia saber si habia switches administrables y le pedia al usuario que cargara
+  una credencial para unos switches que en una red de casa **no existen**.
+  Si nadie contesta, la capacidad queda en `no_disponible` — que es una
+  RESPUESTA ("son switches simples"), no un "todavia no se sabe".
 - **El formulario de nueva red NO pide una subred en notacion con barra.** Pedia
   `192.168.1.0/24` y el usuario —que es el dueño del proyecto— no supo que poner:
   es una cuenta que el programa puede hacer solo, porque la sonda ya le reporta

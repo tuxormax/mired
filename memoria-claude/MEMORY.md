@@ -73,6 +73,9 @@ Para probar una instalacion **en limpio**: `sudo ./herramientas/desinstalar.sh`.
   que y como se corrigio.
 
 ### 📚 Referencia
+- [red-del-usuario](red-del-usuario.md) — la red real donde se prueba: que hay,
+  que contesta SNMP (nada) y que NO se puede saber ahi. **Leer antes de prometer
+  cualquier cosa del mapa de puertos.**
 - [mired-upstream-scanopy](mired-upstream-scanopy.md) — Scanopy y el sector:
   donde mirar y que licencia tiene cada cual. **Solo lectura.**
 

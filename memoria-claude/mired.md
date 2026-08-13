@@ -197,11 +197,41 @@ de la jornada. Comprobado en el equipo del usuario:
 **Lo que NO se ha visto todavia:** un escaneo terminando con datos, que los
 servicios se maten al cerrar la ventana, y todo lo que dependa de equipo real.
 
-En orden de valor:
+### ▶▶ LO SIGUIENTE, ya acordado con el usuario: EL MAPA DE CAPA 3
+
+Es lo mas grande que quedo pendiente y esta decidido, solo falta escribirlo. El
+mapa de hoy solo dibuja capa 2 —quien cuelga de que boca—, que en una red sin
+switches administrables **no dibuja nada**: todo cae en "sin ubicar". El plan
+prometia capa 2 **y capa 3** desde la fase 5, y la capa 3 nunca se hizo.
+
+Lo acordado, en tres partes:
+
+1. **Detectar la puerta de enlace y dibujar desde ahi.** El modem arriba y todo lo
+   descubierto colgando, **diciendo con todas sus letras** que el switch de en
+   medio no puede precisar la boca. MiRed hoy **no detecta el gateway**: no hay
+   una sola linea que lo mire. Es la base; sin eso lo demas no tiene de donde
+   colgar.
+2. **Preguntarle a todo el que conteste** cuantas bocas tiene y que hay en cada
+   una. **Ya esta hecho** (revision 17): se prueba la comunidad de fabrica en
+   cada escaneo, sin que nadie configure nada.
+3. **Que el usuario pueda declarar "aqui hay un switch"** y colgarle los equipos
+   que el ve por el cable. Con **su regla del tamaño minimo**: N equipos + el
+   cable de subida = al menos N+1 bocas, redondeado al siguiente tamaño de
+   fabrica (5, 8, 16, 24, 48). Se dice **"al menos 8 puertos"**, nunca "es de 8":
+   un switch con 5 equipos puede ser de 8 con tres libres o de 16 con once. Y lo
+   declarado se marca **distinto de lo detectado**, para no confundir lo que se
+   sabe con lo que alguien dijo.
+
+**El limite que no se puede cruzar, y hay que repetirselo al usuario sin adornos:**
+el puerto exacto solo lo sabe el switch. Uno simple no puede contarlo. No es un
+limite de MiRed. Ver [[red-del-usuario]].
+
+### Lo demas, en orden de valor:
 
 1. **Terminar el primer escaneo** y ver el inventario, el mapa y las alertas con
    datos de verdad. Es donde se quedo el usuario, y desbloquea comprobar el mapa,
-   la exportacion y las alertas de una sola vez.
+   la exportacion y las alertas de una sola vez. **De paso se sabra la direccion
+   del AP Ubiquiti y si habla SNMP**, que es la unica esperanza de esa red.
 2. **Comprobar que al cerrar el programa mueren los servicios.** Es la mitad del
    trato del supervisor y la unica parte sin verificar. Basta cerrar la ventana y
    mirar si quedan procesos.
@@ -290,4 +320,4 @@ porque **ninguno se activa solo**: sin un destino dado de alta a mano en la
 pantalla de alertas de la red, MiRed no manda nada a ningun lado.
 
 **Ver tambien:** [[mired-arquitectura]], [[mired-capacidades]],
-[[mired-upstream-scanopy]]
+[[mired-upstream-scanopy]], [[modulo-programa]], [[red-del-usuario]]

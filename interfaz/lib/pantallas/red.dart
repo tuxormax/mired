@@ -461,10 +461,13 @@ class _PantallaRedState extends State<PantallaRed> {
               ),
             ),
             const SizedBox(height: 16),
-            if (!mapa.hayMapa)
+            // Sin mapa NO se repite el mensaje de arriba: la explicacion de la
+            // tarjeta ya dice por que, y decirlo dos veces suena a que falta
+            // algo por hacer cuando muchas veces no falta nada.
+            if (!mapa.hayMapa && mapa.capacidad == 'desconocida')
               const Padding(
                 padding: EdgeInsets.all(24),
-                child: Text('Todavia no hay ninguna boca de switch registrada.',
+                child: Text('Corra un escaneo completo con el boton del radar.',
                     textAlign: TextAlign.center),
               ),
             for (final entrada in porSwitch.entries) ...[

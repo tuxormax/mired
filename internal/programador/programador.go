@@ -375,11 +375,24 @@ func (s *Servicio) consultarSNMP(ctx context.Context, clave string, vistos []son
 		s.Bitacora.Warn("no se pudieron leer las credenciales SNMP", "error", err)
 		return
 	}
-	if len(credenciales) == 0 {
-		// Sin credenciales no hay nada que preguntar. No es un error: es una red
-		// que todavia no tiene configurado el acceso a sus switches.
-		return
-	}
+	// **Siempre se prueba, aunque nadie haya configurado nada.**
+	//
+	// Antes, sin credenciales, esto se saltaba entero. La consecuencia era que
+	// MiRed nunca podia saber si en la red habia switches administrables: se
+	// quedaba en "todavia no se ha consultado" para siempre y le pedia al
+	// usuario que cargara una credencial, que es pedirle que averigue algo que
+	// el programa puede averiguar solo.
+	//
+	// La comunidad `public` es la de fabrica de practicamente todo switch
+	// administrable, y es de SOLO LECTURA. Probarla contra los equipos de la
+	// propia red que el usuario mando escanear es como se descubre si hay algo
+	// que preguntar. Si nadie contesta, la respuesta tambien vale: son switches
+	// simples, y eso se dice en vez de dejar la pantalla pidiendo cosas.
+	credenciales = append(credenciales, basedatos.CredencialSNMP{
+		Nombre:    "public (de fabrica)",
+		Version:   "v2c",
+		Comunidad: "public",
+	})
 
 	destinos := make([]string, 0, len(vistos))
 	for _, equipo := range vistos {

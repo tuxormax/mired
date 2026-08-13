@@ -116,22 +116,33 @@ func (a *API) mapaDePuertos(escritor http.ResponseWriter, peticion *http.Request
 	})
 }
 
+// explicarCapacidad dice, sin jerga, que se puede saber en esta red y que no.
+//
+// El texto depende del punto en el que se esta, y eso importa mas de lo que
+// parece: antes decia siempre "cargue una credencial SNMP", que le pedia al
+// usuario un paso que en una red de casa **no existe** —ahi no hay switches
+// administrables a los que preguntarles nada— y le hacia creer que le faltaba
+// algo por hacer.
+//
+// Ahora MiRed lo averigua solo: en cada escaneo prueba la comunidad de fabrica
+// contra los equipos que encontro. Si nadie contesta, la respuesta es que son
+// switches simples, y se dice tal cual.
 func explicarCapacidad(capacidad string) string {
 	switch capacidad {
 	case basedatos.CapacidadExacta:
-		return "En esta red se sabe el puerto exacto de cada equipo, porque los switches son " +
-			"administrables y contestan SNMP."
+		return "En esta red se sabe el puerto exacto de cada equipo: sus switches son " +
+			"administrables y contestaron."
 	case basedatos.CapacidadPorGrupo:
-		return "En esta red se sabe en que boca cuelga cada grupo de equipos, pero no el puerto " +
-			"exacto de cada uno: detras de esas bocas hay switches no administrables."
+		return "Se sabe en que boca cuelga cada grupo de equipos, pero no el puerto exacto de " +
+			"cada uno: detras de esas bocas hay switches simples, que no pueden decir mas."
 	case basedatos.CapacidadNoDisponible:
-		return "En esta red no se puede saber el puerto de cada equipo: ningun switch contesto " +
-			"SNMP. Se sigue teniendo el inventario, la presencia y las alertas. Para tener el mapa " +
-			"de puertos hace falta al menos un switch administrable con SNMP habilitado y su " +
-			"credencial cargada en MiRed."
+		return "Sus switches son simples: no pueden decir que hay enchufado en cada boca, y por " +
+			"eso no hay mapa de puertos. Es lo normal en una red de casa o de una oficina " +
+			"chica. Todo lo demas de MiRed funciona igual: el inventario, quien esta " +
+			"encendido, los puertos de cada equipo, las alertas y el consumo."
 	default:
-		return "Todavia no se ha consultado a los switches de esta red. Cargue una credencial SNMP " +
-			"y corra un escaneo completo."
+		return "Todavia no se ha escaneado esta red. Al escanear, MiRed averigua solo si sus " +
+			"switches pueden decir que hay en cada boca."
 	}
 }
 
