@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 20376d18-adf7-4315-bb9c-98a3aa84ec95
-  modified: 2026-08-12T21:26:00.738Z
+  modified: 2026-08-13T16:00:00.000Z
 ---
 
 # MiRed — servicio propio de mapeo de redes
@@ -65,7 +65,8 @@ Go 1.26.4 y Flutter 3.35.6 **ya instalados**. No hay Rust, ni Docker, ni
 3. Presencia en vivo, historial de conexiones y barridos programados por red.
 4. SNMP v1/v2c/v3, tabla de MAC del switch, LLDP, mapa de puertos y perfil de
    capacidades.
-5. **Parcial**: mapa visual en Flutter y exportacion a CSV. Faltan PNG, SVG y PDF.
+5. Mapa visual en Flutter con exportacion a **PNG, SVG, PDF y CSV** (cerrada el
+   2026-08-13).
 6. Catalogo abierto de dispositivos en `.toml`, con 15 definiciones semilla y el
    boton "proponer definicion" que genera el archivo ya relleno.
 8. Ancho de banda: contadores SNMP por boca (con tasa calculada entre dos
@@ -80,11 +81,11 @@ aparte y corriendo los binarios desde ahi**: sirve la interfaz, entra, crea rede
 y escanea. **Falta**: instalarlo de verdad con `dpkg -i` (necesita sudo), y
 probar SNMP contra un switch administrable real.
 
-## Cobertura (2026-08-12)
-61 pruebas en Go y 7 en Flutter (5 dibujan pantallas contra un servidor de
-mentira). Mas `herramientas/probar.sh`, la prueba de humo que construye el
-`.deb`, lo desempaqueta y recorre el flujo completo. ~11 800 lineas de Go y
-~5 200 de Dart.
+## Cobertura (2026-08-13)
+61 pruebas en Go y 12 en Flutter: 5 dibujan pantallas contra un servidor de
+mentira y 5 comprueban la exportacion del mapa. Mas `herramientas/probar.sh`, la
+prueba de humo que construye el `.deb`, lo desempaqueta y recorre el flujo
+completo. ~11 800 lineas de Go y ~5 900 de Dart.
 
 ## Consumo de recursos medido (2026-08-12)
 Sobre el `.deb` de amd64, escaneando un `/24` completo:
@@ -99,12 +100,34 @@ Sobre el `.deb` de amd64, escaneando un `/24` completo:
 - **Al cerrar la fase 2 ya hay `.deb` instalable que inventaria la red**, y eso
   solo ya reemplaza varias herramientas. Se usa en produccion propia desde ahi.
 
+## La licencia: AGPL-3.0 (decidido el 2026-08-13)
+El codigo es propio, asi que no se heredaba ninguna. Se reviso que usa el usuario
+en sus otros repos: **los publicos van con GPL-3.0** (`niveladordevolumen`,
+`pcinfo`) y los de cliente con licencia propietaria. La regla de facto de la casa
+es *herramienta que se publica -> GPL*.
+
+**Aqui se subio a AGPL-3.0 y no GPL-3.0 por un motivo concreto**: MiRed se usa
+desde el navegador. Con la GPL, quien lo monte como servicio de pago **nunca
+entrega el binario**, y por lo tanto no esta obligado a publicar sus cambios. La
+AGPL cierra ese hueco. Consecuencia operativa: el articulo 13 exige **enlace
+visible al codigo en la interfaz**, y por eso el pie del panel de redes lo lleva
+(`_PieVersion` en `interfaz/lib/pantallas/redes.dart`). Si se rehace ese pie, el
+enlace no se quita: es requisito de la licencia, no adorno.
+
 ## Lo que falta decidir
-- **La licencia**: ya no se hereda ninguna. Se decide antes de publicar (fase 9).
-  AGPL protege contra versiones cerradas de terceros; MIT maximiza adopcion.
 - **Inventario de las redes reales** (marca/modelo de switches y puntos de acceso,
   cuales son administrables). No bloquea hasta la fase 4, pero se necesita antes
   de llegar ahi para probar SNMP contra equipo de verdad.
+
+## Regla del usuario: nada sale a servicios externos por su cuenta (2026-08-13)
+Lo exportado (mapas y demas archivos) **se guarda en el equipo y punto**: sin
+Google Drive, sin subida a ninguna nube, sin envio automatico. El PNG, el SVG y
+el PDF se arman **dentro del navegador** —el PNG con Flutter, el SVG y el PDF
+escritos a mano en `interfaz/lib/servicios/exportar_mapa.dart`, sin biblioteca de
+terceros— y ni siquiera pasan por el servidor. **Pendiente de aclarar con el
+usuario**: si esa regla alcanza tambien a los cuatro destinos de aviso de la fase
+7 (ntfy, Telegram, correo, webhook), que si salen a internet cuando el usuario
+los configura.
 
 **Ver tambien:** [[mired-arquitectura]], [[mired-capacidades]],
 [[mired-upstream-scanopy]]

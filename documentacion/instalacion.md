@@ -84,6 +84,25 @@ Si sus switches no son administrables, MiRed se lo dice claramente en esa
 pantalla y le explica qué sigue funcionando sin ellos (que es casi todo:
 inventario, presencia y alertas).
 
+### Guardar el mapa
+
+En la pantalla del mapa, el ícono de la flecha hacia abajo. Cuatro formatos:
+
+| Formato | Para qué |
+|---|---|
+| **PNG** | Una imagen, para pegarla en un documento o mandarla por chat |
+| **SVG** | Vectorial: se abre en Inkscape y se le mueven cajas o se le anota |
+| **PDF** | Para imprimirlo y colgarlo, o mandarlo por correo |
+| **CSV** | Para una hoja de cálculo, con una fila por puerto |
+
+El archivo **se baja a su equipo y nada más**. MiRed no lo sube a ninguna nube ni
+lo manda a ningún lado: lo arma el navegador y cae en su carpeta de descargas,
+como cualquier otra descarga. Si quiere hacérselo llegar a alguien, lo adjunta
+usted.
+
+Los tres formatos de dibujo llevan arriba de qué sitio es el mapa y de qué día,
+porque un plano de red sin fecha, a la semana, ya no se sabe si es el bueno.
+
 ## 6. Medir quién consume
 
 Hay dos formas y no se estorban:

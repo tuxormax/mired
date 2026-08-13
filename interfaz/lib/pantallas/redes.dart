@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../modelos/modelos.dart';
 import '../servicios/api.dart';
+import '../servicios/descarga.dart';
 import '../servicios/trayectoria.dart';
 import '../widgets/mensajes.dart';
 import 'credenciales.dart';
@@ -348,15 +349,38 @@ class _Problema extends StatelessWidget {
       );
 }
 
+/// _PieVersion muestra la version y el enlace al codigo fuente.
+///
+/// El enlace no es cortesia: MiRed es AGPL-3.0 y se usa por red, asi que la
+/// seccion 13 de la licencia obliga a ofrecerle el codigo a quien lo use desde
+/// el navegador. El pie de la interfaz es donde eso se cumple.
 class _PieVersion extends StatelessWidget {
+  static const codigo = 'https://github.com/tuxormax/mired';
+
   @override
-  Widget build(BuildContext contexto) => Padding(
-        padding: const EdgeInsets.all(8),
-        child: Text(
-          Api.instancia.version,
-          style: Theme.of(contexto).textTheme.labelSmall,
-        ),
-      );
+  Widget build(BuildContext contexto) {
+    final estilo = Theme.of(contexto).textTheme.labelSmall;
+    return Padding(
+      padding: const EdgeInsets.all(8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(Api.instancia.version, style: estilo),
+          Text('  ·  AGPL-3.0  ·  ', style: estilo),
+          InkWell(
+            onTap: () => abrirEnlace(codigo),
+            child: Text(
+              'Codigo fuente',
+              style: estilo?.copyWith(
+                decoration: TextDecoration.underline,
+                color: Theme.of(contexto).colorScheme.primary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _DialogoNuevaRed extends StatefulWidget {

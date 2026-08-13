@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 20376d18-adf7-4315-bb9c-98a3aa84ec95
-  modified: 2026-08-12T22:34:47.555Z
+  modified: 2026-08-13T16:00:00.000Z
 ---
 
 # Modulo: SNMP y mapa de puertos
@@ -47,6 +47,21 @@ respuesta, y la interfaz la explica en vez de quedarse en "desconocida".
 - `BulkWalk` no existe en SNMPv1: ahi se usa `Walk`.
 - La tabla de reenvio es una **foto**: al guardar se borran las conexiones
   anteriores de ese switch, o un equipo que se cambio de boca apareceria en dos.
+
+## El mapa y su exportacion (interfaz)
+El calculo de posiciones y el pintor viven en
+`interfaz/lib/pantallas/mapa_plano.dart`, **aparte de la pantalla**, porque los
+comparten el dibujo y la exportacion: si cada uno calculara lo suyo, el archivo
+guardado y la pantalla podrian discrepar.
+
+`interfaz/lib/servicios/exportar_mapa.dart` genera los cuatro formatos. El PNG lo
+dibuja Flutter con el mismo pintor; el **SVG y el PDF se escriben a mano**, sin
+biblioteca de terceros —son cajas, lineas y texto, la parte facil de los dos
+formatos—. El PDF usa las fuentes base 14 (Helvetica), asi que no incrusta
+fuentes y pesa unos 4 KB.
+
+Todo se arma **en el navegador** y se baja al equipo: no sube a ninguna nube ni
+pasa por el servidor. Ver [[mired]].
 
 ## Pendiente
 - **Nunca se ha probado contra un switch real.** Toda la logica esta cubierta por

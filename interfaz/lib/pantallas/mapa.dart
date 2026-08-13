@@ -1,11 +1,14 @@
-import 'dart:math' as matematicas;
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../modelos/modelos.dart';
 import '../servicios/api.dart';
+import '../servicios/descarga.dart';
+import '../servicios/exportar_mapa.dart';
 import '../widgets/mensajes.dart';
+import 'mapa_plano.dart';
 
 /// PantallaMapa dibuja la red: los switches arriba y lo que cuelga de cada boca
 /// debajo.
@@ -17,6 +20,9 @@ import '../widgets/mensajes.dart';
 ///    mentir sobre lo que se sabe.
 ///  - Lo que no cuelga de ningun switch conocido NO se esconde: va aparte, en su
 ///    propia columna, dicho con todas sus letras.
+///
+/// El calculo de posiciones y el pintor viven en mapa_plano.dart, porque los
+/// comparte con la exportacion.
 class PantallaMapa extends StatefulWidget {
   const PantallaMapa({super.key, required this.red});
 
@@ -26,8 +32,11 @@ class PantallaMapa extends StatefulWidget {
   State<PantallaMapa> createState() => _PantallaMapaState();
 }
 
+enum _Formato { png, svg, pdf, csv, portapapeles }
+
 class _PantallaMapaState extends State<PantallaMapa> {
-  late Future<_DatosMapa> _datos;
+  late Future<DatosMapa> _datos;
+  bool _exportando = false;
 
   @override
   void initState() {
@@ -35,45 +44,63 @@ class _PantallaMapaState extends State<PantallaMapa> {
     _datos = _cargar();
   }
 
-  Future<_DatosMapa> _cargar() async {
+  Future<DatosMapa> _cargar() async {
     final mapa = await Api.instancia.mapaDePuertos(widget.red.clave);
     final equipos = await Api.instancia.listarEquipos(widget.red.clave);
-    return _DatosMapa(mapa: mapa, equipos: equipos);
+    return DatosMapa(mapa: mapa, equipos: equipos);
   }
 
-  Future<void> _exportar(_DatosMapa datos) async {
-    final renglones = <String>[
-      'switch,ip_switch,puerto,equipo,ip_equipo,mac,certeza,equipos_en_la_boca',
-    ];
-    for (final puerto in datos.mapa.puertos) {
-      renglones.add([
-        puerto.switchNombre,
-        puerto.switchIp,
-        puerto.puerto,
-        puerto.equipoNombre,
-        puerto.equipoIp,
-        puerto.mac,
-        puerto.confirmado ? 'confirmado' : 'grupo',
-        '${puerto.cuantosEnBoca}',
-      ].map(_paraCsv).join(','));
-    }
-    for (final equipo in datos.sinUbicar) {
-      renglones.add([
-        '', '', '', equipo.comoSeLlama, equipo.ip, equipo.mac, 'sin ubicar', '',
-      ].map(_paraCsv).join(','));
-    }
+  /// _exportar arma el archivo y se lo entrega al navegador.
+  ///
+  /// El plano de la exportacion se arma con los colores fijos de exportar, no
+  /// con los del tema: lo que se guarda o se imprime va siempre sobre blanco,
+  /// aunque quien lo exporto tenga la pantalla en oscuro.
+  Future<void> _exportar(_Formato formato, DatosMapa datos) async {
+    setState(() => _exportando = true);
+    try {
+      final momento = DateTime.now();
+      final sello = momento.toIso8601String().substring(0, 16).replaceAll(':', '');
+      final base = 'mapa-${widget.red.clave}-$sello';
 
-    final csv = renglones.join('\n');
-    await Clipboard.setData(ClipboardData(text: csv));
-    if (mounted) {
-      mensajeAviso(context, 'Mapa copiado como CSV: ya se puede pegar en una hoja de calculo.');
+      if (formato == _Formato.portapapeles) {
+        await Clipboard.setData(ClipboardData(text: csvDelMapa(datos)));
+        if (mounted) {
+          mensajeAviso(context,
+              'Mapa copiado como CSV: ya se puede pegar en una hoja de calculo.');
+        }
+        return;
+      }
+
+      final plano = armarPlano(datos, coloresParaExportar);
+      final encabezado = EncabezadoMapa(
+        titulo: 'Mapa de ${widget.red.nombre}',
+        subtitulo: '${datos.mapa.explicacion}  ·  Exportado el '
+            '${momento.toIso8601String().substring(0, 19).replaceFirst('T', ' ')}'
+            '  ·  ${Api.instancia.version}',
+      );
+
+      switch (formato) {
+        case _Formato.png:
+          await descargarArchivo(
+              '$base.png', 'image/png', await pngDelPlano(plano, encabezado));
+        case _Formato.svg:
+          await descargarArchivo('$base.svg', 'image/svg+xml',
+              Uint8List.fromList(utf8.encode(svgDelPlano(plano, encabezado))));
+        case _Formato.pdf:
+          await descargarArchivo(
+              '$base.pdf', 'application/pdf', pdfDelPlano(plano, encabezado));
+        case _Formato.csv:
+          await descargarArchivo('$base.csv', 'text/csv;charset=utf-8',
+              Uint8List.fromList(utf8.encode(csvDelMapa(datos))));
+        case _Formato.portapapeles:
+          break; // Resuelto arriba.
+      }
+    } catch (problema, pila) {
+      if (mounted) await mostrarProblema(context, problema, pila: pila.toString());
+    } finally {
+      if (mounted) setState(() => _exportando = false);
     }
   }
-
-  static String _paraCsv(String valor) =>
-      valor.contains(',') || valor.contains('"')
-          ? '"${valor.replaceAll('"', '""')}"'
-          : valor;
 
   @override
   Widget build(BuildContext contexto) {
@@ -81,12 +108,65 @@ class _PantallaMapaState extends State<PantallaMapa> {
       appBar: AppBar(
         title: Text('Mapa de ${widget.red.nombre}'),
         actions: [
-          FutureBuilder<_DatosMapa>(
+          FutureBuilder<DatosMapa>(
             future: _datos,
-            builder: (_, resultado) => IconButton(
-              tooltip: 'Copiar como CSV',
-              icon: const Icon(Icons.table_view_outlined),
-              onPressed: resultado.hasData ? () => _exportar(resultado.data!) : null,
+            builder: (_, resultado) => PopupMenuButton<_Formato>(
+              tooltip: 'Exportar el mapa',
+              enabled: resultado.hasData && !_exportando,
+              icon: _exportando
+                  ? const SizedBox(
+                      height: 18, width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.download_outlined),
+              onSelected: (formato) => _exportar(formato, resultado.data!),
+              itemBuilder: (_) => const [
+                PopupMenuItem(
+                  value: _Formato.png,
+                  child: ListTile(
+                    dense: true,
+                    leading: Icon(Icons.image_outlined),
+                    title: Text('PNG'),
+                    subtitle: Text('Imagen, para pegar en un documento'),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: _Formato.svg,
+                  child: ListTile(
+                    dense: true,
+                    leading: Icon(Icons.polyline_outlined),
+                    title: Text('SVG'),
+                    subtitle: Text('Vectorial, para retocar el plano'),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: _Formato.pdf,
+                  child: ListTile(
+                    dense: true,
+                    leading: Icon(Icons.picture_as_pdf_outlined),
+                    title: Text('PDF'),
+                    subtitle: Text('Para imprimir o mandar por correo'),
+                  ),
+                ),
+                PopupMenuDivider(),
+                PopupMenuItem(
+                  value: _Formato.csv,
+                  child: ListTile(
+                    dense: true,
+                    leading: Icon(Icons.table_view_outlined),
+                    title: Text('CSV'),
+                    subtitle: Text('Para una hoja de calculo'),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: _Formato.portapapeles,
+                  child: ListTile(
+                    dense: true,
+                    leading: Icon(Icons.copy_outlined),
+                    title: Text('Copiar CSV'),
+                    subtitle: Text('Al portapapeles, sin bajar archivo'),
+                  ),
+                ),
+              ],
             ),
           ),
           IconButton(
@@ -98,7 +178,7 @@ class _PantallaMapaState extends State<PantallaMapa> {
           ),
         ],
       ),
-      body: FutureBuilder<_DatosMapa>(
+      body: FutureBuilder<DatosMapa>(
         future: _datos,
         builder: (_, resultado) {
           if (resultado.connectionState != ConnectionState.done) {
@@ -124,7 +204,7 @@ class _PantallaMapaState extends State<PantallaMapa> {
             );
           }
 
-          final plano = _armarPlano(datos, Theme.of(contexto).colorScheme);
+          final plano = armarPlano(datos, Theme.of(contexto).colorScheme);
 
           return Column(
             children: [
@@ -137,7 +217,7 @@ class _PantallaMapaState extends State<PantallaMapa> {
                   boundaryMargin: const EdgeInsets.all(200),
                   child: CustomPaint(
                     size: plano.tamano,
-                    painter: _PintorMapa(plano: plano),
+                    painter: PintorMapa(plano: plano),
                   ),
                 ),
               ),
@@ -147,285 +227,6 @@ class _PantallaMapaState extends State<PantallaMapa> {
       ),
     );
   }
-}
-
-class _DatosMapa {
-  const _DatosMapa({required this.mapa, required this.equipos});
-
-  final MapaPuertos mapa;
-  final List<Equipo> equipos;
-
-  /// Los equipos que ningun switch reporto en ninguna boca. Se muestran aparte:
-  /// esconderlos daria un plano incompleto sin avisar.
-  List<Equipo> get sinUbicar {
-    final ubicados = mapa.puertos
-        .where((puerto) => puerto.equipoId != null)
-        .map((puerto) => puerto.equipoId)
-        .toSet();
-    final switches = mapa.puertos.map((puerto) => puerto.switchId).toSet();
-    return equipos
-        .where((equipo) => !ubicados.contains(equipo.id) && !switches.contains(equipo.id))
-        .toList();
-  }
-}
-
-// --------------------------------------------------------------- el plano ---
-
-class _Caja {
-  _Caja({
-    required this.rectangulo,
-    required this.titulo,
-    required this.subtitulo,
-    required this.color,
-    required this.icono,
-  });
-
-  final Rect rectangulo;
-  final String titulo;
-  final String subtitulo;
-  final Color color;
-  final IconData icono;
-}
-
-class _Linea {
-  _Linea({required this.desde, required this.hasta, required this.confirmada, required this.etiqueta});
-
-  final Offset desde;
-  final Offset hasta;
-  final bool confirmada;
-  final String etiqueta;
-}
-
-class _Plano {
-  _Plano({
-    required this.cajas,
-    required this.lineas,
-    required this.tamano,
-    required this.colorLinea,
-    required this.colorTexto,
-  });
-
-  final List<_Caja> cajas;
-  final List<_Linea> lineas;
-  final Size tamano;
-  final Color colorLinea;
-  final Color colorTexto;
-}
-
-const double _anchoCaja = 190;
-const double _altoCaja = 54;
-const double _separacionX = 30;
-const double _separacionY = 130;
-
-/// _armarPlano coloca todo: una columna por switch, y debajo de cada uno sus
-/// bocas con lo que cuelga. Es un arbol por niveles, que para un plano de sitio
-/// se lee mucho mejor que una maraña de nodos flotando.
-_Plano _armarPlano(_DatosMapa datos, ColorScheme colores) {
-  final cajas = <_Caja>[];
-  final lineas = <_Linea>[];
-
-  // Agrupar por switch y, dentro, por boca.
-  final porSwitch = <int, Map<int, List<PuertoDeSwitch>>>{};
-  for (final puerto in datos.mapa.puertos) {
-    porSwitch
-        .putIfAbsent(puerto.switchId, () => {})
-        .putIfAbsent(puerto.indice, () => [])
-        .add(puerto);
-  }
-
-  double x = _separacionX;
-  double anchoMaximo = 0;
-  double altoMaximo = 0;
-
-  porSwitch.forEach((switchId, bocas) {
-    final ejemplo = bocas.values.first.first;
-    final anchoBloque =
-        matematicas.max(bocas.length * (_anchoCaja + _separacionX), _anchoCaja + _separacionX);
-
-    final centroSwitch = Offset(x + anchoBloque / 2, _separacionY / 2);
-    cajas.add(_Caja(
-      rectangulo: Rect.fromCenter(
-          center: centroSwitch, width: _anchoCaja, height: _altoCaja),
-      titulo: ejemplo.switchNombre,
-      subtitulo: ejemplo.switchIp,
-      color: colores.primaryContainer,
-      icono: Icons.router,
-    ));
-
-    double xBoca = x;
-    bocas.forEach((indice, enLaBoca) {
-      final confirmado = enLaBoca.length == 1 && enLaBoca.first.confirmado;
-      final centroBoca = Offset(xBoca + _anchoCaja / 2, _separacionY / 2 + _separacionY);
-
-      if (confirmado) {
-        final unico = enLaBoca.first;
-        cajas.add(_Caja(
-          rectangulo:
-              Rect.fromCenter(center: centroBoca, width: _anchoCaja, height: _altoCaja),
-          titulo: unico.quienEs,
-          subtitulo: unico.equipoIp.isNotEmpty ? unico.equipoIp : unico.mac,
-          color: colores.surfaceContainerHighest,
-          icono: Icons.devices,
-        ));
-      } else {
-        // El grupo se dibuja como UNA caja que dice cuantos hay: es exactamente
-        // lo que se sabe, ni mas ni menos.
-        cajas.add(_Caja(
-          rectangulo:
-              Rect.fromCenter(center: centroBoca, width: _anchoCaja, height: _altoCaja),
-          titulo: '${enLaBoca.length} equipos',
-          subtitulo: 'tras algo no administrable',
-          color: colores.tertiaryContainer,
-          icono: Icons.hub,
-        ));
-      }
-
-      lineas.add(_Linea(
-        desde: centroSwitch + const Offset(0, _altoCaja / 2),
-        hasta: centroBoca - const Offset(0, _altoCaja / 2),
-        confirmada: confirmado,
-        etiqueta: enLaBoca.first.puerto,
-      ));
-
-      xBoca += _anchoCaja + _separacionX;
-    });
-
-    x += anchoBloque + _separacionX * 2;
-    anchoMaximo = matematicas.max(anchoMaximo, x);
-    altoMaximo = matematicas.max(altoMaximo, _separacionY * 2 + _altoCaja);
-  });
-
-  // Los que no cuelgan de ningun switch conocido: en su propia zona, abajo.
-  final sinUbicar = datos.sinUbicar;
-  if (sinUbicar.isNotEmpty) {
-    final yBase = altoMaximo + _separacionY;
-    double xSuelto = _separacionX;
-    double filaY = yBase;
-    final porFila = matematicas.max(1, (anchoMaximo / (_anchoCaja + _separacionX)).floor());
-
-    for (var i = 0; i < sinUbicar.length; i++) {
-      final equipo = sinUbicar[i];
-      if (i > 0 && i % porFila == 0) {
-        xSuelto = _separacionX;
-        filaY += _altoCaja + 20;
-      }
-      cajas.add(_Caja(
-        rectangulo: Rect.fromLTWH(xSuelto, filaY, _anchoCaja, _altoCaja),
-        titulo: equipo.comoSeLlama,
-        subtitulo: equipo.ip,
-        color: colores.surfaceContainerLow,
-        icono: equipo.presente ? Icons.help_outline : Icons.power_off,
-      ));
-      xSuelto += _anchoCaja + _separacionX;
-      altoMaximo = matematicas.max(altoMaximo, filaY + _altoCaja + _separacionY / 2);
-    }
-  }
-
-  return _Plano(
-    cajas: cajas,
-    lineas: lineas,
-    tamano: Size(matematicas.max(anchoMaximo + _separacionX, 800),
-        matematicas.max(altoMaximo + _separacionY, 600)),
-    colorLinea: colores.outline,
-    colorTexto: colores.onSurface,
-  );
-}
-
-class _PintorMapa extends CustomPainter {
-  _PintorMapa({required this.plano});
-
-  final _Plano plano;
-
-  @override
-  void paint(Canvas lienzo, Size tamano) {
-    final trazo = Paint()
-      ..color = plano.colorLinea
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke;
-
-    for (final linea in plano.lineas) {
-      if (linea.confirmada) {
-        lienzo.drawLine(linea.desde, linea.hasta, trazo);
-      } else {
-        _lineaPunteada(lienzo, linea.desde, linea.hasta, trazo);
-      }
-      _texto(lienzo, linea.etiqueta,
-          Offset((linea.desde.dx + linea.hasta.dx) / 2 + 6,
-              (linea.desde.dy + linea.hasta.dy) / 2 - 8),
-          11, plano.colorLinea);
-    }
-
-    for (final caja in plano.cajas) {
-      final fondo = Paint()..color = caja.color;
-      final borde = Paint()
-        ..color = plano.colorLinea
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1;
-      final redondeado = RRect.fromRectAndRadius(caja.rectangulo, const Radius.circular(8));
-
-      lienzo.drawRRect(redondeado, fondo);
-      lienzo.drawRRect(redondeado, borde);
-
-      _icono(lienzo, caja.icono, caja.rectangulo.topLeft + const Offset(10, 12), plano.colorTexto);
-      _texto(lienzo, caja.titulo, caja.rectangulo.topLeft + const Offset(34, 8), 13,
-          plano.colorTexto,
-          negrita: true, ancho: _anchoCaja - 44);
-      _texto(lienzo, caja.subtitulo, caja.rectangulo.topLeft + const Offset(34, 28), 11,
-          plano.colorLinea,
-          ancho: _anchoCaja - 44);
-    }
-  }
-
-  void _lineaPunteada(Canvas lienzo, Offset desde, Offset hasta, Paint trazo) {
-    const largo = 6.0;
-    const hueco = 5.0;
-    final total = (hasta - desde).distance;
-    final paso = (hasta - desde) / total;
-
-    var recorrido = 0.0;
-    while (recorrido < total) {
-      final fin = matematicas.min(recorrido + largo, total);
-      lienzo.drawLine(desde + paso * recorrido, desde + paso * fin, trazo);
-      recorrido = fin + hueco;
-    }
-  }
-
-  void _texto(Canvas lienzo, String contenido, Offset donde, double tamano, Color color,
-      {bool negrita = false, double? ancho}) {
-    final pintor = TextPainter(
-      text: TextSpan(
-        text: contenido,
-        style: TextStyle(
-          color: color,
-          fontSize: tamano,
-          fontWeight: negrita ? FontWeight.w600 : FontWeight.normal,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-      maxLines: 1,
-      ellipsis: '…',
-    )..layout(maxWidth: ancho ?? 200);
-    pintor.paint(lienzo, donde);
-  }
-
-  void _icono(Canvas lienzo, IconData icono, Offset donde, Color color) {
-    final pintor = TextPainter(
-      text: TextSpan(
-        text: String.fromCharCode(icono.codePoint),
-        style: TextStyle(
-          fontSize: 18,
-          fontFamily: icono.fontFamily,
-          package: icono.fontPackage,
-          color: color,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    pintor.paint(lienzo, donde);
-  }
-
-  @override
-  bool shouldRepaint(covariant _PintorMapa anterior) => anterior.plano != plano;
 }
 
 class _Leyenda extends StatelessWidget {

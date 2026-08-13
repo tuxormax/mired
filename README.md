@@ -7,11 +7,12 @@ Sin topes de redes ni de usuarios. Cada red vive en su propia base de datos
 SQLite, así que respaldar un sitio es copiar un archivo. No necesita servidor de
 base de datos ni Docker: son dos binarios y dos servicios, en un `.deb`.
 
-> **Estado: en construcción (fases 1 a 5 de 10).** Ya descubre los equipos de la
+> **Estado: en construcción (fases 1 a 8 de 10).** Ya descubre los equipos de la
 > red, guarda quién está encendido en cada momento, escanea solo con la
 > periodicidad que se le diga, le pregunta a los switches por SNMP en qué boca
-> está cada aparato y dibuja el mapa. El plan y el avance por fase están en
-> [PLAN.md](PLAN.md).
+> está cada aparato, dibuja el mapa y lo exporta, avisa de lo que cambia y mide
+> el consumo. Falta probarlo contra un switch administrable de verdad y publicar
+> los paquetes. El plan y el avance por fase están en [PLAN.md](PLAN.md).
 
 ## Instalar
 
@@ -84,6 +85,18 @@ Reconocer un aparato nuevo no exige programar: es un archivo `.toml` que se copi
 a `/etc/mired/dispositivos/`. La interfaz incluso lo genera solo, ya relleno con
 lo que vio del equipo. Esa es la puerta de entrada para quien quiera aportar sin
 saber Go.
+
+## Licencia
+
+MiRed es software libre bajo la **[GNU Affero General Public License v3.0](LICENSE)**.
+
+Se eligió la Affero y no la GPL corriente porque MiRed se usa desde el navegador:
+con la GPL, quien monte MiRed como servicio de pago no está obligado a publicar
+nada, porque nunca entrega el binario a nadie. La AGPL cierra ese hueco —quien lo
+ofrezca por red tiene que ofrecer también el código, con sus cambios—, y por eso
+el pie de la interfaz lleva el enlace al código, como pide la sección 13.
+
+Copyright (C) 2026 tuxor.
 
 ## Sobre Scanopy
 

@@ -72,6 +72,26 @@ If your switches are unmanaged, MiRed says so explicitly on that screen and
 explains what still works without them — which is nearly everything: inventory,
 presence and alerts.
 
+### Saving the map
+
+The download icon on the map screen. Four formats:
+
+| Format | What for |
+|---|---|
+| **PNG** | An image, to drop into a document or send over chat |
+| **SVG** | Vector: open it in Inkscape to move boxes around or annotate it |
+| **PDF** | To print and pin up, or to email |
+| **CSV** | For a spreadsheet, one row per port |
+
+The file **lands on your machine and nowhere else**. MiRed uploads it to no
+cloud and sends it to no one: the browser builds it and it drops into your
+downloads folder like any other download. If you want somebody to have it, you
+attach it yourself.
+
+The three drawing formats carry the site name and the date across the top —
+an undated network diagram is worthless a week later, because you can no longer
+tell which of the three is the current one.
+
 ## 6. Bandwidth
 
 Two ways, and they complement each other:

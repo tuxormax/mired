@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 20376d18-adf7-4315-bb9c-98a3aa84ec95
-  modified: 2026-08-12T21:25:43.044Z
+  modified: 2026-08-13T16:00:00.000Z
 ---
 
 # Gotchas de MiRed
@@ -59,6 +59,18 @@ errores tontos.
 - Las pruebas de pantalla necesitan **dos destrabes**: `HttpOverrides.global`
   (el framework bloquea la red a proposito) y `probador.runAsync` (la respuesta
   del servidor llega por el reloj de verdad, no por el falso de la prueba).
+- **`Picture.toImage()` en una prueba se cuelga hasta el timeout de 10 minutos si
+  no va dentro de `probador.runAsync`.** No falla: se queda esperando, porque la
+  conversion la hace el motor en otro hilo y el reloj falso nunca le da turno.
+  Mordio al probar la exportacion del mapa a PNG.
+- **Lo que solo existe en web (bajar archivos, abrir enlaces) va en un archivo
+  aparte con exportacion condicional** (`servicios/descarga.dart`
+  → `descarga_web.dart` si `dart.library.js_interop`, si no `descarga_generica.dart`).
+  Importar `package:web` directo desde una pantalla rompe `flutter test`, que
+  corre en la maquina virtual de Dart, no en un navegador.
+- **No contar renglones para saber cuantos hay**: usar la cuenta que manda el
+  servidor. En el mapa, una boca con 9 MAC decia "1 equipos" cuando la respuesta
+  traia un renglon resumido. La cuenta buena es `cuantosEnBoca`.
 
 ## Procesos
 - **Un solo escritor**: `mired-servidor`. La sonda escanea y entrega por socket.

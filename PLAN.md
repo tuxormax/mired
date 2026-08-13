@@ -25,11 +25,11 @@ Actualizado el **2026-08-12**, al cerrar la primera jornada de trabajo.
 | 2 — Descubrimiento | ✅ terminada | ARP, ICMP y TCP; puertos, DNS inverso y fabricante por OUI |
 | 3 — Presencia en vivo | ✅ terminada | Barrido rapido, historial de conexiones y agenda por red |
 | 4 — SNMP y capa 2 | ⚠️ hecha, sin probar en equipo real | Falta un switch administrable de verdad. Falta CDP y controladora WiFi |
-| 5 — El mapa | ⚠️ parcial | Mapa visual y exportacion a CSV listos. **Faltan PNG, SVG y PDF** |
+| 5 — El mapa | ✅ terminada | Mapa visual y exportacion a PNG, SVG, PDF y CSV |
 | 6 — Catalogo `.toml` | ✅ terminada | Formato, motor de reconocimiento, 15 definiciones semilla y "proponer definicion" |
 | 7 — Alertas | ✅ terminada | Las 6 reglas detectan y los 4 destinos de aviso funcionan |
 | 8 — Ancho de banda | ✅ terminada | Contadores SNMP por puerto y receptor de flujos NetFlow v5 del router. Falta sFlow e IPFIX |
-| 9 — Publicacion | ⚠️ parcial | Documentacion de instalacion (ES y EN) y guia para aportar dispositivos, listas. **Falta decidir la licencia** y publicar los paquetes |
+| 9 — Publicacion | ⚠️ parcial | Licencia decidida (AGPL-3.0) y documentacion lista (ES y EN). **Falta firmar y publicar los paquetes** |
 | 10 — Inspeccion profunda | ⏳ pendiente | Opcional |
 
 **Probado de verdad:** el descubrimiento contra la red real de casa, los barridos
@@ -60,8 +60,10 @@ Raspberry Pi, que era el requisito.
 ### Cobertura de pruebas
 
 61 pruebas en Go (almacenamiento, agenda, alertas, topologia, catalogo, flujos y
-la lectura de SNMP) y 7 en Flutter, de las cuales 5 dibujan cada pantalla contra
-un servidor de mentira. Mas la prueba de humo `herramientas/probar.sh`, que
+la lectura de SNMP) y 12 en Flutter: 5 dibujan cada pantalla contra un servidor
+de mentira y 5 comprueban la exportacion del mapa —que el PDF tenga bien la
+tabla de referencias cruzadas y escape acentos y parentesis, que el SVG salga
+bien formado, que el PNG lleve su firma y que el CSV entrecomille lo que debe—. Mas la prueba de humo `herramientas/probar.sh`, que
 construye el `.deb`, lo desempaqueta y recorre el flujo completo: es la unica que
 comprueba lo que de verdad se entrega.
 
@@ -327,6 +329,13 @@ Es la fase que da lo que ninguna herramienta gratuita da bien, y la más técnic
 - Agrupar, filtrar, buscar y fijar posiciones.
 - Exportar a PNG, SVG, PDF y CSV.
 
+**El archivo exportado se queda en el equipo.** No hay subida a Google Drive, ni
+envío por correo, ni integración con ningún servicio de nadie: el navegador arma
+el archivo y lo baja a la carpeta de descargas. El PNG lo dibuja Flutter; el SVG
+y el PDF se escriben a mano en la propia interfaz, sin biblioteca de terceros,
+así que ni siquiera pasan por el servidor. Quien quiera mandarlo a alguien lo
+adjunta él, como cualquier otro archivo suyo.
+
 ### Fase 6 — Catálogo abierto de dispositivos (1-2 semanas)
 
 Lo descrito en 1.5: formato `.toml`, motor de reconocimiento, catálogo semilla
@@ -417,9 +426,12 @@ Los riesgos reales, en orden:
 
 ## 6. Lo que queda por decidir
 
-- **La licencia de MiRed.** Ya no se hereda ninguna, porque el código es propio.
-  Se decide antes de publicar (fase 9): AGPL-3.0 protege contra que alguien venda
-  una versión cerrada de esto, MIT maximiza que lo adopten.
+- ~~**La licencia de MiRed.**~~ **Decidido el 2026-08-13: AGPL-3.0.** El código
+  es propio, así que no se heredaba ninguna. Se eligió la Affero y no la GPL
+  corriente porque MiRed se usa desde el navegador: con la GPL, quien lo monte
+  como servicio de pago no entrega el binario a nadie y por lo tanto no está
+  obligado a publicar nada. La AGPL cierra ese hueco. El pie de la interfaz lleva
+  el enlace al código, como pide la sección 13.
 - **Inventario de las redes reales**: qué switches y puntos de acceso hay en cada
   sitio, marca y modelo, y cuáles son administrables. No bloquea el desarrollo
   hasta la fase 4, pero conviene tenerlo antes de llegar ahí para probar contra
