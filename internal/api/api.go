@@ -48,6 +48,9 @@ func (a *API) Rutas() http.Handler {
 
 	// Sesion.
 	mux.HandleFunc("POST /api/sesion", a.iniciarSesion)
+	// Sin sesion a proposito: es la puerta del primer acceso, y se cierra sola
+	// en cuanto existe el primer usuario.
+	mux.HandleFunc("POST /api/primer-administrador", a.crearPrimerAdministrador)
 	mux.HandleFunc("DELETE /api/sesion", a.cerrarSesion)
 	mux.Handle("GET /api/sesion", a.conSesion(a.sesionActual))
 

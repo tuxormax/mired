@@ -20,7 +20,28 @@ lo instaló, en el puerto **60072**:
 http://192.168.1.10:60072
 ```
 
-**Usuario `usuario-quitado`, clave `clave-quitada`.** Cámbiela en cuanto entre.
+**MiRed no trae ningún usuario ni clave de fábrica.** La primera vez que entre,
+en vez del formulario de acceso verá el de crear el administrador: elija usted el
+usuario y la clave. Desde ese usuario se dan de alta los demás.
+
+Unas credenciales iguales en todas las instalaciones serían, en un proyecto
+público, una puerta que cualquiera puede buscar: bastaría rastrear el puerto y
+probarlas. Que las elija usted desde el primer momento es la única forma de que
+no se queden sin cambiar.
+
+Un detalle del algoritmo con el que se guardan las claves
+([TUXOR](https://github.com/tuxormax/tuxor)): **el usuario o la clave deben
+empezar o terminar con uno de estos signos**
+
+```
++  -  *  %  ^  &  |  <  >  #
+```
+
+Por ejemplo `+admin` como usuario, o `*miclave#` como clave. La pantalla se lo
+va diciendo mientras teclea y no deja continuar hasta que se cumple.
+
+En cuanto existe el primer administrador, esa pantalla desaparece para siempre:
+nadie de fuera puede crearse otro.
 
 ## 2. Darle permisos de red a la sonda
 

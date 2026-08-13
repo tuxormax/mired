@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import 'modelos/modelos.dart';
 import 'pantallas/entrar.dart';
+import 'pantallas/primer_acceso.dart';
 import 'pantallas/redes.dart';
 import 'servicios/api.dart';
 import 'widgets/mensajes.dart';
@@ -100,15 +101,29 @@ class _PantallaArranqueState extends State<PantallaArranque> {
 
   Future<void> _decidir() async {
     var haySesion = false;
+    var sinEstrenar = false;
+    var operadores = '';
     try {
       haySesion = await Api.instancia.recuperarSesion();
+      if (!haySesion) {
+        // Una instalacion recien hecha no tiene usuarios: en vez del formulario
+        // de entrar hay que pedir que se cree el administrador. Se consulta solo
+        // cuando no hay sesion; con sesion la respuesta ya se sabe.
+        final estado = await Api.instancia.estado();
+        sinEstrenar = estado['sinEstrenar'] as bool? ?? false;
+        operadores = estado['operadores'] as String? ?? '';
+      }
     } catch (problema, pila) {
       if (mounted) await mostrarProblema(context, problema, pila: pila.toString());
     }
     if (!mounted) return;
 
     Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
-      builder: (_) => haySesion ? const PantallaRedes() : const PantallaEntrar(),
+      builder: (_) {
+        if (haySesion) return const PantallaRedes();
+        if (sinEstrenar) return PantallaPrimerAcceso(operadores: operadores);
+        return const PantallaEntrar();
+      },
     ));
   }
 

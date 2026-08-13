@@ -304,8 +304,11 @@ Esqueleto del proyecto en Go, base de datos y una interfaz que ya entra.
 - Capa de base de datos: catálogo, base por red, motor de migraciones propio
   (numeración desde `0001`) y el enrutado de conexiones concentrado en un lugar.
 - Alta y baja de redes: crear archivo, aplicar esquema, registrar en el catálogo.
-- Autenticación: usuarios, sesiones, permisos por red, superadministrador
-  sembrado en la instalación.
+- Autenticación: usuarios, sesiones, permisos por red y **creación del
+  administrador en el primer acceso**. MiRed no trae ningún usuario ni clave de
+  fábrica: unas credenciales iguales en todas las instalaciones son, en un
+  proyecto público, una puerta que cualquiera puede buscar. Las claves se guardan
+  con el algoritmo **TUXOR** de la casa sobre scrypt.
 - API REST con el contrato base y el manejo de errores de la casa.
 - Interfaz Flutter que compila a web, entra con usuario y contraseña y lista las
   redes.

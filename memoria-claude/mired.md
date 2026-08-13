@@ -123,6 +123,33 @@ enlace no se quita: es requisito de la licencia, no adorno.
   cuales son administrables). No bloquea hasta la fase 4, pero se necesita antes
   de llegar ahi para probar SNMP contra equipo de verdad.
 
+## Sin credenciales de fabrica (2026-08-13)
+**Se quitaron `usuario-quitado`/`clave-quitada` de todo el proyecto** el mismo dia que el
+repo se hizo publico, por decision del usuario. En un proyecto publico, unas
+credenciales iguales en todas las instalaciones son una puerta que cualquiera
+puede buscar: basta rastrear el puerto 60072 y probarlas.
+
+**Como quedo:** una instalacion recien hecha no tiene usuarios. `/api/estado`
+—que no pide sesion, y no puede pedirla— devuelve `sinEstrenar: true`, y la
+interfaz pinta el formulario de crear administrador en vez del de entrar.
+`POST /api/primer-administrador` es la unica ruta que crea un usuario sin sesion,
+y **solo funciona mientras no haya ninguno**: esa comprobacion vive en
+`autenticacion.CrearPrimerAdministrador`, no en la API.
+
+**Las claves ahora usan TUXOR** (`internal/autenticacion/tuxor.go`), el algoritmo
+de la casa, en modo seguro: `scrypt(tuxor(usuario, clave), sal)` con costo 14. Se
+guarda como `tuxor$costo$sal$hash`. Dos cosas que no se pueden olvidar:
+
+1. **El usuario forma parte del hash**, no solo la clave. `ComprobarClave` recibe
+   los dos.
+2. **TUXOR exige que el usuario o la clave lleven un operador** (`+ - * % ^ & | <
+   > #`) al principio o al final. Es la regla que mas sorprende, y por eso el
+   formulario la explica mientras se teclea en vez de rechazar al final.
+
+La implementacion de Go es la **cuarta** (ya habia PHP, JavaScript y Python) y
+tiene el vector oficial como prueba: si se desvia, las claves de una no las
+verifica la otra. Ver [[gotchas]].
+
 ## Regla del usuario: nada sale a servicios externos por su cuenta (2026-08-13)
 Lo exportado (mapas y demas archivos) **se guarda en el equipo y punto**: sin
 Google Drive, sin subida a ninguna nube, sin envio automatico. El PNG, el SVG y

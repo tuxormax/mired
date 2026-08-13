@@ -36,7 +36,7 @@ void main() {
     servidor = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     Api.instancia.baseDePrueba = 'http://127.0.0.1:${servidor.port}';
     Api.instancia.usuario = const Usuario(
-      id: 1, usuario: 'usuario-quitado', nombre: 'Superadministrador',
+      id: 1, usuario: '+prueba', nombre: 'Administrador de prueba',
       correo: '', superadmin: true,
     );
 

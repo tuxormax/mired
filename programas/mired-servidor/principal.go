@@ -63,14 +63,17 @@ func correr(cfg configuracion.Configuracion, bitacora *slog.Logger) error {
 	defer datos.Cerrar()
 
 	autenticador := autenticacion.Nuevo(datos, cfg.Servidor.DuracionSesion.Duration)
-	sembrado, err := autenticador.SembrarSuperadmin(ctx)
+	// No se siembra ningun usuario: el primero lo crea quien entre, con el
+	// usuario y la clave que el elija. Unas credenciales iguales en todas las
+	// instalaciones serian, en un proyecto publico, una puerta que cualquiera
+	// puede buscar.
+	sinEstrenar, err := autenticador.SinEstrenar(ctx)
 	if err != nil {
 		return err
 	}
-	if sembrado {
-		bitacora.Warn("se creo el superadministrador inicial. CAMBIE LA CLAVE al entrar",
-			"usuario", autenticacion.UsuarioSuperadmin,
-			"clave", autenticacion.ClaveSuperadmin)
+	if sinEstrenar {
+		bitacora.Info("instalacion sin estrenar: al entrar por primera vez se pedira " +
+			"crear el administrador")
 	}
 
 	// El catalogo de dispositivos se carga al arrancar. Que falte o tenga

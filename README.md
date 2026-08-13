@@ -17,11 +17,16 @@ base de datos ni Docker: son dos binarios y dos servicios, en un `.deb`.
 ## Instalar
 
 ```
-sudo dpkg -i mired_1.0-2_amd64.deb
+sudo dpkg -i mired_1.0-3_amd64.deb
 ```
 
-Al terminar, entre desde el navegador a `http://<el-equipo>:60072` con el
-usuario `usuario-quitado` y la clave `clave-quitada`. **Cámbiela al entrar.**
+Al terminar, entre desde el navegador a `http://<el-equipo>:60072`.
+
+**MiRed no trae ningún usuario ni clave de fábrica.** La primera vez que entre le
+pedirá que cree el administrador con el usuario y la clave que usted elija. Las
+claves se guardan con el algoritmo [TUXOR](https://github.com/tuxormax/tuxor)
+sobre scrypt, que exige que el usuario o la clave empiecen o terminen con uno de
+estos signos: `+ - * % ^ & | < > #`. La pantalla se lo dice mientras teclea.
 
 Hay paquete para `amd64` y para `arm64`, que es lo que necesita una Raspberry Pi.
 

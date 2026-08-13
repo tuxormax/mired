@@ -22,7 +22,27 @@ it, on port **60072**:
 http://192.168.1.10:60072
 ```
 
-**User `usuario-quitado`, password `clave-quitada`.** Change it as soon as you log in.
+**MiRed ships with no default user or password.** The first time you open it you
+get the "create administrator" form instead of the login form: you pick the
+username and the password. Every other user is created from that one.
+
+Shared default credentials would be, in a public project, a door anyone can go
+looking for — scan the port, try them. Having you choose your own from the start
+is the only way they don't end up unchanged.
+
+One quirk of the algorithm the passwords are stored with
+([TUXOR](https://github.com/tuxormax/tuxor)): **the username or the password must
+start or end with one of these signs**
+
+```
++  -  *  %  ^  &  |  <  >  #
+```
+
+For example `+admin` as the username, or `*mypassword#` as the password. The
+screen tells you as you type and won't let you continue until it's satisfied.
+
+Once the first administrator exists that screen is gone for good: nobody from
+outside can create another.
 
 ## 2. Network privileges
 

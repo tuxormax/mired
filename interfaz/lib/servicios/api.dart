@@ -119,6 +119,28 @@ class Api {
 
   // --------------------------------------------------------------- sesion --
 
+  /// estado es lo primero que se consulta y no necesita sesion: dice la version
+  /// y si la instalacion todavia no tiene usuarios.
+  Future<Map<String, dynamic>> estado() async =>
+      await obtener('/api/estado') as Map<String, dynamic>;
+
+  /// crearPrimerAdministrador da de alta al primer usuario de una instalacion
+  /// recien hecha y deja la sesion abierta.
+  ///
+  /// El servidor solo lo permite mientras no exista ningun usuario.
+  Future<void> crearPrimerAdministrador(
+      String usuario, String nombre, String clave) async {
+    final datos = await enviar('/api/primer-administrador', {
+      'usuario': usuario,
+      'nombre': nombre,
+      'clave': clave,
+    });
+    final token = datos['token'] as String?;
+    if (token != null) await _guardarToken(token);
+    final creado = datos['usuario'] as Map<String, dynamic>?;
+    if (creado != null) this.usuario = Usuario.desdeJson(creado);
+  }
+
   Future<void> entrar(String usuario, String clave) async {
     final datos = await enviar('/api/sesion', {'usuario': usuario, 'clave': clave});
     await _guardarToken(datos['token'] as String);

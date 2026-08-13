@@ -50,6 +50,20 @@ errores tontos.
 - **La clave de la red no cambia nunca; el nombre si.** El archivo se llama por
   la clave (`matriz-a1b2.db`). Renombrar NO mueve el archivo.
 
+## Autenticacion
+- **No hay usuario ni clave de fabrica.** El primero lo crea quien entra. Si
+  alguien vuelve a sembrar uno, se abre la puerta que se cerro el 2026-08-13.
+- **`ComprobarClave` recibe el USUARIO ademas de la clave**: en TUXOR el usuario
+  forma parte del calculo. Cambiar el nombre de un usuario invalida su clave.
+- **TUXOR exige un operador** (`+ - * % ^ & | < > #`) al principio o al final del
+  usuario o de la clave. Sin eso no hay hash posible. El formulario lo avisa
+  mientras se teclea Y el servidor lo comprueba: un navegador viejo o una
+  peticion hecha por fuera se saltan el formulario.
+- **El vector oficial de TUXOR es una prueba, no un adorno**
+  (`+tuxor` / `*algorithm#` → `663b623d...`). Esta implementacion es la cuarta;
+  si se desvia, una clave guardada por MiRed no la verifica ninguna otra
+  herramienta de la casa.
+
 ## Formularios (regla de la casa)
 - **El formulario restringe exactamente lo que acepta la columna**, en Flutter y
   en el servidor. Hoy: usuario 60, nombre 120, clave >= 8, VLAN 1-4094, CIDR con

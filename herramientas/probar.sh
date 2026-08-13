@@ -81,6 +81,11 @@ for _ in $(seq 1 20); do
     sleep 1
 done
 
+# El administrador que crea esta prueba. Lleva un operador porque el algoritmo
+# TUXOR lo exige: sin el, no se puede calcular ningun hash.
+ADMIN="+prueba"
+ADMIN_CLAVE="*clavedeprueba#"
+
 API="http://127.0.0.1:$PUERTO"
 GALLETAS="$CARPETA/galletas.txt"
 pedir() { curl -s -b "$GALLETAS" "$@"; }
@@ -94,13 +99,45 @@ curl -s "$API/api/estado" | grep -q '"ok":true' \
 curl -s -o /dev/null -w '%{http_code}' "$API/" | grep -q 200 \
     && paso "el paquete trae la interfaz y la sirve" || falla "la interfaz no se sirve"
 
-curl -s -c "$GALLETAS" -X POST "$API/api/sesion" \
-     -d '{"usuario":"usuario-quitado","clave":"clave-quitada"}' | grep -q '"ok":true' \
-    && paso "entra el superadministrador sembrado" || falla "no se pudo entrar"
+# Una instalacion recien hecha NO trae usuario de fabrica: lo dice y pide crearlo.
+curl -s "$API/api/estado" | grep -q '"sinEstrenar":true' \
+    && paso "una instalacion nueva se declara sin estrenar" \
+    || falla "no avisa que hay que crear el administrador"
 
-curl -s -X POST "$API/api/sesion" -d '{"usuario":"usuario-quitado","clave":"mala"}' \
+# El usuario lleva un operador porque el algoritmo TUXOR lo exige.
+curl -s -c "$GALLETAS" -X POST "$API/api/primer-administrador" \
+     -d "{\"usuario\":\"$ADMIN\",\"nombre\":\"Prueba\",\"clave\":\"$ADMIN_CLAVE\"}" \
+    | grep -q '"ok":true' \
+    && paso "crea el administrador que eligio el usuario" \
+    || falla "no se pudo crear el administrador"
+
+# Y esa puerta se cierra en cuanto existe el primero: es lo que impide que
+# alguien de fuera se cree un administrador en un MiRed ya en uso.
+curl -s -X POST "$API/api/primer-administrador" \
+     -d '{"usuario":"+intruso","nombre":"x","clave":"colado12"}' \
+    | grep -q '"ok":false' \
+    && paso "ya no deja crear un segundo administrador" \
+    || falla "dejo crear un administrador con la instalacion ya estrenada"
+
+curl -s "$API/api/estado" | grep -q '"sinEstrenar":false' \
+    && paso "la instalacion ya no se declara sin estrenar" \
+    || falla "sigue diciendo que esta sin estrenar"
+
+curl -s -c "$GALLETAS" -X POST "$API/api/sesion" \
+     -d "{\"usuario\":\"$ADMIN\",\"clave\":\"$ADMIN_CLAVE\"}" | grep -q '"ok":true' \
+    && paso "entra el administrador recien creado" || falla "no se pudo entrar"
+
+curl -s -X POST "$API/api/sesion" -d "{\"usuario\":\"$ADMIN\",\"clave\":\"mala1234\"}" \
     | grep -q '"ok":false' \
     && paso "rechaza una clave equivocada" || falla "acepto una clave equivocada"
+
+# Un usuario sin ningun operador ni en el usuario ni en la clave: el algoritmo no
+# lo admite, y el servidor tiene que decirlo aunque el formulario ya lo avise.
+pedir -X POST "$API/api/usuarios" \
+     -d '{"usuario":"soso","nombre":"Sin operador","clave":"clavesimple"}' \
+    | grep -q '"ok":false' \
+    && paso "rechaza un usuario sin operador de TUXOR" \
+    || falla "acepto credenciales que TUXOR no puede calcular"
 
 curl -s "$API/api/redes" | grep -q '"causa":"Sesion"' \
     && paso "sin sesion no deja ver nada" || falla "dejo ver datos sin sesion"

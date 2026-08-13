@@ -22,11 +22,72 @@ const topeCuerpo = 1 << 20 // 1 MB
 // estado dice quien es este servidor. Es publico a proposito: sirve para
 // comprobar desde fuera que el servicio esta vivo.
 func (a *API) estado(escritor http.ResponseWriter, peticion *http.Request) {
+	// sinEstrenar le dice a la interfaz que en vez del formulario de entrar tiene
+	// que pintar el de crear el administrador. Va en /api/estado porque es lo
+	// primero que consulta y no exige sesion — que es justo el caso: todavia no
+	// hay nadie con quien tenerla.
+	sinEstrenar, err := a.Auth.SinEstrenar(peticion.Context())
+	if err != nil {
+		a.responderError(escritor, peticion, contextoError{
+			Modulo: "Estado", Accion: "Consultar", Causa: CausaBaseDatos,
+			Tabla: "usuarios", Codigo: http.StatusInternalServerError,
+		}, "No se pudo leer el estado del servicio.", err)
+		return
+	}
+
 	responderOk(escritor, map[string]any{
-		"servicio": "MiRed",
-		"version":  version.Numero,
-		"revision": version.Revision,
-		"build":    version.Build,
+		"servicio":    "MiRed",
+		"version":     version.Numero,
+		"revision":    version.Revision,
+		"build":       version.Build,
+		"sinEstrenar": sinEstrenar,
+		"operadores":  autenticacion.OperadoresParaLeer(),
+	})
+}
+
+// crearPrimerAdministrador es la unica ruta que crea un usuario sin sesion.
+//
+// **Solo funciona mientras no haya ningun usuario**, y esa comprobacion vive en
+// la capa de autenticacion, no aqui: en cuanto existe el primer administrador,
+// esta puerta se cierra para siempre.
+func (a *API) crearPrimerAdministrador(escritor http.ResponseWriter, peticion *http.Request) {
+	var cuerpo peticionUsuario
+	if !a.leerCuerpo(escritor, peticion, &cuerpo, "Primer acceso", "Crear administrador") {
+		return
+	}
+
+	usuario, err := a.Auth.CrearPrimerAdministrador(peticion.Context(),
+		cuerpo.Usuario, cuerpo.Nombre, cuerpo.Clave, cuerpo.Correo)
+	if errors.Is(err, autenticacion.ErrYaEstrenado) {
+		a.responderError(escritor, peticion, contextoError{
+			Modulo: "Primer acceso", Accion: "Crear administrador", Causa: CausaValidacion,
+			Codigo: http.StatusConflict,
+		}, "Esta instalacion ya tiene administrador. Entre con su usuario.", nil)
+		return
+	}
+	if err != nil {
+		// Los mensajes de validacion ya vienen en lenguaje llano desde abajo.
+		a.errorValidacion(escritor, peticion, "Primer acceso", "Crear administrador", err.Error())
+		return
+	}
+
+	// Se entra de una vez: obligar a teclear otra vez lo que se acaba de escribir
+	// es trabajo que la herramienta puede ahorrarse.
+	sesion, entrado, err := a.Auth.IniciarSesion(peticion.Context(), cuerpo.Usuario,
+		cuerpo.Clave, direccionDe(peticion), peticion.UserAgent())
+	if err != nil {
+		// El usuario SI se creo: se dice, para que no lo intente otra vez.
+		responderOk(escritor, map[string]any{
+			"usuario": usuario,
+			"aviso":   "El administrador se creo. Entre con su usuario y su clave.",
+		})
+		return
+	}
+
+	autenticacion.PonerCookie(escritor, sesion.ID, a.Auth.Duracion, peticion.TLS != nil)
+	responderOk(escritor, map[string]any{
+		"usuario": entrado,
+		"token":   sesion.ID,
 	})
 }
 
@@ -433,9 +494,17 @@ func (a *API) crearUsuario(escritor http.ResponseWriter, peticion *http.Request)
 	case len(cuerpo.Clave) < 8:
 		a.errorValidacion(escritor, peticion, "Usuarios", "Crear", "La clave debe tener al menos 8 caracteres.")
 		return
+	case !autenticacion.TuxorValido(cuerpo.Usuario) && !autenticacion.TuxorValido(cuerpo.Clave):
+		// La regla del algoritmo TUXOR, dicha entera: es la que mas sorprende, y
+		// rechazar sin explicar por que deja a la gente probando a ciegas.
+		a.errorValidacion(escritor, peticion, "Usuarios", "Crear",
+			"El usuario o la clave deben empezar o terminar con uno de estos signos: "+
+				autenticacion.OperadoresParaLeer())
+		return
 	}
 
-	hash, err := autenticacion.HashClave(cuerpo.Clave)
+	// El usuario forma parte del calculo, no solo la clave.
+	hash, err := autenticacion.HashClave(cuerpo.Usuario, cuerpo.Clave)
 	if err != nil {
 		a.responderError(escritor, peticion, contextoError{
 			Modulo: "Usuarios", Accion: "Crear", Causa: CausaInterno,
