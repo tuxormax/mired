@@ -43,11 +43,39 @@ habilitar_servicios() {
     done
 }
 
+# La inspeccion profunda viene en el paquete pero NO se enciende sola.
+#
+# Es el unico proceso de MiRed que hace trabajo continuo: mira todos los
+# paquetes que le copia el puerto espejo. Encenderlo sin que nadie lo haya
+# pedido seria cobrarle ese coste a todo el que instale MiRed, y ademas no
+# serviria de nada: sin interfaz configurada no hay nada que capturar.
+#
+# Se enciende solo cuando hay una interfaz puesta en la configuracion, que es
+# la senal de que alguien lo quiere.
+habilitar_inspeccion() {
+    command -v systemctl >/dev/null 2>&1 || return 0
+
+    INTERFAZ=$(sed -n '/^\[dpi\]/,/^\[/ s/^interfaz *= *"\(.*\)"/\1/p' \
+               /etc/mired/mired.toml 2>/dev/null | head -1)
+
+    if [ -z "$INTERFAZ" ]; then
+        systemctl disable mired-dpi >/dev/null 2>&1 || true
+        systemctl stop mired-dpi >/dev/null 2>&1 || true
+        return 0
+    fi
+
+    systemctl enable mired-dpi >/dev/null 2>&1 \
+        || echo "AVISO: no se pudo habilitar mired-dpi"
+    systemctl restart mired-dpi >/dev/null 2>&1 \
+        || echo "AVISO: no se pudo arrancar mired-dpi (revise: journalctl -u mired-dpi)"
+}
+
 case "$1" in
     configure)
         crear_usuario
         preparar_datos
         habilitar_servicios
+        habilitar_inspeccion
 
         PUERTO=$(sed -n 's/^escucha *= *"\(.*\)"/\1/p' /etc/mired/mired.toml 2>/dev/null | head -1)
         [ -n "$PUERTO" ] || PUERTO=":60072"
@@ -58,6 +86,19 @@ case "$1" in
         echo "  No hay usuario ni clave de fabrica: la primera vez que entre le"
         echo "  pedira crear el administrador con los que usted elija."
         echo ""
+        if [ -z "$INTERFAZ" ]; then
+            echo "  La inspeccion profunda (que aplicacion consume) viene incluida pero"
+            echo "  APAGADA: es el unico proceso que trabaja todo el tiempo, y sin un"
+            echo "  puerto espejo del switch no capturaria nada. Para encenderla:"
+            echo ""
+            echo "    1. Configure un puerto espejo (SPAN) hacia una tarjeta de este equipo."
+            echo "    2. Pongala en /etc/mired/mired.toml:   [dpi]  interfaz = \"eth1\""
+            echo "    3. sudo systemctl enable --now mired-dpi"
+            echo ""
+        else
+            echo "  Inspeccion profunda encendida en la interfaz: $INTERFAZ"
+            echo ""
+        fi
         echo "  Los datos viven en $DATOS — es lo unico que hay que respaldar."
         echo ""
         ;;

@@ -5,7 +5,8 @@ qué switch está conectado cada aparato**.
 
 Sin topes de redes ni de usuarios. Cada red vive en su propia base de datos
 SQLite, así que respaldar un sitio es copiar un archivo. No necesita servidor de
-base de datos ni Docker: son dos binarios y dos servicios, en un `.deb`.
+base de datos ni Docker: son tres binarios y tres servicios en un solo `.deb`, y
+el tercero —la inspección profunda— viene apagado hasta que usted lo encienda.
 
 > **Estado: en construcción (fases 1 a 10, falta publicar).** Ya descubre los equipos de la
 > red, guarda quién está encendido en cada momento, escanea solo con la
@@ -17,7 +18,7 @@ base de datos ni Docker: son dos binarios y dos servicios, en un `.deb`.
 ## Instalar
 
 ```
-sudo dpkg -i mired_1.0-3_amd64.deb
+sudo dpkg -i mired_1.0-5_amd64.deb
 ```
 
 Al terminar, entre desde el navegador a `http://<el-equipo>:60072`.
@@ -35,7 +36,8 @@ Hay paquete para `amd64` y para `arm64`, que es lo que necesita una Raspberry Pi
 | Ruta | Qué es |
 |---|---|
 | `/usr/bin/mired-servidor` | Interfaz y API. Corre sin privilegios |
-| `/usr/bin/mired-sonda` | Escaneo. Único con permisos de red cruda, acotados |
+| `/usr/bin/mired-sonda` | Escaneo. Permisos de red cruda, acotados |
+| `/usr/bin/mired-dpi` | Inspección profunda. **Viene apagada**; necesita puerto espejo |
 | `/etc/mired/mired.toml` | Configuración |
 | `/etc/mired/dispositivos/` | Definiciones de dispositivos propias |
 | `/usr/share/mired/dispositivos/` | Catálogo de dispositivos del paquete |
@@ -82,7 +84,8 @@ MIRED_SOCKET_SONDA=/tmp/sonda.sock go run ./programas/mired-sonda
 - [Instalación y primeros pasos](documentacion/instalacion.md)
 - [Cómo aportar un dispositivo al catálogo](documentacion/aportar-dispositivos.md)
   — no hace falta programar
-- [Inspección profunda: el paquete opcional `mired-dpi`](documentacion/inspeccion-profunda.md)
+- [Inspección profunda: qué aplicación consume](documentacion/inspeccion-profunda.md)
+  — viene incluida y apagada
 - [Installation guide (English)](documentacion/installation-en.md)
 
 ## Aportar un dispositivo al catálogo

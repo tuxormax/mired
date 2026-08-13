@@ -41,11 +41,7 @@ trap limpiar EXIT
 # --------------------------------------------------------------- construir --
 echo "== Construyendo el paquete"
 "$RAIZ/herramientas/construir.sh" --arquitectura amd64 >/dev/null
-# El patron lleva "mired_" con guion bajo a proposito: desde que existe el
-# paquete opcional mired-dpi, un comodin suelto se lleva el mas reciente de los
-# dos y esta prueba levantaria un arbol sin servidor.
 PAQUETE=$(ls -t "$RAIZ/empaquetado/salida/"mired_*_amd64.deb | head -1)
-PAQUETE_DPI=$(ls -t "$RAIZ/empaquetado/salida/"mired-dpi_*_amd64.deb 2>/dev/null | head -1)
 echo "   $PAQUETE"
 
 dpkg-deb -x "$PAQUETE" "$CARPETA"
@@ -65,12 +61,6 @@ carpetas = ["$CARPETA/usr/share/mired/dispositivos"]
 [registro]
 nivel = "info"
 FIN
-
-# La inspeccion profunda se desempaqueta sobre el mismo arbol: es un paquete
-# aparte, pero comparte configuracion y socket con el resto.
-if [[ -n "$PAQUETE_DPI" ]]; then
-    dpkg-deb -x "$PAQUETE_DPI" "$CARPETA"
-fi
 
 echo "== Levantando los servicios desde el paquete"
 "$CARPETA/usr/bin/mired-sonda" --configuracion "$CARPETA/mired.toml" > "$CARPETA/sonda.log" 2>&1 &
@@ -210,19 +200,29 @@ pedir "$API/api/redes/$CLAVE/aplicaciones" | grep -q '"explicacion"' \
     && paso "el consumo por aplicacion responde" \
     || falla "el consumo por aplicacion no responde"
 
-# El paquete de inspeccion profunda es OPCIONAL, pero si se construyo tiene que
-# traer su binario y comportarse cuando le falta configuracion.
-if [[ -x "$CARPETA/usr/bin/mired-dpi" ]]; then
-    "$CARPETA/usr/bin/mired-dpi" --version | grep -q "mired-dpi" \
-        && paso "el paquete de inspeccion profunda trae su binario" \
-        || falla "mired-dpi no contesta"
-    "$CARPETA/usr/bin/mired-dpi" --configuracion "$CARPETA/mired.toml" 2>&1 \
-        | grep -q "interfaz configurada" \
-        && paso "mired-dpi sin interfaz avisa en vez de reventar" \
-        || falla "mired-dpi deberia avisar cuando no tiene interfaz"
-else
-    falla "el paquete de inspeccion profunda no trae su binario"
-fi
+# La inspeccion profunda va en el MISMO paquete desde que se juntaron, asi que su
+# binario y su unidad tienen que venir dentro.
+[[ -x "$CARPETA/usr/bin/mired-dpi" ]] \
+    && paso "el paquete trae el binario de inspeccion profunda" \
+    || falla "falta el binario de inspeccion profunda"
+
+[[ -f "$CARPETA/lib/systemd/system/mired-dpi.service" ]] \
+    && paso "y su unidad de systemd" \
+    || falla "falta la unidad de systemd de la inspeccion profunda"
+
+# Pero SIN interfaz configurada no captura nada: lo dice y termina con bien, en
+# vez de reventar o ponerse a girar en balde.
+"$CARPETA/usr/bin/mired-dpi" --configuracion "$CARPETA/mired.toml" 2>&1 \
+    | grep -q "interfaz configurada" \
+    && paso "la inspeccion sin interfaz avisa en vez de arrancar" \
+    || falla "mired-dpi deberia avisar cuando no tiene interfaz"
+
+# Y el postinst la deja apagada mientras no haya interfaz: es lo que evita
+# cobrarle el proceso continuo a todo el que instale MiRed.
+grep -q "systemctl disable mired-dpi" "$CARPETA/../DEBIAN/postinst" 2>/dev/null \
+    || grep -q "habilitar_inspeccion" "$RAIZ/empaquetado/debian/postinst" \
+    && paso "el instalador deja la inspeccion apagada por omision" \
+    || falla "el instalador deberia dejar la inspeccion apagada"
 
 pedir -X DELETE "$API/api/redes/$CLAVE" | grep -q '"borrada":true' \
     && paso "borra la red" || falla "no se pudo borrar la red"

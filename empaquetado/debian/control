@@ -12,7 +12,13 @@ Description: Mapeo de redes: descubrimiento, inventario y mapa de puertos
  .
  Sin topes de redes ni de usuarios. Guarda cada red en su propia base de datos
  SQLite, asi que respaldar un sitio es copiar un archivo. No necesita servidor
- de base de datos ni Docker: son dos binarios y dos servicios.
+ de base de datos ni Docker: son tres binarios y tres servicios, y el tercero
+ viene apagado.
  .
  El servidor corre sin privilegios; solo la sonda de escaneo recibe permisos de
  red cruda, y esos acotados a CAP_NET_RAW y CAP_NET_ADMIN.
+ .
+ Incluye tambien la inspeccion profunda, que dice QUE aplicacion consume y no
+ solo cuanto. Viene APAGADA: es el unico proceso que trabaja todo el tiempo, y
+ necesita un puerto espejo del switch. Se enciende poniendo la interfaz en
+ /etc/mired/mired.toml.

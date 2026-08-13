@@ -1,18 +1,24 @@
-# Inspección profunda — el paquete opcional `mired-dpi`
+# Inspección profunda — `mired-dpi`
 
 Responde **en qué** se gasta el ancho de banda, no sólo **cuánto**: Netflix, un
 respaldo, una actualización de Windows o una videollamada.
 
-## Por qué va aparte
+## Viene incluida, pero apagada
 
-Mirar todos los paquetes cuesta mucho más que preguntarle a un switch cuántos
-bytes pasó por una boca. Ésa es exactamente la diferencia entre MiRed y las
-herramientas que acaban en «consumo alto». Va en su propio paquete para que
-**quien no lo instale no pague nada por ello**.
+`mired-dpi` va dentro del mismo paquete que el resto de MiRed, así que no hay
+nada que descargar aparte. Pero **el servicio no se enciende solo**.
 
-Instálelo sólo si de verdad necesita el detalle por aplicación. Para «quién se
+Es a propósito, y por la misma razón por la que antes iba en un paquete
+separado: es el **único proceso de MiRed que trabaja todo el tiempo**. Mirar
+todos los paquetes cuesta mucho más que preguntarle a un switch cuántos bytes
+pasó por una boca, y ésa es exactamente la diferencia entre MiRed y las
+herramientas que acaban en «consumo alto». Encenderlo sin que nadie lo pida
+sería cobrarle ese coste a todo el mundo — y además no serviría de nada, porque
+sin puerto espejo no hay nada que capturar.
+
+Enciéndalo sólo si de verdad necesita el detalle por aplicación. Para «quién se
 está llevando el internet» bastan los contadores SNMP o los flujos del router,
-que ya vienen en el paquete base y cuestan casi cero.
+que funcionan desde el primer momento y cuestan casi cero.
 
 ## Qué necesita: un puerto espejo
 
@@ -27,24 +33,25 @@ mirroring**, y está en el menú de administración del switch.
 Si no puede configurarlo, no instale este paquete: no falla, simplemente mide muy
 poco. La pantalla se lo dice, y el registro también.
 
-## Instalar
+## Encender
 
-```
-sudo dpkg -i mired-dpi_1.0-1_amd64.deb
-```
-
-Después, dígale en qué tarjeta llega el puerto espejo, en `/etc/mired/mired.toml`:
+Ya está instalada. Dígale en qué tarjeta llega el puerto espejo, en
+`/etc/mired/mired.toml`:
 
 ```
 [dpi]
 interfaz = "eth1"
 ```
 
-Y reinicie el servicio:
+Y enciéndala:
 
 ```
-sudo systemctl restart mired-dpi
+sudo systemctl enable --now mired-dpi
 ```
+
+Si pone la interfaz **antes** de instalar MiRed —o si reinstala el paquete con la
+interfaz ya puesta—, el instalador la enciende solo: encuentra la interfaz
+configurada y entiende que usted la quiere.
 
 Para comprobar que está capturando de verdad:
 
@@ -102,12 +109,12 @@ tenga en cuenta que:
 En muchos sitios esto exige avisar a la gente, y en algunos países exige su
 consentimiento. Es su responsabilidad, no la de la herramienta.
 
-## Desinstalar
+## Apagar
 
 ```
-sudo dpkg -r mired-dpi
+sudo systemctl disable --now mired-dpi
 ```
 
-El resto de MiRed sigue funcionando igual. El consumo por aplicación que ya se
-había guardado no se borra: es historia de la red y vive en la base de cada red,
-junto a todo lo demás.
+El resto de MiRed sigue funcionando igual, y el equipo deja de hacer ese trabajo
+por completo. El consumo por aplicación que ya se había guardado no se borra: es
+historia de la red y vive en la base de cada red, junto a todo lo demás.

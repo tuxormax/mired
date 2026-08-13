@@ -8,7 +8,7 @@ base de datos, ni Docker, ni nada instalado aparte.
 Descargue el `.deb` que corresponda a su equipo y ejecute:
 
 ```
-sudo dpkg -i mired_1.0-0_amd64.deb
+sudo dpkg -i mired_1.0-5_amd64.deb
 ```
 
 Use `arm64` en vez de `amd64` si va a instalarlo en una Raspberry Pi.

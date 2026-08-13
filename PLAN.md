@@ -30,7 +30,7 @@ Actualizado el **2026-08-12**, al cerrar la primera jornada de trabajo.
 | 7 — Alertas | ✅ terminada | Las 6 reglas detectan y los 4 destinos de aviso funcionan |
 | 8 — Ancho de banda | ✅ terminada | Contadores SNMP por puerto y receptor de flujos: NetFlow v5, NetFlow v9, IPFIX y sFlow |
 | 9 — Publicacion | ⚠️ parcial | Licencia decidida (AGPL-3.0) y documentacion lista (ES y EN). **Falta firmar y publicar los paquetes** |
-| 10 — Inspeccion profunda | ✅ terminada | Paquete aparte `mired-dpi`: nombre del servidor por TLS, HTTP y DNS. Falta probarlo con un puerto espejo real |
+| 10 — Inspeccion profunda | ✅ terminada | `mired-dpi` en el mismo paquete pero APAGADO: nombre del servidor por TLS, HTTP y DNS. Falta probarlo con un puerto espejo real |
 
 **Probado de verdad:** el descubrimiento contra la red real de casa, los barridos
 programados corriendo solos, el motor de alertas, el catalogo de dispositivos, el
@@ -252,9 +252,10 @@ cara, y MiRed ofrece las dos primeras en el núcleo:
    por el router sí o sí.
 3. **Inspección profunda de paquetes**: identifica la aplicación concreta —vídeo,
    respaldo, torrent, videollamada—. Exige puerto espejo y es exactamente lo que
-   pone a ntopng en «consumo alto». Va en un **paquete aparte** (`mired-dpi`),
-   opcional, y se puede posponer sin bloquear nada. **Hecho** (fase 10): pesa
-   1.2 MB y quien no lo instale no paga nada por él.
+   pone a ntopng en «consumo alto». Es **opcional** y se puede posponer sin
+   bloquear nada. **Hecho** (fase 10): va en el mismo `.deb` pero con el servicio
+   **apagado** hasta que se configure la interfaz del puerto espejo, así que
+   quien no lo use no paga nada por él.
 
 ---
 
@@ -269,7 +270,7 @@ todo vuelve a estar en español.
 |---|---|
 | `programas/mired-servidor/` | Binario del servidor: API, interfaz, único escritor de las bases |
 | `programas/mired-sonda/` | Binario de la sonda: escaneo con privilegios acotados |
-| `programas/mired-dpi/` | Binario de la inspección profunda, en su propio `.deb` opcional |
+| `programas/mired-dpi/` | Binario de la inspección profunda, opcional y apagado por omisión |
 | `internal/basedatos/` | Catálogo, base por red, migraciones y el enrutado de conexiones |
 | `internal/configuracion/` | Lectura de `/etc/mired/mired.toml` y valores por omisión |
 | `internal/autenticacion/` | Usuarios, sesiones, claves de API y permisos por red |
@@ -419,9 +420,9 @@ grupo inferido.
 
 ### Fase 10 — Inspección profunda, opcional (2-3 semanas)
 
-Paquete aparte `mired-dpi` para quien tenga puerto espejo y quiera saber qué
-aplicación consume, no solo cuánto. **No bloquea nada**: si el tiempo aprieta,
-esta es la que se corta.
+`mired-dpi`, para quien tenga puerto espejo y quiera saber qué aplicación
+consume, no solo cuánto. **No bloquea nada**: si el tiempo aprieta, esta es la
+que se corta.
 
 **Cómo quedó.** Sin nDPI y sin libpcap: la captura es AF_PACKET en Go puro, y la
 identificación **no descifra nada**. Se leen las tres cosas que viajan en claro
@@ -432,6 +433,13 @@ acaban los binarios estáticos y el `.deb` que se instala sin dependencias.
 
 Dos decisiones que sostienen el resto:
 
+- **Se entrega en el mismo `.deb` pero con el servicio apagado** (decidido el
+  2026-08-13, tras haberlo llevado un rato en un paquete aparte). Lo que costaba
+  caro nunca fue el binario de 1.3 MB: era el **proceso capturando**, que es el
+  único de MiRed que trabaja de continuo. Ese coste se controla mejor donde de
+  verdad está —en el arranque del servicio— que partiendo la entrega en dos. El
+  `postinst` lo enciende solo si encuentra una interfaz configurada, que es la
+  señal de que alguien lo quiere.
 - **Reparte los papeles igual que la sonda**: `mired-dpi` tiene `CAP_NET_RAW` y
   `CAP_NET_ADMIN` y **no toca la base de datos**; el servidor le pregunta cada
   pocos minutos por su socket Unix y escribe él. Repetir el patrón en vez de

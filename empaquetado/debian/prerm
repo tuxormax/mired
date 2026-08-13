@@ -5,10 +5,10 @@ set -e
 case "$1" in
     remove|deconfigure)
         if command -v systemctl >/dev/null 2>&1; then
-            systemctl stop mired-servidor >/dev/null 2>&1 || true
-            systemctl stop mired-sonda >/dev/null 2>&1 || true
-            systemctl disable mired-servidor >/dev/null 2>&1 || true
-            systemctl disable mired-sonda >/dev/null 2>&1 || true
+            for servicio in mired-servidor mired-sonda mired-dpi; do
+                systemctl stop "$servicio" >/dev/null 2>&1 || true
+                systemctl disable "$servicio" >/dev/null 2>&1 || true
+            done
         fi
         ;;
 esac

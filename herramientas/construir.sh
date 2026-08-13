@@ -74,16 +74,17 @@ for ARQ in "${ARQUITECTURAS[@]}"; do
     MARCAS+=" -X github.com/tuxormax/mired/internal/version.Revision=$REVISION"
     MARCAS+=" -X github.com/tuxormax/mired/internal/version.Build=$BUILD"
 
-    for PROGRAMA in mired-servidor mired-sonda; do
+    # Los tres binarios van en el MISMO paquete. La inspeccion profunda estuvo un
+    # rato en uno aparte, y se junto: lo que cuesta caro no es el binario de 1.3
+    # MB, es el proceso capturando. Ese coste se controla en el postinst, que
+    # deja mired-dpi apagado mientras no haya una interfaz configurada.
+    for PROGRAMA in mired-servidor mired-sonda mired-dpi; do
         CGO_ENABLED=0 GOOS=linux GOARCH="$ARQ" \
             go build -trimpath -ldflags "$MARCAS" \
             -o "$ARBOL/usr/bin/$PROGRAMA" "$RAIZ/programas/$PROGRAMA"
     done
 
-    # La inspeccion profunda viaja en SU PROPIO paquete: su unidad de systemd no
-    # va en el paquete base.
-    cp "$RAIZ/empaquetado/systemd/mired-servidor.service" \
-       "$RAIZ/empaquetado/systemd/mired-sonda.service" "$ARBOL/lib/systemd/system/"
+    cp "$RAIZ/empaquetado/systemd/"*.service "$ARBOL/lib/systemd/system/"
     cp "$RAIZ/empaquetado/mired.toml" "$ARBOL/etc/mired/mired.toml"
     cp "$RAIZ/PLAN.md" "$ARBOL/usr/share/doc/mired/" 2>/dev/null || true
     cp "$RAIZ/documentacion/"*.md "$ARBOL/usr/share/doc/mired/" 2>/dev/null || true
@@ -117,7 +118,8 @@ for ARQ in "${ARQUITECTURAS[@]}"; do
     # Y los archivos van sin permiso de escritura para el grupo, que es lo que
     # espera un paquete del sistema.
     find "$ARBOL" -type f -exec chmod 0644 {} +
-    chmod 0755 "$ARBOL/usr/bin/mired-servidor" "$ARBOL/usr/bin/mired-sonda"
+    chmod 0755 "$ARBOL/usr/bin/mired-servidor" "$ARBOL/usr/bin/mired-sonda" \
+               "$ARBOL/usr/bin/mired-dpi"
     chmod 0755 "$ARBOL/DEBIAN/postinst" "$ARBOL/DEBIAN/prerm" "$ARBOL/DEBIAN/postrm"
 
     dpkg-deb --build --root-owner-group "$ARBOL" \
@@ -126,44 +128,6 @@ for ARQ in "${ARQUITECTURAS[@]}"; do
 
     echo "   -> $SALIDA/mired_${VERSION_DEB}_${ARQ}.deb"
 
-    # ------------------------------------------------------- mired-dpi ------
-    # La inspeccion profunda va en un paquete APARTE a proposito: mirar todos los
-    # paquetes cuesta mucho mas que preguntarle a un switch cuantos bytes paso
-    # por una boca. Quien no lo instale no paga nada por ello.
-    ARBOL_DPI="$SALIDA/mired-dpi_${VERSION_DEB}_${ARQ}"
-    rm -rf "$ARBOL_DPI"
-    mkdir -p "$ARBOL_DPI/DEBIAN" \
-             "$ARBOL_DPI/usr/bin" \
-             "$ARBOL_DPI/usr/share/doc/mired-dpi" \
-             "$ARBOL_DPI/lib/systemd/system"
-
-    CGO_ENABLED=0 GOOS=linux GOARCH="$ARQ" \
-        go build -trimpath -ldflags "$MARCAS" \
-        -o "$ARBOL_DPI/usr/bin/mired-dpi" "$RAIZ/programas/mired-dpi"
-
-    cp "$RAIZ/empaquetado/systemd/mired-dpi.service" "$ARBOL_DPI/lib/systemd/system/"
-    [[ -f "$RAIZ/LICENSE" ]] && cp "$RAIZ/LICENSE" "$ARBOL_DPI/usr/share/doc/mired-dpi/copyright"
-    [[ -f "$RAIZ/documentacion/inspeccion-profunda.md" ]] && \
-        cp "$RAIZ/documentacion/inspeccion-profunda.md" "$ARBOL_DPI/usr/share/doc/mired-dpi/"
-
-    sed -e "s/^Version: VERSION/Version: $VERSION_DEB/" \
-        -e "s/^Architecture: ARQUITECTURA/Architecture: $ARQ/" \
-        "$RAIZ/empaquetado/debian-dpi/control" > "$ARBOL_DPI/DEBIAN/control"
-    for GUION in postinst prerm postrm; do
-        cp "$RAIZ/empaquetado/debian-dpi/$GUION" "$ARBOL_DPI/DEBIAN/$GUION"
-    done
-
-    find "$ARBOL_DPI" -type d -exec chmod g-s {} +
-    find "$ARBOL_DPI" -type d -exec chmod 0755 {} +
-    find "$ARBOL_DPI" -type f -exec chmod 0644 {} +
-    chmod 0755 "$ARBOL_DPI/usr/bin/mired-dpi"
-    chmod 0755 "$ARBOL_DPI/DEBIAN/postinst" "$ARBOL_DPI/DEBIAN/prerm" "$ARBOL_DPI/DEBIAN/postrm"
-
-    dpkg-deb --build --root-owner-group "$ARBOL_DPI" \
-        "$SALIDA/mired-dpi_${VERSION_DEB}_${ARQ}.deb" >/dev/null
-    rm -rf "$ARBOL_DPI"
-
-    echo "   -> $SALIDA/mired-dpi_${VERSION_DEB}_${ARQ}.deb"
 done
 
 echo "== Listo"

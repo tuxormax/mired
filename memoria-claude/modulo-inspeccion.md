@@ -12,9 +12,17 @@ metadata:
 **Que hace:** responde **en que** se gasta el ancho de banda, no solo cuanto.
 Netflix, un respaldo, una actualizacion, una videollamada.
 
-**Clientes:** paquete Debian **aparte** (`mired-dpi`), que depende de `mired`.
-Pesa 1.2 MB. Quien no lo instale no paga nada por el: el servidor pregunta en su
-socket, nadie contesta, y se calla.
+**Clientes:** va en el **mismo** paquete que el resto de MiRed, pero con el
+servicio **APAGADO** (decidido el 2026-08-13; estuvo un rato en un `.deb`
+aparte). Lo que costaba caro nunca fue el binario de 1.3 MB: era el **proceso
+capturando**, el unico de MiRed que trabaja de continuo. Ese coste se controla
+donde de verdad esta —en el arranque del servicio— y no partiendo la entrega.
+
+El `postinst` lo enciende **solo si encuentra una interfaz configurada** en
+`[dpi] interfaz`, que es la senal de que alguien lo quiere. Si no la hay, lo
+desactiva. Y aunque alguien lo arranque a mano sin interfaz, el binario avisa y
+termina con bien en vez de girar en balde. Mientras esta apagado, el servidor
+pregunta en su socket, nadie contesta, y se calla.
 
 **Donde vive:** `internal/dpi/` (identificacion y captura),
 `programas/mired-dpi/` (el binario), `internal/programador/inspeccion.go` (el
@@ -67,6 +75,8 @@ En muchos sitios esto exige avisar a la gente. Ver
 ## Especificaciones
 | Cosa | Valor |
 |---|---|
+| Entrega | Mismo `.deb` que MiRed, servicio apagado por omision |
+| Encender | `[dpi] interfaz = "eth1"` + `systemctl enable --now mired-dpi` |
 | Socket | `/run/mired/dpi.sock`, permisos 0660 (grupo `mired`) |
 | Configuracion | `[dpi] socket`, `interfaz`, `cada_minutos` en `mired.toml` |
 | Tabla | `trafico_aplicaciones` (migracion `red/0010`) |
