@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../modelos/modelos.dart';
 import '../servicios/api.dart';
 import '../servicios/descarga.dart';
+import '../servicios/subredes.dart' as subredes;
 import '../servicios/trayectoria.dart';
 import '../widgets/mensajes.dart';
 import 'controladoras.dart';
@@ -403,14 +404,68 @@ class _DialogoNuevaRedState extends State<_DialogoNuevaRed> {
   final _formulario = GlobalKey<FormState>();
   final _nombre = TextEditingController();
   final _descripcion = TextEditingController();
-  final _subredes = TextEditingController();
+  final _acotado = TextEditingController();
   bool _ocupado = false;
+
+  /// La red que MiRed detecto en este equipo, si la detecto.
+  ///
+  /// **Es la respuesta al 95% de los casos**, y el programa ya la sabe: se la
+  /// pregunta a la sonda en vez de pedirle al usuario que la calcule.
+  subredes.Interpretacion? _miRed;
+  bool _buscando = true;
+
+  /// Si el usuario quiere acotar en vez de escanear su red entera.
+  bool _acotar = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _buscarMiRed();
+    _acotado.addListener(() => setState(() {}));
+  }
+
+  /// _buscarMiRed le pregunta a la sonda que tarjetas de red ve.
+  ///
+  /// La sonda ya reportaba esto —se usa para avisar si le faltan permisos—, solo
+  /// que nadie lo estaba aprovechando para lo mas util: rellenar el formulario.
+  Future<void> _buscarMiRed() async {
+    try {
+      final estado = await Api.instancia.estadoSonda();
+      final detalle = estado['estado'] as Map<String, dynamic>?;
+      for (final cruda in (detalle?['interfaces'] as List<dynamic>?) ?? []) {
+        final interfaz = cruda as Map<String, dynamic>;
+        if (interfaz['activa'] != true) continue;
+        for (final direccion in (interfaz['direcciones'] as List<dynamic>?) ?? []) {
+          final leida = subredes.deLaRedDetectada(direccion as String);
+          if (leida != null) {
+            if (mounted) setState(() => _miRed = leida);
+            return;
+          }
+        }
+      }
+    } catch (_) {
+      // Que no se pueda preguntar no rompe nada: se cae al campo de siempre.
+    } finally {
+      // Si no se detecto nada, la unica opcion util es escribirlo: se deja ya
+      // elegida en vez de dejar el formulario sin nada marcado.
+      if (mounted) {
+        setState(() {
+          _buscando = false;
+          if (_miRed == null) _acotar = true;
+        });
+      }
+    }
+  }
+
+  /// _loQueSeVaAEscanear es lo unico que decide que se manda al servidor.
+  subredes.Interpretacion? get _loQueSeVaAEscanear =>
+      _acotar ? subredes.interpretar(_acotado.text) : _miRed;
 
   @override
   void dispose() {
     _nombre.dispose();
     _descripcion.dispose();
-    _subredes.dispose();
+    _acotado.dispose();
     super.dispose();
   }
 
@@ -420,12 +475,9 @@ class _DialogoNuevaRedState extends State<_DialogoNuevaRed> {
     Trayectoria.instancia.anotar('Crear red ${_nombre.text}');
 
     try {
-      final rangos = _subredes.text
-          .split(RegExp(r'[\n,]'))
-          .map((texto) => texto.trim())
-          .where((texto) => texto.isNotEmpty)
-          .toList();
-      await Api.instancia.crearRed(_nombre.text.trim(), _descripcion.text.trim(), rangos);
+      final queEscanear = _loQueSeVaAEscanear;
+      await Api.instancia.crearRed(_nombre.text.trim(), _descripcion.text.trim(),
+          queEscanear?.subredes ?? const []);
       if (mounted) Navigator.of(context).pop(true);
     } catch (problema, pila) {
       if (mounted) await mostrarProblema(context, problema, pila: pila.toString());
@@ -467,17 +519,14 @@ class _DialogoNuevaRedState extends State<_DialogoNuevaRed> {
                     counterText: '',
                   ),
                 ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _subredes,
-                  minLines: 2,
-                  maxLines: 4,
-                  decoration: const InputDecoration(
-                    labelText: 'Subredes a escanear',
-                    hintText: '192.168.1.0/24\n10.0.0.0/16',
-                    helperText: 'Una por linea. Se pueden agregar despues.',
-                    border: OutlineInputBorder(),
-                  ),
+                const SizedBox(height: 16),
+                _QueEscanear(
+                  miRed: _miRed,
+                  buscando: _buscando,
+                  acotar: _acotar,
+                  campo: _acotado,
+                  interpretado: _loQueSeVaAEscanear,
+                  alCambiarAcotar: (valor) => setState(() => _acotar = valor),
                 ),
               ],
             ),
@@ -489,11 +538,149 @@ class _DialogoNuevaRedState extends State<_DialogoNuevaRed> {
             child: const Text('Cancelar'),
           ),
           FilledButton(
-            onPressed: _ocupado ? null : _guardar,
+            onPressed: _ocupado || _loQueSeVaAEscanear?.seEntendio != true
+                ? null
+                : _guardar,
             child: _ocupado
                 ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
                 : const Text('Crear'),
           ),
         ],
       );
+}
+
+/// _QueEscanear pregunta que hay que revisar, sin pedir que nadie sepa de redes.
+///
+/// # Por que quedo asi
+///
+/// Antes este sitio pedia "subredes a escanear" y esperaba `192.168.1.0/24`.
+/// Quien no conoce esa notacion no tiene forma de adivinarla — y **el programa ya
+/// sabe la respuesta**, porque la sonda le reporta las tarjetas del equipo.
+/// Pedirle al usuario una cuenta que el programa puede hacer solo es trabajo
+/// regalado.
+///
+/// Asi que lo normal es no escribir nada: sale la red detectada, ya elegida, y
+/// se le da a Crear. El que quiera acotar abre la otra opcion, y ahi vale
+/// cualquiera de las formas en que la gente lo dice de verdad — incluida "de
+/// aqui hasta aca", que es la que sale sola cuando alguien piensa en un rango.
+class _QueEscanear extends StatelessWidget {
+  const _QueEscanear({
+    required this.miRed,
+    required this.buscando,
+    required this.acotar,
+    required this.campo,
+    required this.interpretado,
+    required this.alCambiarAcotar,
+  });
+
+  final subredes.Interpretacion? miRed;
+  final bool buscando;
+  final bool acotar;
+  final TextEditingController campo;
+  final subredes.Interpretacion? interpretado;
+  final ValueChanged<bool> alCambiarAcotar;
+
+  @override
+  Widget build(BuildContext contexto) {
+    final colores = Theme.of(contexto).colorScheme;
+
+    if (buscando) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          children: [
+            SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+            SizedBox(width: 10),
+            Text('Buscando su red...'),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Que revisar', style: Theme.of(contexto).textTheme.titleSmall),
+        const SizedBox(height: 4),
+
+        RadioGroup<bool>(
+          groupValue: acotar,
+          onChanged: (valor) => alCambiarAcotar(valor ?? false),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (miRed != null)
+                RadioListTile<bool>(
+                  value: false,
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Toda mi red'),
+                  subtitle: Text(miRed!.explicacion),
+                ),
+              const RadioListTile<bool>(
+                value: true,
+                contentPadding: EdgeInsets.zero,
+                title: Text('Solo una parte, u otra red'),
+              ),
+            ],
+          ),
+        ),
+
+        if (miRed == null)
+          // Sin sonda no hay nada que proponer. Se dice, en vez de dejar una
+          // opcion vacia que no se entiende por que no funciona.
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              'No se pudo detectar su red. Escriba abajo que revisar.',
+              style: Theme.of(contexto).textTheme.bodySmall
+                  ?.copyWith(color: colores.error),
+            ),
+          ),
+
+        if (acotar) ...[
+          TextFormField(
+            controller: campo,
+            autofocus: true,
+            maxLength: 200,
+            decoration: const InputDecoration(
+              labelText: 'De donde a donde',
+              hintText: '192.168.1.10 - 192.168.1.50',
+              helperText: 'Tambien vale una direccion suelta, o 192.168.1.0/24',
+              border: OutlineInputBorder(),
+              counterText: '',
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Se dice lo que se entendio ANTES de crear nada. Sin esto, aceptar
+          // varias formas de escribirlo seria magia: el usuario pone una cosa,
+          // el programa entiende otra y nadie se entera hasta que el escaneo
+          // sale raro.
+          if (campo.text.trim().isNotEmpty)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  interpretado?.seEntendio == true
+                      ? Icons.check_circle_outline
+                      : Icons.error_outline,
+                  size: 18,
+                  color: interpretado?.seEntendio == true ? colores.primary : colores.error,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    interpretado?.seEntendio == true
+                        ? interpretado!.explicacion
+                        : 'No se entiende. Pruebe con algo como '
+                            '192.168.1.10 - 192.168.1.50',
+                    style: Theme.of(contexto).textTheme.bodySmall?.copyWith(
+                        color: interpretado?.seEntendio == true ? null : colores.error),
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ],
+    );
+  }
 }

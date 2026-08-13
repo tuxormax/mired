@@ -67,15 +67,21 @@ propia interfaz se lo dice para que no crea que está viendo la red completa.
 Una «red» en MiRed es un sitio: Matriz, Sucursal 1, Bodega. Cada una vive en su
 propio archivo de base de datos, así que respaldar un sitio es copiar un archivo.
 
-Al crearla le pide las **subredes a escanear**. Normalmente es una sola, la de su
-oficina:
+Al crearla le pregunta **qué revisar**, y normalmente no hay que escribir nada:
+MiRed detecta su red y la propone ya marcada —*«Toda mi red: se revisarán 254
+direcciones, de la 192.168.1.1 a la 192.168.1.254»*—. Le da a **Crear** y listo.
+
+Si quiere acotar, elija *«Sólo una parte, u otra red»* y escríbalo como le salga
+natural:
 
 ```
-192.168.1.0/24
+192.168.1.10 - 192.168.1.50      de aquí hasta aquí
+192.168.1.100                    una dirección: se toma su red entera
+192.168.1.0/24                   la notación de siempre, para quien la conozca
 ```
 
-Si no sabe cuál es la suya, mire la dirección IP de su computadora y cambie el
-último número por `0/24`.
+Debajo le va diciendo lo que entendió —cuántas direcciones y cuáles— **antes** de
+crear nada.
 
 ## 4. Escanear
 

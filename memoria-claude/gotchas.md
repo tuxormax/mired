@@ -50,6 +50,18 @@ errores tontos.
 - **La clave de la red no cambia nunca; el nombre si.** El archivo se llama por
   la clave (`matriz-a1b2.db`). Renombrar NO mueve el archivo.
 
+## Interfaz: no pedir lo que el programa ya sabe
+- **El formulario de nueva red NO pide una subred en notacion con barra.** Pedia
+  `192.168.1.0/24` y el usuario —que es el dueño del proyecto— no supo que poner:
+  es una cuenta que el programa puede hacer solo, porque la sonda ya le reporta
+  las tarjetas del equipo. Ahora propone la red detectada, ya marcada.
+- **Toda la traduccion de lo que se escribe vive en `servicios/subredes.dart`**,
+  en un solo sitio. Acepta rango (`a - b`), direccion suelta y notacion con
+  barra, y **siempre dice lo que entendio antes de crear nada**: aceptar varias
+  formas sin enseñar el resultado seria magia.
+- Regla general que salio de ahi: **si el programa puede averiguar un dato, no se
+  lo pregunta al usuario.**
+
 ## Interfaz: errores que no se ven
 - **Los tres capturadores globales NO alcanzan a los errores de dibujo.** Para
   mostrar un modal hace falta una pantalla, y la pantalla es lo que fallo. Por
