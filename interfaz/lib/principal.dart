@@ -134,7 +134,10 @@ class _PantallaArranqueState extends State<PantallaArranque> with WidgetsBinding
     // Antes que nada, levantar lo que MiRed necesita para funcionar. En web esto
     // no hace nada: ahi la pagina la sirvio el propio servidor.
     setState(() => _paso = 'Arrancando los servicios de MiRed...');
-    await Servicios.instancia.arrancar();
+    // La direccion guardada primero: si el programa apunta al MiRed de otro
+    // equipo, aqui no se arranca ni se detiene nada.
+    await Api.instancia.cargarServidor();
+    await Servicios.instancia.arrancar(servidor: Api.instancia.servidor);
     if (!mounted) return;
     setState(() => _paso = 'Conectando...');
 

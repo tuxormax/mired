@@ -100,6 +100,22 @@ Regla del proyecto (2026-08-13, la pidio el usuario):
   tecla: si revientan ahi, se llevan la pantalla entera.
 
 ## El programa de escritorio
+- **Un servidor viejo vivo se lleva el puerto y el programa se cuelga de el.**
+  Al actualizar el paquete sin cerrar el programa, el `mired-servidor` anterior
+  sigue con su codigo en memoria (su binario aparece como `(deleted)`), y el
+  programa nuevo lo adopta: interfaz nueva contra motor viejo, con el pie
+  mostrando una version que ya no esta instalada. Mordio el 2026-08-13. Se cierra
+  por los dos lados y hacen falta LOS DOS:
+    1. El `prerm` para los procesos al **actualizar** (no pasan por systemd: son
+       hijos del programa, `systemctl stop` no los ve).
+    2. El programa **compara su version con la del servidor vivo** y, si no
+       coinciden y es local, lo detiene y levanta el suyo.
+- **Al comparar versiones se descarta el hash del build**: dos compilaciones de
+  la misma entrega son la misma version, y compararlo reiniciaria el servidor
+  cada vez que alguien recompila sin cambiar nada.
+- **Solo se toca lo de este equipo.** Si el programa apunta al MiRed de otro
+  sitio, no se arranca ni se mata nada alli. Y una direccion mal escrita NO
+  cuenta como local: `Uri.tryParse` acepta casi cualquier texto.
 - **MiRed NO tiene interfaz web.** Si alguien vuelve a servir paginas desde el
   servidor, esta deshaciendo la decision del 2026-08-13.
 - **El programa solo mata los servicios que EL arranco.** Ver [[modulo-programa]].

@@ -148,6 +148,14 @@ tipo = "feature"
 modulo = "Mapa visual"
 notas = "Todo reporte dice de cuando son los datos, no solo cuando se exporto: los cuatro formatos del mapa y el CSV. En pantalla, cuando fue el ultimo escaneo se lee como 'hace 3 dias' y en rojo cuando ya no es de fiar."
 
+[[sistema]]
+version = "1.14"
+revision = 16
+fecha = "2026-08-13"
+tipo = "fix"
+modulo = "Programa de escritorio"
+notas = "Al actualizar sin cerrar el programa, el servidor viejo seguia vivo con su codigo en memoria y el programa se colgaba de el: interfaz nueva contra motor viejo. Ahora el instalador para los procesos al actualizar y el programa compara su version con la del servidor vivo, reemplazandolo si no coinciden. Solo toca lo de este equipo."
+
 # ----------------------------------------------------------------- la base --
 #
 # Cada entrada apunta al numero de migracion que la trae. El esquema de las bases

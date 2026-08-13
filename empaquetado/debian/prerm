@@ -2,7 +2,26 @@
 # Se ejecuta antes de quitar el paquete: detiene los servicios.
 set -e
 
+# Los servicios que levanto el PROGRAMA no pasan por systemd: son hijos suyos,
+# y `systemctl stop` no los ve. Hay que pararlos por su ruta.
+#
+# Al ACTUALIZAR esto es imprescindible: un mired-servidor que sigue vivo con el
+# codigo viejo en memoria se queda con el puerto, y el programa nuevo se cuelga
+# de el en vez de levantar el suyo. El sintoma es cruel — interfaz nueva hablando
+# con un motor viejo, la mitad de las cosas sin funcionar y nada que lo explique.
+# Mordio el 2026-08-13.
+parar_los_del_programa() {
+    for programa in mired-servidor mired-sonda mired-dpi; do
+        pkill -TERM -f "^/usr/bin/$programa\$" 2>/dev/null || true
+    done
+    # Un momento para que cierren sus bases en orden antes de seguir.
+    sleep 1
+}
+
 case "$1" in
+    upgrade)
+        parar_los_del_programa
+        ;;
     remove|deconfigure)
         if command -v systemctl >/dev/null 2>&1; then
             for servicio in mired-servidor mired-sonda mired-dpi; do
@@ -10,6 +29,7 @@ case "$1" in
                 systemctl disable "$servicio" >/dev/null 2>&1 || true
             done
         fi
+        parar_los_del_programa
         ;;
 esac
 

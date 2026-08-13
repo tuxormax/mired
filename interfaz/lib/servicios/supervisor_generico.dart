@@ -1,14 +1,18 @@
+import 'dart:convert';
 import 'dart:io';
 
 /// Version de escritorio: la que de verdad arranca y mata procesos.
 ///
-/// Todo lo delicado de este archivo se reduce a una idea: **solo se mata lo que
-/// se arranco**. Si al abrir el programa ya habia un MiRed corriendo —porque
-/// alguien lo dejo como servicio, o porque quedo vivo de una sesion anterior—
-/// nos colgamos de el y al cerrar no se toca. Matar el servicio de otro seria
-/// dejar sin vigilancia una red que si la tenia.
-
-/// Servicios arranca y detiene los procesos de MiRed.
+/// Dos ideas sostienen todo este archivo:
+///
+///  1. **Solo se toca lo de este equipo.** Si el programa esta apuntando al
+///     MiRed de otro sitio, aqui no se arranca ni se mata nada: ese servicio es
+///     de alguien mas y puede estar vigilando una red que no es la nuestra.
+///  2. **Un servidor de otra version no sirve.** Si al abrir ya hay un MiRed
+///     corriendo en este equipo pero es de una version distinta —tipico despues
+///     de actualizar el paquete sin cerrar el programa—, se detiene y se levanta
+///     el instalado. Colgarse de el daria una interfaz nueva hablando con un
+///     motor viejo: la mitad de las cosas no funcionarian y nada lo explicaria.
 class Servicios {
   Servicios._();
   static final Servicios instancia = Servicios._();
@@ -28,11 +32,10 @@ class Servicios {
   final List<Process> _arrancados = [];
   String? _aviso;
 
-  /// aviso explica por que MiRed arranco a medias, si arranco a medias.
+  /// aviso explica por que MiRed arranco a medias, o que tuvo que hacer.
   ///
-  /// Se guarda en vez de lanzarse como error porque casi nunca impide trabajar:
-  /// sin la sonda, por ejemplo, el descubrimiento por ARP no va pero el resto
-  /// si. Callarlo seria peor: la pantalla se veria incompleta sin explicacion.
+  /// Se guarda en vez de lanzarse como error porque casi nunca impide trabajar.
+  /// Callarlo seria peor: la pantalla se veria rara sin explicacion.
   String? get aviso => _aviso;
 
   /// arranque dice si este programa levanto los servicios o se colgo de unos que
@@ -49,15 +52,32 @@ class Servicios {
     return '$casa/.local/share/mired';
   }
 
-  /// arrancar levanta lo que haga falta y espera a que el servidor conteste.
+  /// arrancar deja MiRed listo para usarse, o deja claro por que no lo esta.
   ///
-  /// Devuelve cuando MiRed ya esta listo para usarse, o cuando quedo claro que
-  /// no va a estarlo.
-  Future<void> arrancar() async {
-    if (await _contesta()) return; // ya habia uno vivo: nos colgamos de el
+  /// El parametro dice a que servidor apunta el programa. Si no es el de este
+  /// equipo, aqui no se hace nada.
+  Future<void> arrancar({String servidor = 'http://localhost:60072'}) async {
+    if (!_esDeEsteEquipo(servidor)) {
+      // El programa mira el MiRed de otro sitio: alla no mandamos nosotros.
+      return;
+    }
 
-    final servidor = _buscarBinario('mired-servidor');
-    if (servidor == null) {
+    final binarioServidor = _buscarBinario('mired-servidor');
+    final instalada = binarioServidor == null
+        ? null
+        : await _versionDelBinario(binarioServidor);
+    final viva = await _versionDelQueEstaCorriendo();
+
+    if (viva != null) {
+      // Ya hay un MiRed vivo aqui. Solo sirve si es el mismo que esta instalado.
+      if (instalada == null || viva == instalada) return;
+
+      _aviso = 'Habia un MiRed $viva corriendo de antes. Se detuvo y se arranco '
+          'el instalado, $instalada.';
+      await _detenerLosDeAntes();
+    }
+
+    if (binarioServidor == null) {
       _aviso = 'No se encontro el programa mired-servidor. Si MiRed corre en otro '
           'equipo, indique su direccion con el boton de abajo.';
       return;
@@ -76,7 +96,7 @@ class Servicios {
           'funcionar, solo el sondeo de puertos.';
     }
 
-    await _lanzar(servidor, entorno);
+    await _lanzar(binarioServidor, entorno);
 
     if (!await _esperarAlServidor()) {
       _aviso = 'Los servicios de MiRed arrancaron pero el servidor no contesto. '
@@ -91,7 +111,6 @@ class Servicios {
       // y una base SQLite cerrada a la brava deja su archivo de bitacora suelto.
       proceso.kill(ProcessSignal.sigterm);
     }
-    // Se les da un momento para cerrar en orden antes de soltarlos.
     await Future.wait(
       _arrancados.map((proceso) => proceso.exitCode.timeout(
             const Duration(seconds: 5),
@@ -102,6 +121,26 @@ class Servicios {
           )),
     );
     _arrancados.clear();
+  }
+
+  /// _detenerLosDeAntes para los servicios que quedaron de una version anterior.
+  ///
+  /// Solo se llama cuando ya se sabe que la version no coincide **y** que son de
+  /// este equipo. Se les manda SIGTERM por su ruta exacta —no por un patron
+  /// suelto— para no llevarse por delante nada que solo se le parezca.
+  Future<void> _detenerLosDeAntes() async {
+    for (final nombre in ['mired-servidor', 'mired-sonda', 'mired-dpi']) {
+      final ruta = _buscarBinario(nombre);
+      if (ruta == null) continue;
+      await Process.run('pkill', ['-TERM', '-f', '^$ruta\$']);
+    }
+
+    // Esperar a que suelten el puerto: arrancar el nuestro mientras el viejo lo
+    // tiene tomado fallaria con un "direccion en uso" que no explica nada.
+    for (var intento = 0; intento < 40; intento++) {
+      if (!await _contesta()) return;
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+    }
   }
 
   Future<void> _lanzar(String binario, Map<String, String> entorno) async {
@@ -129,6 +168,26 @@ class Servicios {
     };
   }
 
+  /// Las dos decisiones de esta clase se exponen para poder probarlas: a que
+  /// servidor se le puede tocar, y cuando dos versiones son la misma. Todo lo
+  /// demas de aqui arranca procesos de verdad y no se puede probar sin ellos.
+  static bool esDeEsteEquipoParaPruebas(String direccion) => _esDeEsteEquipo(direccion);
+  static String? versionParaPruebas(String texto) => _soloVersionYRevision(texto);
+
+  /// _esDeEsteEquipo dice si esa direccion apunta aqui.
+  ///
+  /// Se exige una direccion completa y con nombre de equipo. Un texto cualquiera
+  /// **no** cuenta como "este equipo": `Uri.tryParse` acepta casi todo y devuelve
+  /// un nombre vacio, asi que tomarlo por bueno haria arrancar y matar servicios
+  /// locales por una direccion mal escrita.
+  static bool _esDeEsteEquipo(String direccion) {
+    final url = Uri.tryParse(direccion.trim());
+    if (url == null) return false;
+    if (!url.isScheme('http') && !url.isScheme('https')) return false;
+
+    return url.host == 'localhost' || url.host == '127.0.0.1' || url.host == '::1';
+  }
+
   /// _buscarBinario devuelve la ruta del programa, o null si no esta.
   String? _buscarBinario(String nombre) {
     for (final carpeta in _dondeBuscar) {
@@ -136,6 +195,56 @@ class Servicios {
       if (File(ruta).existsSync()) return ruta;
     }
     return null;
+  }
+
+  /// _versionDelBinario pregunta al ejecutable instalado cual es.
+  ///
+  /// Se le pregunta a EL y no se compila el numero dentro de esta interfaz: asi
+  /// la comparacion es entre lo que hay instalado y lo que esta corriendo, que
+  /// es justo el desajuste que se quiere cazar.
+  Future<String?> _versionDelBinario(String ruta) async {
+    try {
+      final resultado = await Process.run(ruta, ['--version']);
+      return _soloVersionYRevision(resultado.stdout.toString());
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// _versionDelQueEstaCorriendo pregunta al servidor vivo, si lo hay.
+  Future<String?> _versionDelQueEstaCorriendo() async {
+    try {
+      final cliente = HttpClient()..connectionTimeout = const Duration(seconds: 2);
+      final peticion = await cliente.getUrl(
+          Uri.parse('http://127.0.0.1:$_puerto/api/estado'));
+      final respuesta = await peticion.close().timeout(const Duration(seconds: 3));
+      final cuerpo = await respuesta.transform(utf8.decoder).join();
+      cliente.close();
+
+      final sobre = jsonDecode(cuerpo) as Map<String, dynamic>;
+      final datos = sobre['datos'] as Map<String, dynamic>?;
+      if (datos == null) return null;
+      return _soloVersionYRevision('${datos['version']} Rev ${datos['revision']}');
+    } catch (_) {
+      // No contesta, o contesta algo que no es MiRed: para el caso es lo mismo.
+      return null;
+    }
+  }
+
+  /// _soloVersionYRevision deja "v1.14 Rev 15" de cualquiera de las dos formas.
+  ///
+  /// El binario dice `mired-servidor MiRed v1.14 Rev 15 (4ea57e5)` y la API
+  /// devuelve los campos sueltos. **El hash del build se descarta a proposito**:
+  /// dos compilaciones de la misma entrega son la misma version, y compararlo
+  /// haria reiniciar el servidor cada vez que alguien recompila sin cambiar nada.
+  static String? _soloVersionYRevision(String texto) {
+    final encontrado =
+        RegExp(r'(v?[\d.]+)\s+Rev\s+(\d+)', caseSensitive: false).firstMatch(texto);
+    if (encontrado == null) return null;
+
+    var numero = encontrado.group(1)!;
+    if (!numero.startsWith('v')) numero = 'v$numero';
+    return '$numero Rev ${encontrado.group(2)}';
   }
 
   /// _esperarAlServidor da tiempo a que abra su puerto.

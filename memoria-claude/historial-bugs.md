@@ -151,3 +151,36 @@ Dos cosas lo hacian traicionero:
 - Si armas una expresion regular en un `build()` o en algo que corre por tecla →
   no lo hagas. Reventar ahi deja la pantalla en gris.
 - Si alguien quita `ErrorWidget.builder` del arranque, vuelven los grises mudos.
+
+## 2026-08-13 — Interfaz nueva hablando con un motor viejo
+
+**Que pasaba.** Tras instalar la Rev 15, el pie del programa seguia mostrando
+**Rev 8** y el flujo nuevo de crear redes no aparecia: seguia pidiendo la subred
+que ya se habia quitado.
+
+**Por que.** El `mired-servidor` que estaba corriendo llevaba vivo desde hacia
+hora y media —su binario aparecia ya como `(deleted)`, porque dpkg lo habia
+reemplazado— y **seguia sirviendo el codigo viejo desde memoria**. El programa,
+al abrirse, vio que algo contestaba en el puerto 60072 y se colgo de el, que es
+justo lo que le dice su regla de "solo mata lo que el arranco".
+
+A esa regla le faltaba la otra mitad: **nunca comprobaba que el servidor al que
+se colgaba fuera de su misma version**. Y el paquete, al actualizarse, tampoco
+paraba lo que estaba corriendo.
+
+**Que se corrigio.** Los dos lados, porque ninguno basta solo:
+
+1. **`prerm` para los procesos al actualizar.** No pasan por systemd —son hijos
+   del programa— asi que `systemctl stop` no los ve: hay que pararlos por su ruta.
+2. **El programa compara versiones.** Le pregunta al binario instalado
+   (`--version`) y al servidor vivo (`/api/estado`); si no coinciden y el
+   servidor es de este equipo, lo detiene y levanta el suyo, avisando de lo que
+   hizo. Si el servidor es de otro equipo **no lo toca**: podria estar vigilando
+   una red que no es la nuestra.
+
+El hash del build se descarta al comparar: dos compilaciones de la misma entrega
+son la misma version, y contarlo reiniciaria el servidor en cada arranque.
+
+**Tripwire.** Si el pie muestra una version que no coincide con la instalada,
+mira `readlink /proc/<pid>/exe` del servidor: si dice `(deleted)`, esta corriendo
+un binario que ya no existe.
