@@ -6,15 +6,20 @@ package version
 import "fmt"
 
 var (
-	// Numero es la version del sistema: v1.X, donde X sube con cada modulo.
+	// Numero es la version del sistema: v1.X, donde **X es el numero de MODULOS**.
 	//
-	// v1.1 (2026-08-13): MiRed dejo de ser un servicio con interfaz web y paso a
-	// ser un programa de escritorio que arranca y detiene sus propios servicios.
-	// Ese cambio se lleva un numero de version porque cambia como se usa, donde
-	// viven los datos y que corre cuando nadie mira.
-	Numero = "v1.1"
-	// Revision sube en cada despliegue y nunca se reinicia.
-	Revision = "0"
+	// No es versionado semantico: X no sube porque un cambio sea grande, sube
+	// cuando hay un modulo mas. Los 14 de hoy: redes, subredes, equipos, escaneo
+	// y agenda, presencia, mapa de puertos, mapa visual, alertas, consumo,
+	// inspeccion profunda, usuarios, credenciales SNMP, controladoras WiFi y
+	// catalogo de dispositivos.
+	//
+	// Este valor y el de abajo son solo el respaldo para `go run`: al compilar de
+	// verdad los fija construir.sh leyendolos del historial.
+	Numero = "v1.14"
+	// Revision sube en cada entrega y NUNCA se reinicia, tampoco al cambiar de
+	// version. Sale del historial, no de un argumento que alguien teclea.
+	Revision = "12"
 	// Build es el hash corto del commit con el que se compilo el binario.
 	Build = "desarrollo"
 )

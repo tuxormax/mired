@@ -70,7 +70,27 @@ en el servicio, para no romper el binario unico.
 Go 1.26.4 y Flutter 3.35.6 **ya instalados**. No hay Rust, ni Docker, ni
 `sqlite3` de linea de comandos. Node es 18. PostgreSQL 16 esta (ya no hace falta).
 
-## Estado real (2026-08-13, v1.1 Rev 8)
+## Versionado — se corrigio el 2026-08-13
+Estaba mal y lo detecto el usuario. **`v1.X` NO es versionado semantico: X es el
+NUMERO DE MODULOS.** Se habia subido a v1.1 "porque el cambio era grande", que es
+el criterio de medio mundo pero no el de la casa. MiRed tiene **14 modulos**
+(confirmados con el usuario), asi que es **v1.14**; la revision sigue su cuenta
+sin reiniciarse (12 al cerrar la jornada).
+
+Lo que faltaba y ya esta:
+- **Tablas `versionessistema` y `versiondb`** en el catalogo (migracion 0004),
+  que son estandar de la casa y aqui no existian.
+- **`internal/version/historial.toml`** es la fuente de la verdad, y **una sola**:
+  de ahi salen la version y la revision con que compila `construir.sh` —ya no se
+  teclean, que era como se podian reiniciar sin que nadie se enterara— y de ahi
+  se siembran las dos tablas en cada arranque, de forma idempotente.
+- **Pie clickable** que abre el historial, como en los demas proyectos.
+
+Tres pruebas lo vigilan: que el binario y el historial digan la misma version,
+que la revision **no tenga huecos ni repetidos**, y que sembrar mil veces no
+duplique filas.
+
+## Estado real (2026-08-13, v1.14 Rev 12)
 **Las 10 fases cerradas**, salvo publicar los paquetes. Lo hecho:
 1. Cimientos: servidor + sonda, una base SQLite por red, autenticacion con
    permisos por red, API con el estandar de errores de la casa, programa de

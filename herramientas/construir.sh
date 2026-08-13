@@ -16,9 +16,37 @@ RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # arbol del proyecto es perder tiempo cada vez.
 SALIDA="$RAIZ/instaladores"
 
-VERSION="v1.0"
-REVISION="0"
 ARQUITECTURAS=("amd64")
+
+# La version y la revision NO se teclean: salen del historial, que es la fuente
+# de la verdad. Tecleadas a mano se podian reiniciar sin que nadie se enterara, y
+# la regla dice que la revision nunca se reinicia.
+# Vive junto al paquete de Go porque es lo que exige go:embed, y en UN solo
+# sitio: dos copias del historial acabarian diciendo cosas distintas.
+HISTORIAL="$RAIZ/internal/version/historial.toml"
+
+leer_del_historial() {
+    python3 - "$HISTORIAL" <<'FIN'
+import re, sys
+
+texto = open(sys.argv[1]).read()
+ultima = None
+for bloque in texto.split('[[sistema]]')[1:]:
+    version = re.search(r'^version\s*=\s*"([^"]+)"', bloque, re.M)
+    revision = re.search(r'^revision\s*=\s*(\d+)', bloque, re.M)
+    if not version or not revision:
+        continue
+    numero = int(revision.group(1))
+    if ultima is None or numero > ultima[1]:
+        ultima = (version.group(1), numero)
+
+if ultima is None:
+    raise SystemExit('el historial no tiene ninguna entrada de sistema')
+print(f'v{ultima[0]} {ultima[1]}')
+FIN
+}
+
+read -r VERSION REVISION <<< "$(leer_del_historial)"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -30,8 +58,6 @@ while [[ $# -gt 0 ]]; do
             fi
             shift 2
             ;;
-        --version)  VERSION="$2"; shift 2 ;;
-        --revision) REVISION="$2"; shift 2 ;;
         *) echo "Opcion desconocida: $1" >&2; exit 1 ;;
     esac
 done

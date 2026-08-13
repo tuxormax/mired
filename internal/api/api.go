@@ -50,6 +50,7 @@ func (a *API) Rutas() http.Handler {
 	mux.HandleFunc("POST /api/primer-administrador", a.crearPrimerAdministrador)
 	mux.HandleFunc("DELETE /api/sesion", a.cerrarSesion)
 	mux.Handle("GET /api/sesion", a.conSesion(a.sesionActual))
+	mux.Handle("GET /api/versiones", a.conSesion(a.historialVersiones))
 
 	// Redes.
 	mux.Handle("GET /api/redes", a.conSesion(a.listarRedes))

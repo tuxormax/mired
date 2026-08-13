@@ -91,6 +91,32 @@ func (a *API) crearPrimerAdministrador(escritor http.ResponseWriter, peticion *h
 	})
 }
 
+// historialVersiones devuelve que cambio en cada entrega.
+//
+// Es lo que abre el pie de la interfaz al pulsarlo. Pide sesion: el detalle de
+// que se corrigio y cuando no tiene por que verlo cualquiera que llegue al
+// puerto.
+func (a *API) historialVersiones(escritor http.ResponseWriter, peticion *http.Request) {
+	sistema, base, err := a.Datos.HistorialDeVersiones(peticion.Context())
+	if err != nil {
+		a.responderError(escritor, peticion, contextoError{
+			Modulo: "Historial de versiones", Accion: "Consultar", Causa: CausaBaseDatos,
+			Tabla: "versionessistema", Codigo: http.StatusInternalServerError,
+		}, "No se pudo leer el historial de versiones.", err)
+		return
+	}
+
+	responderOk(escritor, map[string]any{
+		"sistema": sistema,
+		"base":    base,
+		"actual": map[string]any{
+			"version":  version.Numero,
+			"revision": version.Revision,
+			"build":    version.Build,
+		},
+	})
+}
+
 // ---------------------------------------------------------------- sesion ----
 
 type peticionSesion struct {

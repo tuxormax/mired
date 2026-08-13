@@ -428,3 +428,52 @@ func TestUnPlazoPropioDelQueLlamaManda(t *testing.T) {
 		t.Fatal("Abrir no deberia cambiar el plazo del que llama")
 	}
 }
+
+func TestElHistorialDeVersionesSeSiembraSinDuplicar(t *testing.T) {
+	// Se siembra en CADA arranque, asi que tiene que poder correrse mil veces
+	// sin dejar filas repetidas. Por eso la clave es version+revision y no un
+	// identificador nuevo cada vez.
+	enrutador := enrutadorDePrueba(t)
+	ctx := context.Background()
+
+	sistema := []EntradaDeVersion{
+		{Version: "1.14", Revision: 1, Fecha: "2026-08-12", Tipo: "feature",
+			Modulo: "Cimientos", Notas: "primera entrega"},
+		{Version: "1.14", Revision: 2, Fecha: "2026-08-13", Tipo: "fix",
+			Modulo: "Redes", Notas: "una correccion"},
+	}
+	base := []EntradaDeVersion{
+		{Version: "1.14", Revision: 1, Fecha: "2026-08-12", Tipo: "feature",
+			Modulo: "Cimientos", Notas: "esquema inicial"},
+	}
+
+	for i := 0; i < 3; i++ {
+		if err := enrutador.SembrarVersiones(ctx, sistema, base); err != nil {
+			t.Fatalf("vuelta %d: %v", i, err)
+		}
+	}
+
+	leidoSistema, leidoBase, err := enrutador.HistorialDeVersiones(ctx)
+	if err != nil {
+		t.Fatalf("no se pudo leer el historial: %v", err)
+	}
+	if len(leidoSistema) != 2 || len(leidoBase) != 1 {
+		t.Fatalf("sembrar tres veces duplico filas: %d y %d",
+			len(leidoSistema), len(leidoBase))
+	}
+	// De lo mas nuevo a lo mas viejo: es el orden en que se quiere leer.
+	if leidoSistema[0].Revision != 2 {
+		t.Fatalf("deberia venir lo mas nuevo primero: %+v", leidoSistema)
+	}
+
+	// Y si una nota se corrige en el repo, la siembra la actualiza en vez de
+	// dejar la vieja para siempre.
+	sistema[1].Notas = "la correccion, mejor explicada"
+	if err := enrutador.SembrarVersiones(ctx, sistema, base); err != nil {
+		t.Fatalf("no se pudo resembrar: %v", err)
+	}
+	leidoSistema, _, _ = enrutador.HistorialDeVersiones(ctx)
+	if leidoSistema[0].Notas != "la correccion, mejor explicada" {
+		t.Fatalf("la nota no se actualizo: %q", leidoSistema[0].Notas)
+	}
+}

@@ -145,6 +145,16 @@ curl -s "$API/api/redes" | grep -q '"causa":"Sesion"' \
 pedir "$API/api/catalogo" | grep -q '"definiciones"' \
     && paso "el catalogo de dispositivos carga" || falla "el catalogo no carga"
 
+# El historial de versiones viaja dentro del binario y se siembra al arrancar.
+# Que este vacio significaria que el pie de la interfaz no muestra nada.
+pedir "$API/api/versiones" | grep -q '"versionessistema"\|"sistema"' \
+    && paso "el historial de versiones se sembro" \
+    || falla "el historial de versiones esta vacio"
+
+pedir "$API/api/versiones" | grep -q '"revision":12' \
+    && paso "y trae la revision de esta entrega" \
+    || falla "el historial no llega hasta la revision de hoy"
+
 pedir "$API/api/sonda" | grep -q '"viva":true' \
     && paso "el servidor habla con la sonda" || falla "el servidor no ve la sonda"
 

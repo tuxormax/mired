@@ -1,0 +1,170 @@
+# Historial de versiones de MiRed.
+#
+# **Este archivo es la fuente de la verdad de la version.** De aqui salen tres
+# cosas, y por eso no se toca a la ligera:
+#
+#   1. La version y la revision con que se compilan los binarios
+#      (`herramientas/construir.sh` lee la ultima entrada; ya no se teclean).
+#   2. Las filas de la tabla `versionessistema`, que el servidor siembra al
+#      arrancar y el programa muestra al pulsar el pie.
+#   3. Lo mismo para `versiondb` con los cambios de esquema.
+#
+# En los proyectos PHP de la casa esto vive en un seeder SQL. Aqui no puede: el
+# `.deb` se instala en equipos donde no hay ningun SQL que correr a mano, asi que
+# el historial viaja DENTRO del binario y se siembra solo.
+#
+# # Las reglas del versionado
+#
+#   version = 1.X   donde X es el NUMERO DE MODULOS del sistema. No es
+#                   versionado semantico: X no sube porque un cambio sea grande,
+#                   sube cuando hay un modulo mas.
+#   revision        sube +1 en cada entrega y NUNCA se reinicia, tampoco al
+#                   cambiar de version.
+#   tipo            feature | fix | ajuste | change
+#
+# Los 14 modulos de la v1.14: redes, subredes, equipos, escaneo y agenda,
+# presencia, mapa de puertos, mapa visual, alertas, consumo, inspeccion profunda,
+# usuarios, credenciales SNMP, controladoras WiFi y catalogo de dispositivos.
+
+# --------------------------------------------------------------- el sistema --
+
+[[sistema]]
+version = "1.14"
+revision = 1
+fecha = "2026-08-12"
+tipo = "feature"
+modulo = "Cimientos"
+notas = "Servidor y sonda con privilegios separados, una base SQLite por red, autenticacion con permisos por red, API con el estandar de errores de la casa y paquete .deb."
+
+[[sistema]]
+version = "1.14"
+revision = 2
+fecha = "2026-08-12"
+tipo = "feature"
+modulo = "Escaneo, presencia y agenda"
+notas = "Descubrimiento por ARP, ICMP y TCP con puertos, DNS inverso y fabricante por OUI. Barrido rapido de presencia con su propio ritmo, historial de conexiones y barridos programados por red."
+
+[[sistema]]
+version = "1.14"
+revision = 3
+fecha = "2026-08-12"
+tipo = "feature"
+modulo = "Mapa de puertos"
+notas = "SNMP v1/v2c/v3, tabla de MAC del switch, LLDP y perfil de capacidades por red. Distingue el puerto confirmado del grupo que cuelga de un switch no administrable."
+
+[[sistema]]
+version = "1.14"
+revision = 4
+fecha = "2026-08-12"
+tipo = "feature"
+modulo = "Catalogo, alertas y consumo"
+notas = "Catalogo abierto de dispositivos en .toml con 15 definiciones semilla. Seis reglas de alerta con avisos a ntfy, Telegram, correo y webhook. Consumo por contadores SNMP y por flujos NetFlow v5."
+
+[[sistema]]
+version = "1.14"
+revision = 5
+fecha = "2026-08-13"
+tipo = "feature"
+modulo = "Mapa visual"
+notas = "Exportacion del mapa a PNG, SVG, PDF y CSV. El SVG y el PDF se escriben a mano, sin biblioteca de terceros. Licencia AGPL-3.0."
+
+[[sistema]]
+version = "1.14"
+revision = 6
+fecha = "2026-08-13"
+tipo = "feature"
+modulo = "Mapa de puertos y consumo"
+notas = "CDP junto a LLDP y los enlaces entre switches dibujados en el mapa. El receptor de flujos entiende ahora NetFlow v9, IPFIX y sFlow, y reconoce el formato solo. sFlow se marca como estimacion porque muestrea."
+
+[[sistema]]
+version = "1.14"
+revision = 7
+fecha = "2026-08-13"
+tipo = "feature"
+modulo = "Controladoras WiFi"
+notas = "Controladora UniFi: el WiFi aparece en el mapa colgando de su antena, con el nombre de la red a la que se conecto cada equipo."
+
+[[sistema]]
+version = "1.14"
+revision = 8
+fecha = "2026-08-13"
+tipo = "feature"
+modulo = "Inspeccion profunda"
+notas = "Que aplicacion consume, no solo cuanto. Sin descifrar nada: nombre del servidor por TLS, cabecera Host de HTTP y consultas de DNS. Viene apagada."
+
+[[sistema]]
+version = "1.14"
+revision = 9
+tipo = "change"
+fecha = "2026-08-13"
+modulo = "Usuarios"
+notas = "Se quitaron las credenciales de fabrica: el administrador se crea en el primer acceso, con el usuario y la clave que elija quien instala. Las claves pasan a guardarse con el algoritmo TUXOR sobre scrypt."
+
+[[sistema]]
+version = "1.14"
+revision = 10
+fecha = "2026-08-13"
+tipo = "change"
+modulo = "Programa de escritorio"
+notas = "MiRed deja de ser un servicio con interfaz web y pasa a ser un programa: aparece en el menu, levanta sus servicios al abrirse y los mata al cerrarse. Los datos van a la carpeta del usuario."
+
+[[sistema]]
+version = "1.14"
+revision = 11
+fecha = "2026-08-13"
+tipo = "fix"
+modulo = "Usuarios"
+notas = "La pantalla del primer acceso se quedaba en gris al teclear el usuario: una expresion regular armada con la lista de signos de TUXOR leia el guion como un rango invalido. Agregado el cuarto candado de errores, que muestra los fallos de dibujo en vez de dejar la ventana muda."
+
+[[sistema]]
+version = "1.14"
+revision = 12
+fecha = "2026-08-13"
+tipo = "ajuste"
+modulo = "Redes"
+notas = "El formulario de nueva red ya no pide una subred en notacion con barra: propone la red detectada y entiende rangos, direcciones sueltas y la notacion de siempre, diciendo lo que entendio antes de crear nada."
+
+# ----------------------------------------------------------------- la base --
+#
+# Cada entrada apunta al numero de migracion que la trae. El esquema de las bases
+# de red y el del catalogo se numeran aparte, asi que se dice cual es cual.
+
+[[base]]
+version = "1.14"
+revision = 1
+fecha = "2026-08-12"
+tipo = "feature"
+modulo = "Cimientos"
+notas = "Catalogo 0001 y red 0001-0003: usuarios, permisos, sesiones, registro de redes, equipos, subredes, puertos y presencia."
+
+[[base]]
+version = "1.14"
+revision = 2
+fecha = "2026-08-12"
+tipo = "feature"
+modulo = "Mapa de puertos y alertas"
+notas = "Red 0004-0008: equipos_snmp, interfaces, conexiones_puerto, enlaces, alertas y sus reglas, trafico por puerto y flujos del router."
+
+[[base]]
+version = "1.14"
+revision = 3
+fecha = "2026-08-13"
+tipo = "feature"
+modulo = "Consumo e inspeccion"
+notas = "Red 0009-0010: columna estimado en trafico_flujos para distinguir lo muestreado de lo contado, y tabla trafico_aplicaciones para el consumo por aplicacion."
+
+[[base]]
+version = "1.14"
+revision = 4
+fecha = "2026-08-13"
+tipo = "feature"
+modulo = "Controladoras WiFi"
+notas = "Catalogo 0003: tabla controladoras, con su ultimo exito y su ultimo error para que una controladora caida se vea en vez de desaparecer del mapa."
+
+[[base]]
+version = "1.14"
+revision = 5
+fecha = "2026-08-13"
+tipo = "feature"
+modulo = "Historial de versiones"
+notas = "Catalogo 0004: tablas versionessistema y versiondb, que el servidor siembra al arrancar desde el historial que viaja dentro del binario."

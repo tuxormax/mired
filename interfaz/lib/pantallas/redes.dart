@@ -11,6 +11,7 @@ import 'credenciales.dart';
 import 'entrar.dart';
 import 'red.dart';
 import 'usuarios.dart';
+import 'versiones.dart';
 
 /// PantallaRedes es el panel de inicio: una tarjeta por sitio.
 ///
@@ -375,7 +376,21 @@ class _PieVersion extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(Api.instancia.version, style: estilo),
+          // El pie es clickable, como en el resto de los proyectos de la casa:
+          // abre que cambio en cada entrega.
+          InkWell(
+            onTap: () => showDialog<void>(
+              context: contexto,
+              builder: (_) => const DialogoVersiones(),
+            ),
+            child: Text(
+              Api.instancia.version,
+              style: estilo?.copyWith(
+                decoration: TextDecoration.underline,
+                color: Theme.of(contexto).colorScheme.primary,
+              ),
+            ),
+          ),
           Text('  ·  AGPL-3.0  ·  ', style: estilo),
           InkWell(
             onTap: () => abrirEnlace(codigo),

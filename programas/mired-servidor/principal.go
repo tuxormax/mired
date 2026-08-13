@@ -62,6 +62,15 @@ func correr(cfg configuracion.Configuracion, bitacora *slog.Logger) error {
 	}
 	defer datos.Cerrar()
 
+	// El historial de versiones viaja dentro del binario y se siembra en cada
+	// arranque. Es idempotente: reinstalar no duplica nada.
+	if historial, err := version.LeerHistorial(); err != nil {
+		bitacora.Warn("no se pudo leer el historial de versiones", "error", err)
+	} else if err := datos.SembrarVersiones(ctx,
+		aEntradas(historial.Sistema), aEntradas(historial.Base)); err != nil {
+		bitacora.Warn("no se pudo sembrar el historial de versiones", "error", err)
+	}
+
 	autenticador := autenticacion.Nuevo(datos, cfg.Servidor.DuracionSesion.Duration)
 	// No se siembra ningun usuario: el primero lo crea quien entre, con el
 	// usuario y la clave que el elija. Unas credenciales iguales en todas las
@@ -161,6 +170,24 @@ func correr(cfg configuracion.Configuracion, bitacora *slog.Logger) error {
 	cierre, cancelar := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancelar()
 	return servidor.Shutdown(cierre)
+}
+
+// aEntradas pasa el historial del paquete version al de la base. Son dos
+// estructuras iguales a proposito: la capa de datos no tiene por que depender
+// del formato del archivo que se compilo dentro.
+func aEntradas(origen []version.Entrada) []basedatos.EntradaDeVersion {
+	entradas := make([]basedatos.EntradaDeVersion, 0, len(origen))
+	for _, entrada := range origen {
+		entradas = append(entradas, basedatos.EntradaDeVersion{
+			Version:  entrada.Version,
+			Revision: entrada.Revision,
+			Fecha:    entrada.Fecha,
+			Tipo:     entrada.Tipo,
+			Modulo:   entrada.Modulo,
+			Notas:    entrada.Notas,
+		})
+	}
+	return entradas
 }
 
 func limpiarSesiones(ctx context.Context, datos *basedatos.Enrutador, bitacora *slog.Logger) {

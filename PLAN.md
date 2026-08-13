@@ -55,12 +55,20 @@ buena.
 
 ### Versionado
 
-**v1.1** (2026-08-13) — MiRed dejó de ser un servicio con interfaz web y pasó a
-ser un programa de escritorio que arranca y detiene sus propios servicios. Se
-lleva un número de versión porque cambia cómo se usa, dónde viven los datos y qué
-corre cuando nadie mira.
+**`v1.X` donde X es el número de MÓDULOS**, y `Rev Y` que sube en cada entrega y
+nunca se reinicia. No es versionado semántico: X no sube porque un cambio sea
+grande, sube cuando hay un módulo más.
 
-**v1.0** (2026-08-12) — el resto.
+Hoy son **14 módulos** → **v1.14**, y la revisión va por la **12**.
+
+> Redes · Subredes · Equipos · Escaneo y agenda · Presencia · Mapa de puertos ·
+> Mapa visual · Alertas · Consumo · Inspección profunda · Usuarios · Credenciales
+> SNMP · Controladoras WiFi · Catálogo de dispositivos
+
+El historial vive en **`internal/version/historial.toml`**, y en un solo sitio:
+de ahí salen la versión y la revisión con que compila `construir.sh` —ya no se
+teclean— y de ahí se siembran las tablas `versionessistema` y `versiondb` en cada
+arranque. El pie de la interfaz las muestra al pulsarlo.
 
 ### Consumo de recursos medido (2026-08-12)
 
@@ -81,7 +89,7 @@ Raspberry Pi, que era el requisito.
 
 ### Cobertura de pruebas
 
-**108 pruebas en Go y 30 en Flutter**, sobre ~16 500 líneas de Go y ~7 900 de
+**112 pruebas en Go y 30 en Flutter**, sobre ~16 500 líneas de Go y ~7 900 de
 Dart, en 14 paquetes.
 
 En Go: almacenamiento, agenda, alertas, topologia, catalogo, la lectura de SNMP,

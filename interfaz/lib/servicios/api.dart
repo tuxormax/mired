@@ -365,6 +365,10 @@ class Api {
         .toList();
   }
 
+  /// historialVersiones dice que cambio en cada entrega. Lo abre el pie.
+  Future<Map<String, dynamic>> historialVersiones() async =>
+      await obtener('/api/versiones') as Map<String, dynamic>;
+
   Future<List<CredencialSNMP>> listarCredenciales() async {
     final datos = await obtener('/api/credenciales-snmp') as List<dynamic>;
     return datos
