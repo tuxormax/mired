@@ -124,10 +124,16 @@ enlace no se quita: es requisito de la licencia, no adorno.
   de llegar ahi para probar SNMP contra equipo de verdad.
 
 ## Sin credenciales de fabrica (2026-08-13)
-**Se quitaron `usuario-quitado`/`clave-quitada` de todo el proyecto** el mismo dia que el
-repo se hizo publico, por decision del usuario. En un proyecto publico, unas
+**Se quitaron las credenciales sembradas de todo el proyecto** el mismo dia que
+el repo se hizo publico, por decision del usuario. En un proyecto publico, unas
 credenciales iguales en todas las instalaciones son una puerta que cualquiera
 puede buscar: basta rastrear el puerto 60072 y probarlas.
+
+**Y se reescribio el historial de git** el 2026-08-13 con `git filter-repo`, para
+que no queden ni en las revisiones viejas: borrarlas del arbol no las borra del
+historial, y el repo ya era publico. Se hizo con el repo recien publicado y sin
+forks, que es cuando sale barato. Por eso **no se vuelven a escribir aqui**: si
+se anotaran en la memoria, volverian al repo por la puerta de atras.
 
 **Como quedo:** una instalacion recien hecha no tiene usuarios. `/api/estado`
 —que no pide sesion, y no puede pedirla— devuelve `sinEstrenar: true`, y la
