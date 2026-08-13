@@ -7,7 +7,12 @@ import "fmt"
 
 var (
 	// Numero es la version del sistema: v1.X, donde X sube con cada modulo.
-	Numero = "v1.0"
+	//
+	// v1.1 (2026-08-13): MiRed dejo de ser un servicio con interfaz web y paso a
+	// ser un programa de escritorio que arranca y detiene sus propios servicios.
+	// Ese cambio se lleva un numero de version porque cambia como se usa, donde
+	// viven los datos y que corre cuando nadie mira.
+	Numero = "v1.1"
 	// Revision sube en cada despliegue y nunca se reinicia.
 	Revision = "0"
 	// Build es el hash corto del commit con el que se compilo el binario.

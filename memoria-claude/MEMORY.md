@@ -2,13 +2,16 @@
 
 Proyecto en `/home/tuxor/www/mired`. Descubre los equipos de una red, dibuja el
 mapa y dice en que puerto de que switch esta cada aparato.
-**Go (dos binarios) + Flutter web + SQLite, una base por red, entregado en `.deb`.**
+**PROGRAMA DE ESCRITORIO en Flutter + tres binarios en Go + SQLite, una base por
+red, entregado en un `.deb`.** No hay interfaz web: el programa arranca sus
+servicios al abrirse y los mata al cerrarse.
 **Codigo propio, NO un fork**: Scanopy solo se consulta, nunca se copia.
 Arrancado el 2026-08-12.
 
 ## ⚠️ Antes de tocar — pre-flight obligatorio
 0. Leer [gotchas](gotchas.md) — **siempre**, antes de tocar cualquier codigo.
 1. Leer [mired](mired.md) — estado real, stack elegido y por que ya no es un fork.
+   Si el tema es como se usa MiRed o su ciclo de vida → [modulo-programa](modulo-programa.md).
 2. Leer `PLAN.md` (raiz del repo) — las 10 fases y que entrega cada una.
 3. Si el tema es base de datos, privilegios, catalogo `.toml` o empaquetado →
    [mired-arquitectura](mired-arquitectura.md).
@@ -22,9 +25,12 @@ Arrancado el 2026-08-12.
 
 ## Antes de dar algo por terminado
 Correr **`./herramientas/probar.sh`**: construye el `.deb`, lo desempaqueta
-aparte, levanta los dos servicios desde ahi y recorre el flujo completo. Correr
-los binarios del arbol de compilacion NO prueba lo mismo: no valida que el
-paquete lleve la interfaz, el catalogo ni la configuracion.
+aparte, levanta los servicios desde ahi y recorre el flujo completo (32
+comprobaciones). Correr los binarios del arbol de compilacion NO prueba lo mismo:
+no valida que el paquete lleve el programa, el catalogo ni la configuracion.
+
+Para probar una instalacion **en limpio**: `sudo ./herramientas/desinstalar.sh`.
+`dpkg --purge` a secas conserva las bases a proposito y deja el equipo sucio.
 
 ## Reglas que no se negocian
 - **Todo se nombra en espanol.** Unica excepcion: la carpeta `internal/`, que la
@@ -51,8 +57,10 @@ paquete lleve la interfaz, el catalogo ni la configuracion.
   repetir avisos, y los cuatro destinos de aviso.
 - [modulo-trafico](modulo-trafico.md) — ancho de banda por contadores del switch
   y por flujos del router; por que la resta es el dato.
-- [modulo-inspeccion](modulo-inspeccion.md) — el paquete OPCIONAL `mired-dpi`:
-  que aplicacion consume, sin descifrar nada. Fase 10.
+- [modulo-inspeccion](modulo-inspeccion.md) — la inspeccion profunda opcional
+  (`mired-dpi`): que aplicacion consume, sin descifrar nada. Fase 10.
+- [modulo-programa](modulo-programa.md) — MiRed como programa de escritorio:
+  como arranca y mata sus servicios, y por que ya no hay web.
 
 ### 🔗 Contratos / interconexion
 - [contrato-api](contrato-api.md) — sobre `{ok, datos, error}`, rutas, sesion por

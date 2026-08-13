@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 20376d18-adf7-4315-bb9c-98a3aa84ec95
-  modified: 2026-08-13T16:00:00.000Z
+  modified: 2026-08-13T21:00:00.000Z
 ---
 
 # MiRed — servicio propio de mapeo de redes
@@ -70,11 +70,11 @@ en el servicio, para no romper el binario unico.
 Go 1.26.4 y Flutter 3.35.6 **ya instalados**. No hay Rust, ni Docker, ni
 `sqlite3` de linea de comandos. Node es 18. PostgreSQL 16 esta (ya no hace falta).
 
-## Estado real (2026-08-12)
-**Fases 1 a 4 cerradas** en un solo dia de trabajo:
+## Estado real (2026-08-13, v1.1 Rev 8)
+**Las 10 fases cerradas**, salvo publicar los paquetes. Lo hecho:
 1. Cimientos: servidor + sonda, una base SQLite por red, autenticacion con
-   permisos por red, API con el estandar de errores de la casa, interfaz Flutter
-   web y `.deb` para amd64 y arm64.
+   permisos por red, API con el estandar de errores de la casa, programa de
+   escritorio y `.deb` para amd64 y arm64.
 2. Descubrimiento de equipos por ARP, ICMP y TCP, con puertos, DNS inverso y
    fabricante por OUI.
 3. Presencia en vivo, historial de conexiones y barridos programados por red.
@@ -89,22 +89,42 @@ Go 1.26.4 y Flutter 3.35.6 **ya instalados**. No hay Rust, ni Docker, ni
    lecturas) y receptor de flujos **NetFlow v5, NetFlow v9, IPFIX y sFlow** del
    router, que es lo que mide consumo donde no hay switches administrables. El
    formato se reconoce solo.
-10. **Inspeccion profunda** en el paquete aparte `mired-dpi`: que aplicacion
-   consume, sin descifrar nada. Ver [[modulo-inspeccion]].
+9. Publicacion: **AGPL-3.0**, repo publico, documentacion ES/EN. **Falta subir
+   los paquetes a una release y firmarlos.**
+10. **Inspeccion profunda** (`mired-dpi`): que aplicacion consume, sin descifrar
+   nada. Va en el mismo `.deb` pero apagada. Ver [[modulo-inspeccion]].
 7. Motor de alertas completo: las 6 reglas detectan (equipo nuevo, ausente,
    puerto nuevo, cambio de IP, cambio de puerto de switch y red que dejo de
    reportar) y avisa por ntfy, Telegram, correo y webhook.
 
-Pruebas en verde (Go y Flutter). El `.deb` se **verifico extrayendolo a un arbol
-aparte y corriendo los binarios desde ahi**: sirve la interfaz, entra, crea redes
-y escanea. **Falta**: instalarlo de verdad con `dpkg -i` (necesita sudo), y
-probar SNMP contra un switch administrable real.
+**Probado de verdad:** el `dpkg -i` en el equipo del usuario (2026-08-13, funciono),
+el descubrimiento contra la red de casa, los barridos programados, las alertas,
+el catalogo, el receptor de flujos y el `.deb` desempaquetado corriendo aparte.
+
+**NO probado:** el programa de escritorio abriendose y levantando los servicios
+—se instalo la version anterior, no esta—; SNMP y CDP contra un switch
+administrable real; la controladora UniFi contra una de verdad; y la inspeccion
+profunda contra un puerto espejo. El switch administrable sigue siendo el riesgo
+abierto mas grande.
 
 ## Cobertura (2026-08-13)
-61 pruebas en Go y 12 en Flutter: 5 dibujan pantallas contra un servidor de
-mentira y 5 comprueban la exportacion del mapa. Mas `herramientas/probar.sh`, la
-prueba de humo que construye el `.deb`, lo desempaqueta y recorre el flujo
-completo. ~11 800 lineas de Go y ~5 900 de Dart.
+**108 pruebas en Go y 15 en Flutter**, sobre ~16 500 lineas de Go y ~7 300 de
+Dart, en 14 paquetes. Mas `herramientas/probar.sh` con **32 comprobaciones**:
+construye el `.deb`, lo desempaqueta y recorre el flujo completo. Es la unica que
+prueba lo que de verdad se entrega.
+
+Lo que mas se cuida es **lo que falla sin dar error**: leer un registro de flujos
+con la plantilla de otro router, colgar un vecino de la boca equivocada,
+multiplicar mal la tasa de muestreo de sFlow, o desviarse del vector oficial de
+TUXOR. Ninguna de esas revienta nada; todas dan resultados plausibles y falsos.
+
+## Herramientas del repo
+- `herramientas/construir.sh` — compila y arma el `.deb`.
+- `herramientas/probar.sh` — la prueba de humo sobre el paquete.
+- `herramientas/desinstalar.sh` — **quita MiRed sin dejar rastro**. Hace falta
+  porque `dpkg --purge` conserva las bases a proposito, y para probar en limpio
+  eso estorba.
+- `herramientas/enviar_sflow.py` — datagrama de sFlow de mentira, para la prueba.
 
 ## Consumo de recursos medido (2026-08-12)
 Sobre el `.deb` de amd64, escaneando un `/24` completo:
@@ -125,13 +145,18 @@ en sus otros repos: **los publicos van con GPL-3.0** (`niveladordevolumen`,
 `pcinfo`) y los de cliente con licencia propietaria. La regla de facto de la casa
 es *herramienta que se publica -> GPL*.
 
-**Aqui se subio a AGPL-3.0 y no GPL-3.0 por un motivo concreto**: MiRed se usa
-desde el navegador. Con la GPL, quien lo monte como servicio de pago **nunca
-entrega el binario**, y por lo tanto no esta obligado a publicar sus cambios. La
-AGPL cierra ese hueco. Consecuencia operativa: el articulo 13 exige **enlace
-visible al codigo en la interfaz**, y por eso el pie del panel de redes lo lleva
-(`_PieVersion` en `interfaz/lib/pantallas/redes.dart`). Si se rehace ese pie, el
-enlace no se quita: es requisito de la licencia, no adorno.
+**Se subio a AGPL-3.0 y no GPL-3.0** pensando en que MiRed se usaba desde el
+navegador: con la GPL, quien lo monte como servicio de pago nunca entrega el
+binario y por lo tanto no esta obligado a publicar sus cambios; la AGPL cierra
+ese hueco.
+
+**Ojo con esto ahora que MiRed es un programa de escritorio:** el articulo 13
+—el que obliga a ofrecer el codigo a quien use el programa por red— casi no
+llega a aplicar, porque ya nadie interactua por red con el. La licencia se queda
+igual: sigue siendo la que mas protege si algun dia alguien lo ofrece como
+servicio. El enlace al codigo en el pie del panel (`_PieVersion` en
+`interfaz/lib/pantallas/redes.dart`) tampoco se quita: cuesta nada y es buena
+practica.
 
 ## Lo que falta decidir
 - **Inventario de las redes reales** (marca/modelo de switches y puntos de acceso,

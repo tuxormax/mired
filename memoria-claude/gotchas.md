@@ -50,6 +50,15 @@ errores tontos.
 - **La clave de la red no cambia nunca; el nombre si.** El archivo se llama por
   la clave (`matriz-a1b2.db`). Renombrar NO mueve el archivo.
 
+## El programa de escritorio
+- **MiRed NO tiene interfaz web.** Si alguien vuelve a servir paginas desde el
+  servidor, esta deshaciendo la decision del 2026-08-13.
+- **El programa solo mata los servicios que EL arranco.** Ver [[modulo-programa]].
+- **Flutter no cruza a arm64**: el `.deb` de arm64 sale sin programa, y el
+  constructor lo avisa. No es un fallo, es un limite.
+- **Lo que compila para el escritorio va con `dart:io`**; ya no hay
+  exportaciones condicionales por objetivo, porque ya no hay objetivo web.
+
 ## Autenticacion
 - **No hay usuario ni clave de fabrica.** El primero lo crea quien entra. Si
   alguien vuelve a sembrar uno, se abre la puerta que se cerro el 2026-08-13.

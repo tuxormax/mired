@@ -17,7 +17,7 @@ a heredar la AGPL de otro.
 
 ## Estado del desarrollo
 
-Actualizado el **2026-08-12**, al cerrar la primera jornada de trabajo.
+Actualizado el **2026-08-13**, en **v1.1 Rev 8**.
 
 | Fase | Estado | Nota |
 |---|---|---|
@@ -29,18 +29,28 @@ Actualizado el **2026-08-12**, al cerrar la primera jornada de trabajo.
 | 6 — Catalogo `.toml` | ✅ terminada | Formato, motor de reconocimiento, 15 definiciones semilla y "proponer definicion" |
 | 7 — Alertas | ✅ terminada | Las 6 reglas detectan y los 4 destinos de aviso funcionan |
 | 8 — Ancho de banda | ✅ terminada | Contadores SNMP por puerto y receptor de flujos: NetFlow v5, NetFlow v9, IPFIX y sFlow |
-| 9 — Publicacion | ⚠️ parcial | Licencia decidida (AGPL-3.0) y documentacion lista (ES y EN). **Falta firmar y publicar los paquetes** |
+| 9 — Publicacion | ⚠️ parcial | AGPL-3.0, repo publico y documentacion (ES y EN). **Falta subir los paquetes a una release y firmarlos** |
 | 10 — Inspeccion profunda | ✅ terminada | `mired-dpi` en el mismo paquete pero APAGADO: nombre del servidor por TLS, HTTP y DNS. Falta probarlo con un puerto espejo real |
 
-**Probado de verdad:** el descubrimiento contra la red real de casa, los barridos
-programados corriendo solos, el motor de alertas, el catalogo de dispositivos, el
-receptor de flujos, y el `.deb` desempaquetado y corriendo desde su propio arbol.
+**Probado de verdad:** el `dpkg -i` en un equipo (2026-08-13, funcionó), el
+descubrimiento contra la red real de casa, los barridos programados corriendo
+solos, el motor de alertas, el catálogo de dispositivos, el receptor de flujos, y
+el `.deb` desempaquetado y corriendo desde su propio árbol.
 
-**NO probado todavia:** instalar el `.deb` con `dpkg -i` en un equipo; SNMP y CDP
-contra un switch administrable real; la controladora UniFi contra una de verdad
-(solo contra un servidor de mentira que imita las dos generaciones); y la
-inspeccion profunda contra un puerto espejo real. El switch administrable sigue
-siendo el riesgo abierto mas grande del proyecto.
+**NO probado todavía:** el programa de escritorio abriéndose y levantando sus
+servicios; SNMP y CDP contra un switch administrable real; la controladora UniFi
+contra una de verdad (sólo contra un servidor de mentira que imita las dos
+generaciones); y la inspección profunda contra un puerto espejo real. El switch
+administrable sigue siendo el riesgo abierto más grande del proyecto.
+
+### Versionado
+
+**v1.1** (2026-08-13) — MiRed dejó de ser un servicio con interfaz web y pasó a
+ser un programa de escritorio que arranca y detiene sus propios servicios. Se
+lleva un número de versión porque cambia cómo se usa, dónde viven los datos y qué
+corre cuando nadie mira.
+
+**v1.0** (2026-08-12) — el resto.
 
 ### Consumo de recursos medido (2026-08-12)
 
@@ -61,7 +71,8 @@ Raspberry Pi, que era el requisito.
 
 ### Cobertura de pruebas
 
-**98 pruebas en Go y 14 en Flutter**, sobre ~15 800 lineas de Go y ~6 400 de Dart.
+**108 pruebas en Go y 15 en Flutter**, sobre ~16 500 líneas de Go y ~7 300 de
+Dart, en 14 paquetes.
 
 En Go: almacenamiento, agenda, alertas, topologia, catalogo, la lectura de SNMP,
 los cuatro formatos de flujos, la controladora UniFi contra un servidor de
@@ -71,15 +82,19 @@ de otro router, colgar un vecino de la boca equivocada, o multiplicar mal la tas
 de muestreo de sFlow. Ninguna de esas tres revienta nada; todas dan cifras
 plausibles y falsas.
 
-En Flutter: 5 dibujan cada pantalla contra un servidor de mentira y 9 comprueban
-la exportacion del mapa —que el PDF tenga bien la tabla de referencias cruzadas y
+En Flutter: 5 dibujan cada pantalla contra un servidor de mentira y 10 comprueban
+la exportación del mapa —que el PDF tenga bien la tabla de referencias cruzadas y
 escape acentos y parentesis, que el SVG salga bien formado, que el PNG lleve su
 firma, que el CSV entrecomille lo que debe y que un cable visto por LLDP y por
 CDP se dibuje una sola vez—.
 
-Mas la prueba de humo `herramientas/probar.sh`, con **23 comprobaciones**: cons-
-truye los dos `.deb`, los desempaqueta y recorre el flujo completo. Es la unica
-que comprueba lo que de verdad se entrega.
+Más la prueba de humo `herramientas/probar.sh`, con **32 comprobaciones**:
+construye el `.deb`, lo desempaqueta y recorre el flujo completo. Es la única que
+comprueba lo que de verdad se entrega.
+
+Y `herramientas/desinstalar.sh`, que quita MiRed sin dejar rastro — hace falta
+para probar una instalación en limpio, porque `dpkg --purge` conserva las bases
+de datos a propósito.
 
 **Un aviso sobre las pruebas:** `go test ./...` falla de vez en cuando en el
 paquete `basedatos` con *context deadline exceeded* al abrir una base. Es del
