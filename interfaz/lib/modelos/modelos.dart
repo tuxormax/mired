@@ -720,6 +720,74 @@ class ConsumoDePuerto {
   }
 }
 
+/// Lo que un equipo movio hablando con un destino concreto.
+///
+/// Lo llena el paquete OPCIONAL mired-dpi. Responde "en que se gasta el ancho de
+/// banda", no solo "cuanto".
+class ConsumoPorAplicacion {
+  final String ip;
+  final String equipo;
+  final String aplicacion;
+
+  /// De donde salio el nombre: `tls`, `http`, `dns`, `puerto` o `desconocido`.
+  ///
+  /// No todos valen igual y por eso se conserva: un nombre sacado del saludo de
+  /// TLS dice con quien se hablo; uno sacado del puerto solo dice de que tipo de
+  /// servicio se trata. Esconder la diferencia seria presentar una suposicion
+  /// con la misma cara que un dato.
+  final String como;
+
+  final int bytes;
+  final int paquetes;
+
+  const ConsumoPorAplicacion({
+    required this.ip,
+    required this.equipo,
+    required this.aplicacion,
+    required this.como,
+    required this.bytes,
+    required this.paquetes,
+  });
+
+  factory ConsumoPorAplicacion.desdeJson(Map<String, dynamic> json) =>
+      ConsumoPorAplicacion(
+        ip: json['ip'] as String? ?? '',
+        equipo: json['equipo'] as String? ?? '',
+        aplicacion: json['aplicacion'] as String? ?? '',
+        como: json['como'] as String? ?? 'desconocido',
+        bytes: json['bytes'] as int? ?? 0,
+        paquetes: json['paquetes'] as int? ?? 0,
+      );
+
+  /// De donde salio el nombre, dicho para una persona.
+  String get procedencia {
+    switch (como) {
+      case 'tls':
+        return 'nombre del servidor (TLS)';
+      case 'http':
+        return 'cabecera Host (HTTP)';
+      case 'dns':
+        return 'consulta de DNS';
+      case 'puerto':
+        return 'supuesto por el puerto';
+      default:
+        return 'no se pudo identificar';
+    }
+  }
+
+  /// Los bytes en algo que una persona lea de un vistazo.
+  String get enPalabras {
+    const unidades = ['B', 'KB', 'MB', 'GB', 'TB'];
+    var valor = bytes.toDouble();
+    var unidad = 0;
+    while (valor >= 1024 && unidad < unidades.length - 1) {
+      valor /= 1024;
+      unidad++;
+    }
+    return '${valor.toStringAsFixed(valor >= 100 || unidad == 0 ? 0 : 1)} ${unidades[unidad]}';
+  }
+}
+
 /// El consumo de una red, con que tan fiable es en este sitio.
 class Consumo {
   final String explicacion;

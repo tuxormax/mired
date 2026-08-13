@@ -7,7 +7,7 @@ Sin topes de redes ni de usuarios. Cada red vive en su propia base de datos
 SQLite, así que respaldar un sitio es copiar un archivo. No necesita servidor de
 base de datos ni Docker: son dos binarios y dos servicios, en un `.deb`.
 
-> **Estado: en construcción (fases 1 a 8 de 10).** Ya descubre los equipos de la
+> **Estado: en construcción (fases 1 a 10, falta publicar).** Ya descubre los equipos de la
 > red, guarda quién está encendido en cada momento, escanea solo con la
 > periodicidad que se le diga, le pregunta a los switches por SNMP en qué boca
 > está cada aparato, dibuja el mapa y lo exporta, avisa de lo que cambia y mide
@@ -17,7 +17,7 @@ base de datos ni Docker: son dos binarios y dos servicios, en un `.deb`.
 ## Instalar
 
 ```
-sudo dpkg -i mired_1.0-0_amd64.deb
+sudo dpkg -i mired_1.0-2_amd64.deb
 ```
 
 Al terminar, entre desde el navegador a `http://<el-equipo>:60072` con el
@@ -77,6 +77,7 @@ MIRED_SOCKET_SONDA=/tmp/sonda.sock go run ./programas/mired-sonda
 - [Instalación y primeros pasos](documentacion/instalacion.md)
 - [Cómo aportar un dispositivo al catálogo](documentacion/aportar-dispositivos.md)
   — no hace falta programar
+- [Inspección profunda: el paquete opcional `mired-dpi`](documentacion/inspeccion-profunda.md)
 - [Installation guide (English)](documentacion/installation-en.md)
 
 ## Aportar un dispositivo al catálogo

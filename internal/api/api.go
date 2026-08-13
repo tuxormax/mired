@@ -86,6 +86,7 @@ func (a *API) Rutas() http.Handler {
 	// Ancho de banda por los contadores del switch.
 	mux.Handle("GET /api/redes/{clave}/consumo", a.conRed(a.consumoActual))
 	mux.Handle("GET /api/redes/{clave}/consumo/{switch}/{puerto}", a.conRed(a.historialTrafico))
+	mux.Handle("GET /api/redes/{clave}/aplicaciones", a.conRed(a.consumoPorAplicacion))
 
 	// Catalogo abierto de dispositivos.
 	mux.Handle("GET /api/catalogo", a.conSesion(a.listarCatalogo))

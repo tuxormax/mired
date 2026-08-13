@@ -63,15 +63,19 @@ Go 1.26.4 y Flutter 3.35.6 **ya instalados**. No hay Rust, ni Docker, ni
 2. Descubrimiento de equipos por ARP, ICMP y TCP, con puertos, DNS inverso y
    fabricante por OUI.
 3. Presencia en vivo, historial de conexiones y barridos programados por red.
-4. SNMP v1/v2c/v3, tabla de MAC del switch, LLDP, mapa de puertos y perfil de
-   capacidades.
+4. SNMP v1/v2c/v3, tabla de MAC del switch, **LLDP y CDP**, enlaces entre
+   switches dibujados en el mapa, **controladora WiFi UniFi** (el WiFi cuelga de
+   su antena), mapa de puertos y perfil de capacidades.
 5. Mapa visual en Flutter con exportacion a **PNG, SVG, PDF y CSV** (cerrada el
    2026-08-13).
 6. Catalogo abierto de dispositivos en `.toml`, con 15 definiciones semilla y el
    boton "proponer definicion" que genera el archivo ya relleno.
 8. Ancho de banda: contadores SNMP por boca (con tasa calculada entre dos
-   lecturas) y receptor de flujos NetFlow v5 del router, que es lo que mide
-   consumo donde no hay switches administrables.
+   lecturas) y receptor de flujos **NetFlow v5, NetFlow v9, IPFIX y sFlow** del
+   router, que es lo que mide consumo donde no hay switches administrables. El
+   formato se reconoce solo.
+10. **Inspeccion profunda** en el paquete aparte `mired-dpi`: que aplicacion
+   consume, sin descifrar nada. Ver [[modulo-inspeccion]].
 7. Motor de alertas completo: las 6 reglas detectan (equipo nuevo, ausente,
    puerto nuevo, cambio de IP, cambio de puerto de switch y red que dejo de
    reportar) y avisa por ntfy, Telegram, correo y webhook.

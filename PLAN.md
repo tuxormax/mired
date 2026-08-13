@@ -30,15 +30,17 @@ Actualizado el **2026-08-12**, al cerrar la primera jornada de trabajo.
 | 7 — Alertas | ✅ terminada | Las 6 reglas detectan y los 4 destinos de aviso funcionan |
 | 8 — Ancho de banda | ✅ terminada | Contadores SNMP por puerto y receptor de flujos: NetFlow v5, NetFlow v9, IPFIX y sFlow |
 | 9 — Publicacion | ⚠️ parcial | Licencia decidida (AGPL-3.0) y documentacion lista (ES y EN). **Falta firmar y publicar los paquetes** |
-| 10 — Inspeccion profunda | ⏳ pendiente | Opcional |
+| 10 — Inspeccion profunda | ✅ terminada | Paquete aparte `mired-dpi`: nombre del servidor por TLS, HTTP y DNS. Falta probarlo con un puerto espejo real |
 
 **Probado de verdad:** el descubrimiento contra la red real de casa, los barridos
 programados corriendo solos, el motor de alertas, el catalogo de dispositivos, el
 receptor de flujos, y el `.deb` desempaquetado y corriendo desde su propio arbol.
 
-**NO probado todavia:** instalar el `.deb` con `dpkg -i` en un equipo, y SNMP
-contra un switch administrable real. Este ultimo es el riesgo abierto mas grande
-del proyecto.
+**NO probado todavia:** instalar el `.deb` con `dpkg -i` en un equipo; SNMP y CDP
+contra un switch administrable real; la controladora UniFi contra una de verdad
+(solo contra un servidor de mentira que imita las dos generaciones); y la
+inspeccion profunda contra un puerto espejo real. El switch administrable sigue
+siendo el riesgo abierto mas grande del proyecto.
 
 ### Consumo de recursos medido (2026-08-12)
 
@@ -59,13 +61,31 @@ Raspberry Pi, que era el requisito.
 
 ### Cobertura de pruebas
 
-61 pruebas en Go (almacenamiento, agenda, alertas, topologia, catalogo, flujos y
-la lectura de SNMP) y 12 en Flutter: 5 dibujan cada pantalla contra un servidor
-de mentira y 5 comprueban la exportacion del mapa —que el PDF tenga bien la
-tabla de referencias cruzadas y escape acentos y parentesis, que el SVG salga
-bien formado, que el PNG lleve su firma y que el CSV entrecomille lo que debe—. Mas la prueba de humo `herramientas/probar.sh`, que
-construye el `.deb`, lo desempaqueta y recorre el flujo completo: es la unica que
-comprueba lo que de verdad se entrega.
+**98 pruebas en Go y 14 en Flutter**, sobre ~15 800 lineas de Go y ~6 400 de Dart.
+
+En Go: almacenamiento, agenda, alertas, topologia, catalogo, la lectura de SNMP,
+los cuatro formatos de flujos, la controladora UniFi contra un servidor de
+mentira, y la identificacion de aplicaciones de la inspeccion profunda. Lo que
+mas se cuida es lo que **falla sin dar error**: leer un registro con la plantilla
+de otro router, colgar un vecino de la boca equivocada, o multiplicar mal la tasa
+de muestreo de sFlow. Ninguna de esas tres revienta nada; todas dan cifras
+plausibles y falsas.
+
+En Flutter: 5 dibujan cada pantalla contra un servidor de mentira y 9 comprueban
+la exportacion del mapa —que el PDF tenga bien la tabla de referencias cruzadas y
+escape acentos y parentesis, que el SVG salga bien formado, que el PNG lleve su
+firma, que el CSV entrecomille lo que debe y que un cable visto por LLDP y por
+CDP se dibuje una sola vez—.
+
+Mas la prueba de humo `herramientas/probar.sh`, con **23 comprobaciones**: cons-
+truye los dos `.deb`, los desempaqueta y recorre el flujo completo. Es la unica
+que comprueba lo que de verdad se entrega.
+
+**Un aviso sobre las pruebas:** `go test ./...` falla de vez en cuando en el
+paquete `basedatos` con *context deadline exceeded* al abrir una base. Es del
+entorno, no del codigo: con 6 paquetes de pruebas corriendo en paralelo, abrir
+una base con SQLite en Go puro puede pasarse de los 10 s de espera. **Con
+`go test ./... -p 1` no ha fallado nunca.**
 
 ---
 
@@ -233,7 +253,8 @@ cara, y MiRed ofrece las dos primeras en el núcleo:
 3. **Inspección profunda de paquetes**: identifica la aplicación concreta —vídeo,
    respaldo, torrent, videollamada—. Exige puerto espejo y es exactamente lo que
    pone a ntopng en «consumo alto». Va en un **paquete aparte** (`mired-dpi`),
-   opcional, y se puede posponer sin bloquear nada.
+   opcional, y se puede posponer sin bloquear nada. **Hecho** (fase 10): pesa
+   1.2 MB y quien no lo instale no paga nada por él.
 
 ---
 
@@ -248,6 +269,7 @@ todo vuelve a estar en español.
 |---|---|
 | `programas/mired-servidor/` | Binario del servidor: API, interfaz, único escritor de las bases |
 | `programas/mired-sonda/` | Binario de la sonda: escaneo con privilegios acotados |
+| `programas/mired-dpi/` | Binario de la inspección profunda, en su propio `.deb` opcional |
 | `internal/basedatos/` | Catálogo, base por red, migraciones y el enrutado de conexiones |
 | `internal/configuracion/` | Lectura de `/etc/mired/mired.toml` y valores por omisión |
 | `internal/autenticacion/` | Usuarios, sesiones, claves de API y permisos por red |
@@ -258,6 +280,8 @@ todo vuelve a estar en español.
 | `internal/catalogo/` | Motor de reconocimiento y carga de los `.toml` |
 | `internal/alertas/` | Motor de reglas y salidas (correo, webhook, ntfy, Telegram) |
 | `internal/trafico/` | Contadores SNMP y receptor de flujos del router |
+| `internal/controladora/` | Controladoras WiFi (UniFi): qué cuelga de qué antena |
+| `internal/dpi/` | Inspección profunda: captura e identificación de aplicación |
 | `interfaz/` | Proyecto Flutter |
 | `catalogo/dispositivos/` | Los `.toml` de dispositivos que trae el paquete |
 | `empaquetado/` | Todo lo del `.deb`: control, `postinst`, unidades systemd |
@@ -395,6 +419,28 @@ grupo inferido.
 Paquete aparte `mired-dpi` para quien tenga puerto espejo y quiera saber qué
 aplicación consume, no solo cuánto. **No bloquea nada**: si el tiempo aprieta,
 esta es la que se corta.
+
+**Cómo quedó.** Sin nDPI y sin libpcap: la captura es AF_PACKET en Go puro, y la
+identificación **no descifra nada**. Se leen las tres cosas que viajan en claro
+aunque la conexión vaya cifrada —el nombre del servidor del saludo de TLS, la
+cabecera `Host` de HTTP y las consultas de DNS—, que es justo lo que dice con
+quién se está hablando. Meter nDPI habría obligado a compilar con cgo, y ahí se
+acaban los binarios estáticos y el `.deb` que se instala sin dependencias.
+
+Dos decisiones que sostienen el resto:
+
+- **Reparte los papeles igual que la sonda**: `mired-dpi` tiene `CAP_NET_RAW` y
+  `CAP_NET_ADMIN` y **no toca la base de datos**; el servidor le pregunta cada
+  pocos minutos por su socket Unix y escribe él. Repetir el patrón en vez de
+  inventar otro significa que quien entienda cómo habla la sonda ya entiende esto.
+- **Lo que no se identifica sigue sumando bytes**, marcado como «sin
+  identificar». Tirarlo haría que el informe sumara menos que el consumo real y
+  nadie sabría por qué. Y de cada nombre se conserva **de dónde salió**: uno del
+  saludo de TLS no vale lo mismo que una suposición por número de puerto, y la
+  pantalla lo dice.
+
+Documentación propia, con la parte de privacidad sin rodeos, en
+`documentacion/inspeccion-profunda.md`.
 
 ---
 

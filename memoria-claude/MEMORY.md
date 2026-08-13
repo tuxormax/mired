@@ -14,6 +14,8 @@ Arrancado el 2026-08-12.
    [mired-arquitectura](mired-arquitectura.md).
 4. Si el tema es que hace la herramienta (mapa, presencia, alertas, trafico) →
    [mired-capacidades](mired-capacidades.md).
+   Si es del paquete opcional de inspeccion profunda →
+   [modulo-inspeccion](modulo-inspeccion.md).
 5. Si hace falta ver **como lo resolvio otro**, y solo para leer →
    [mired-upstream-scanopy](mired-upstream-scanopy.md). **Copiar codigo de ahi
    esta prohibido**: heredaria la AGPL.
@@ -49,6 +51,8 @@ paquete lleve la interfaz, el catalogo ni la configuracion.
   repetir avisos, y los cuatro destinos de aviso.
 - [modulo-trafico](modulo-trafico.md) — ancho de banda por contadores del switch
   y por flujos del router; por que la resta es el dato.
+- [modulo-inspeccion](modulo-inspeccion.md) — el paquete OPCIONAL `mired-dpi`:
+  que aplicacion consume, sin descifrar nada. Fase 10.
 
 ### 🔗 Contratos / interconexion
 - [contrato-api](contrato-api.md) — sobre `{ok, datos, error}`, rutas, sesion por

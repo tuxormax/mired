@@ -25,6 +25,7 @@ class _PantallaRedState extends State<PantallaRed> {
   late Future<List<Subred>> _subredes;
   late Future<MapaPuertos> _mapa;
   late Future<Consumo> _consumo;
+  late Future<List<ConsumoPorAplicacion>> _aplicaciones;
   late Red _red;
 
   final _busqueda = TextEditingController();
@@ -54,6 +55,7 @@ class _PantallaRedState extends State<PantallaRed> {
       _subredes = Api.instancia.listarSubredes(_red.clave);
       _mapa = Api.instancia.mapaDePuertos(_red.clave);
       _consumo = Api.instancia.consumo(_red.clave);
+      _aplicaciones = Api.instancia.consumoPorAplicacion(_red.clave);
     });
   }
 
@@ -618,6 +620,7 @@ class _PantallaRedState extends State<PantallaRed> {
                 child: Text('Todavia no hay mediciones de consumo.',
                     textAlign: TextAlign.center),
               ),
+            _EnQueSeGasta(aplicaciones: _aplicaciones),
           ],
         );
       },
@@ -1317,4 +1320,85 @@ class _DialogoPropuestaState extends State<_DialogoPropuesta> {
           ),
         ],
       );
+}
+
+/// _EnQueSeGasta responde "en que" se va el ancho de banda, no solo "cuanto".
+///
+/// Lo llena el paquete OPCIONAL mired-dpi. Si no esta instalado esto no se
+/// dibuja: una seccion vacia con un mensaje de error en cada pantalla seria un
+/// castigo por no haber instalado algo que es opcional a proposito.
+class _EnQueSeGasta extends StatelessWidget {
+  const _EnQueSeGasta({required this.aplicaciones});
+
+  final Future<List<ConsumoPorAplicacion>> aplicaciones;
+
+  @override
+  Widget build(BuildContext contexto) {
+    return FutureBuilder<List<ConsumoPorAplicacion>>(
+      future: aplicaciones,
+      builder: (_, resultado) {
+        final lista = resultado.data ?? [];
+        if (lista.isEmpty) return const SizedBox.shrink();
+
+        final colores = Theme.of(contexto).colorScheme;
+        final tope = lista.first.bytes;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text('En que se gasta, ultimas 24 horas',
+                  style: Theme.of(contexto).textTheme.titleSmall),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                'Sale de la inspeccion profunda. El nombre no se obtiene descifrando nada: '
+                'viaja en claro en el saludo de TLS, en la cabecera Host de HTTP y en las '
+                'consultas de DNS.',
+                style: Theme.of(contexto).textTheme.bodySmall,
+              ),
+            ),
+            for (final renglon in lista.take(30))
+              Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(renglon.aplicacion,
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                                overflow: TextOverflow.ellipsis),
+                          ),
+                          Text(renglon.enPalabras),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text([
+                        renglon.equipo,
+                        // De donde salio el nombre se dice siempre: un nombre
+                        // del saludo de TLS no vale lo mismo que una suposicion
+                        // por numero de puerto.
+                        renglon.procedencia,
+                      ].join(' · '), style: Theme.of(contexto).textTheme.bodySmall),
+                      const SizedBox(height: 8),
+                      LinearProgressIndicator(
+                        value: tope == 0 ? 0 : renglon.bytes / tope,
+                        backgroundColor: colores.surfaceContainerHighest,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
 }

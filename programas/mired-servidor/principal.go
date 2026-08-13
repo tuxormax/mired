@@ -120,6 +120,13 @@ func correr(cfg configuracion.Configuracion, bitacora *slog.Logger) error {
 			}
 		}()
 	}
+	// La inspeccion profunda es OPCIONAL y viaja en otro paquete: lo normal es
+	// que nadie conteste en ese socket. Por eso se recoge en silencio y no se
+	// avisa de nada si no esta.
+	if cfg.Dpi.Socket != "" {
+		go agenda.RecogerInspeccion(ctx, cfg.Dpi.Socket,
+			time.Duration(cfg.Dpi.CadaMinutos)*time.Minute)
+	}
 
 	servidor := &http.Server{
 		Addr:              cfg.Servidor.Escucha,

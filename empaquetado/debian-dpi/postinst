@@ -1,0 +1,40 @@
+#!/bin/sh
+# REGLA: este script NUNCA falla. Si algo no se puede hacer, lo avisa y sigue.
+set -e
+
+INTERFAZ=$(sed -n '/^\[dpi\]/,/^\[/ s/^interfaz *= *"\(.*\)"/\1/p' /etc/mired/mired.toml 2>/dev/null | head -1)
+
+case "$1" in
+    configure)
+        if command -v systemctl >/dev/null 2>&1; then
+            systemctl daemon-reload 2>/dev/null || true
+            systemctl enable mired-dpi >/dev/null 2>&1 \
+                || echo "AVISO: no se pudo habilitar mired-dpi"
+            systemctl restart mired-dpi >/dev/null 2>&1 \
+                || echo "AVISO: no se pudo arrancar mired-dpi (revise: journalctl -u mired-dpi)"
+        else
+            echo "AVISO: este sistema no usa systemd; arranque mired-dpi a mano."
+        fi
+
+        echo ""
+        echo "  Inspeccion profunda instalada."
+        if [ -z "$INTERFAZ" ]; then
+            echo ""
+            echo "  FALTA UN PASO: todavia no captura nada."
+            echo "  1. Configure un puerto espejo (SPAN) en su switch hacia una tarjeta"
+            echo "     de este equipo."
+            echo "  2. Ponga esa tarjeta en /etc/mired/mired.toml:"
+            echo ""
+            echo "         [dpi]"
+            echo "         interfaz = \"eth1\""
+            echo ""
+            echo "  3. sudo systemctl restart mired-dpi"
+        else
+            echo "  Capturando en la interfaz: $INTERFAZ"
+            echo "  Si el informe sale casi vacio, revise el puerto espejo del switch."
+        fi
+        echo ""
+        ;;
+esac
+
+exit 0

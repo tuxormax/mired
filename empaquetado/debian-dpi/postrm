@@ -1,0 +1,15 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    remove|purge)
+        if command -v systemctl >/dev/null 2>&1; then
+            systemctl daemon-reload 2>/dev/null || true
+        fi
+        # El consumo por aplicacion que ya se guardo NO se borra: es historia de
+        # la red y vive en la base de cada red, junto a todo lo demas. Quien
+        # quiera deshacerse de el borra la red.
+        ;;
+esac
+
+exit 0

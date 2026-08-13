@@ -23,6 +23,7 @@ type Configuracion struct {
 	Servidor Servidor `toml:"servidor"`
 	Datos    Datos    `toml:"datos"`
 	Sonda    Sonda    `toml:"sonda"`
+	Dpi      Dpi      `toml:"dpi"`
 	Flujos   Flujos   `toml:"flujos"`
 	Catalogo Catalogo `toml:"catalogo"`
 	Registro Registro `toml:"registro"`
@@ -54,6 +55,21 @@ type Datos struct {
 type Sonda struct {
 	// Socket es el socket Unix por donde la sonda entrega lo que descubre.
 	Socket string `toml:"socket"`
+}
+
+// Dpi ajusta el canal con mired-dpi, el paquete opcional de inspeccion
+// profunda.
+//
+// Va aparte del resto porque **es opcional**: si el paquete mired-dpi no esta
+// instalado, aqui no sobra nada, simplemente nadie contesta en ese socket y el
+// servidor no vuelve a preguntar.
+type Dpi struct {
+	// Socket es por donde mired-dpi entrega lo que vio. Vacio lo apaga.
+	Socket string `toml:"socket"`
+	// Interfaz es la tarjeta donde llega el puerto espejo. La usa mired-dpi.
+	Interfaz string `toml:"interfaz"`
+	// CadaMinutos es cada cuanto el servidor recoge lo acumulado.
+	CadaMinutos int `toml:"cada_minutos"`
 }
 
 // Flujos ajusta el receptor de NetFlow que exporta el router.
@@ -111,6 +127,10 @@ func PorOmision() Configuracion {
 		},
 		Sonda: Sonda{
 			Socket: "/run/mired/sonda.sock",
+		},
+		Dpi: Dpi{
+			Socket:      "/run/mired/dpi.sock",
+			CadaMinutos: 5,
 		},
 		Flujos: Flujos{
 			Escucha: ":2055",

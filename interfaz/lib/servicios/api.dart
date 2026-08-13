@@ -299,6 +299,15 @@ class Api {
     return Consumo.desdeJson(datos as Map<String, dynamic>);
   }
 
+  /// consumoPorAplicacion sale del paquete opcional mired-dpi. Si no esta
+  /// instalado, la lista viene vacia y la pantalla lo explica.
+  Future<List<ConsumoPorAplicacion>> consumoPorAplicacion(String clave) async {
+    final datos = await obtener('/api/redes/$clave/aplicaciones') as Map<String, dynamic>;
+    return ((datos['consumo'] as List<dynamic>?) ?? [])
+        .map((fila) => ConsumoPorAplicacion.desdeJson(fila as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<List<CredencialSNMP>> listarCredenciales() async {
     final datos = await obtener('/api/credenciales-snmp') as List<dynamic>;
     return datos

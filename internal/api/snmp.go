@@ -128,6 +128,43 @@ func explicarCapacidad(capacidad string) string {
 	}
 }
 
+// aplicaciones responde "en que se gasta el ancho de banda", no solo "cuanto".
+//
+// Lo llena el paquete OPCIONAL mired-dpi. Si no esta instalado la lista viene
+// vacia, y la interfaz lo explica en vez de dejar una pantalla en blanco.
+func (a *API) consumoPorAplicacion(escritor http.ResponseWriter, peticion *http.Request) {
+	clave, _ := autenticacion.RedActivaDe(peticion.Context())
+
+	horas := 24
+	if valor := peticion.URL.Query().Get("horas"); valor != "" {
+		if numero, err := strconv.Atoi(valor); err == nil && numero > 0 && numero <= 720 {
+			horas = numero
+		}
+	}
+
+	var consumo []basedatos.ConsumoPorAplicacion
+	err := a.Datos.ConRed(peticion.Context(), clave, func(base *basedatos.Base) error {
+		var err error
+		consumo, err = base.ConsumoPorAplicaciones(peticion.Context(), horas)
+		return err
+	})
+	if err != nil {
+		a.responderError(escritor, peticion, contextoError{
+			Modulo: "Consumo por aplicacion", Accion: "Consultar", Causa: CausaBaseDatos,
+			Tabla: "trafico_aplicaciones", Codigo: http.StatusInternalServerError,
+		}, "No se pudo leer el consumo por aplicacion.", err)
+		return
+	}
+
+	responderOk(escritor, map[string]any{
+		"consumo": consumo,
+		"explicacion": "Sale del paquete opcional mired-dpi, que mira los paquetes que copia " +
+			"el puerto espejo del switch. El nombre no se obtiene descifrando nada: viaja en " +
+			"claro en el saludo de TLS, en la cabecera Host de HTTP y en las consultas de DNS.",
+		"disponible": len(consumo) > 0,
+	})
+}
+
 // -------------------------------------------------------- controladoras WiFi --
 
 // Las controladoras viven en el catalogo, como las credenciales SNMP, y por la

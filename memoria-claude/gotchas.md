@@ -72,8 +72,32 @@ errores tontos.
   servidor. En el mapa, una boca con 9 MAC decia "1 equipos" cuando la respuesta
   traia un renglon resumido. La cuenta buena es `cuantosEnBoca`.
 
+## Leer paquetes y protocolos binarios
+- **NetFlow y sFlow dicen los dos "version 5".** NetFlow la pone en 2 bytes y
+  sFlow en 4: un datagrama de sFlow leido como NetFlow da version 0, y ese cero
+  es la unica senal para distinguirlos. Es exacto, no heuristico.
+- **NetFlow v9 e IPFIX necesitan la plantilla ANTES que los datos**, y la
+  plantilla es **de cada exportador**: dos routers pueden numerar la 256 para
+  cosas distintas. Mezclarlas no da error, da cifras equivocadas. Que lleguen
+  datos antes que su plantilla es lo NORMAL al arrancar: se tiran callados.
+- **En IPFIX, un campo de fabricante trae 4 bytes mas** en la plantilla. Sin
+  saltarlos, todo lo que sigue se lee corrido.
+- **Saltar las etiquetas de VLAN.** Un puerto espejo y un switch con VLAN mandan
+  la trama con su etiqueta: sin saltarla, el tipo de protocolo se lee 4 bytes
+  antes y el trafico de esa red desaparece entero, sin un solo error.
+- **LLDP y CDP ponen la boca local en un lugar distinto del indice**: LLDP en la
+  posicion 1 (`tiempo.puerto.vecino`) y CDP en la 0 (`ifIndex.vecino`).
+  Confundirlos cuelga cada vecino de la boca equivocada: el mapa sale plausible
+  y falso.
+- **sFlow ESTIMA, no cuenta.** Se multiplica por la tasa de muestreo. Esa
+  diferencia viaja en la columna `estimado` hasta la pantalla; una vez juntas en
+  la misma tabla, ya no hay forma de volver a separarlas.
+- **Nunca contar renglones para saber cuantos hay**: usar la cuenta que manda el
+  servidor. En el mapa, una boca con 9 MAC decia "1 equipos".
+
 ## Procesos
-- **Un solo escritor**: `mired-servidor`. La sonda escanea y entrega por socket.
+- **Un solo escritor**: `mired-servidor`. La sonda escanea y entrega por socket,
+  y `mired-dpi` (opcional) hace lo mismo con lo que captura.
 - **La sonda comprueba de verdad si puede abrir un socket crudo**, no supone por
   el usuario: con `AmbientCapabilities` se tienen permisos sin ser root.
 - El `postinst` **nunca falla**: avisa y sigue.
@@ -84,4 +108,14 @@ errores tontos.
 - `internal/` es palabra reservada del compilador de Go y por eso es la unica
   carpeta en ingles. Adentro, todo en espanol.
 
-**Ver tambien:** [[mired-arquitectura]], [[contrato-api]], [[mired]]
+## Pruebas
+- **`go test ./...` es intermitentemente flojo** desde que hay 6 paquetes con
+  pruebas: al correr en paralelo, abrir una base con modernc/sqlite (Go puro,
+  intensivo en CPU) puede pasarse de los 10 s del `PingContext` de `Abrir` y
+  fallar con "context deadline exceeded". **`go test ./... -p 1` siempre pasa.**
+  Es del entorno de pruebas, no del codigo: el camino que falla no se ha tocado.
+- Las pruebas de exportacion del mapa a PNG necesitan `probador.runAsync` o se
+  cuelgan 10 minutos (ver seccion de Flutter).
+
+**Ver tambien:** [[mired-arquitectura]], [[contrato-api]], [[mired]],
+[[modulo-inspeccion]]

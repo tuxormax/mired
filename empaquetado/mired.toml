@@ -48,3 +48,20 @@ socket = "/run/mired/sonda.sock"
 [registro]
 # debug, info, aviso o error.
 nivel = "info"
+
+[dpi]
+# Inspeccion profunda: el paquete OPCIONAL mired-dpi.
+#
+# Responde "que aplicacion consume", no solo "cuanto". Si no instalo ese
+# paquete, esto no estorba: nadie contesta en el socket y el servidor deja de
+# preguntar.
+#
+# HACE FALTA UN PUERTO ESPEJO en el switch, copiando a la interfaz de abajo el
+# trafico que se quiere ver. Sin el, mide poco y el informe lo dice.
+socket = "/run/mired/dpi.sock"
+
+# La tarjeta donde llega el puerto espejo. Vacio deja mired-dpi sin arrancar.
+interfaz = ""
+
+# Cada cuantos minutos el servidor recoge lo acumulado.
+cada_minutos = 5

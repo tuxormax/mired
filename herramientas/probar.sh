@@ -41,7 +41,11 @@ trap limpiar EXIT
 # --------------------------------------------------------------- construir --
 echo "== Construyendo el paquete"
 "$RAIZ/herramientas/construir.sh" --arquitectura amd64 >/dev/null
-PAQUETE=$(ls -t "$RAIZ/empaquetado/salida/"*_amd64.deb | head -1)
+# El patron lleva "mired_" con guion bajo a proposito: desde que existe el
+# paquete opcional mired-dpi, un comodin suelto se lleva el mas reciente de los
+# dos y esta prueba levantaria un arbol sin servidor.
+PAQUETE=$(ls -t "$RAIZ/empaquetado/salida/"mired_*_amd64.deb | head -1)
+PAQUETE_DPI=$(ls -t "$RAIZ/empaquetado/salida/"mired-dpi_*_amd64.deb 2>/dev/null | head -1)
 echo "   $PAQUETE"
 
 dpkg-deb -x "$PAQUETE" "$CARPETA"
@@ -61,6 +65,12 @@ carpetas = ["$CARPETA/usr/share/mired/dispositivos"]
 [registro]
 nivel = "info"
 FIN
+
+# La inspeccion profunda se desempaqueta sobre el mismo arbol: es un paquete
+# aparte, pero comparte configuracion y socket con el resto.
+if [[ -n "$PAQUETE_DPI" ]]; then
+    dpkg-deb -x "$PAQUETE_DPI" "$CARPETA"
+fi
 
 echo "== Levantando los servicios desde el paquete"
 "$CARPETA/usr/bin/mired-sonda" --configuracion "$CARPETA/mired.toml" > "$CARPETA/sonda.log" 2>&1 &
@@ -151,6 +161,31 @@ registro = (socket.inet_aton('192.168.1.5') + socket.inet_aton('8.8.8.8') +
 socket.socket(socket.AF_INET, socket.SOCK_DGRAM).sendto(
     cabecera + registro, ('127.0.0.1', int(sys.argv[1])))
 PY
+
+# El mismo puerto recibe los cuatro formatos y los reconoce solo. sFlow es el que
+# mas facil se confunde con NetFlow v5: los dos dicen "version 5", y solo se
+# distinguen por si esa version viene en dos bytes o en cuatro.
+python3 "$RAIZ/herramientas/enviar_sflow.py" "$PUERTO_FLUJOS" \
+    && paso "el receptor entiende tambien sFlow" \
+    || falla "el receptor no acepto un datagrama de sFlow"
+
+pedir "$API/api/redes/$CLAVE/aplicaciones" | grep -q '"explicacion"' \
+    && paso "el consumo por aplicacion responde" \
+    || falla "el consumo por aplicacion no responde"
+
+# El paquete de inspeccion profunda es OPCIONAL, pero si se construyo tiene que
+# traer su binario y comportarse cuando le falta configuracion.
+if [[ -x "$CARPETA/usr/bin/mired-dpi" ]]; then
+    "$CARPETA/usr/bin/mired-dpi" --version | grep -q "mired-dpi" \
+        && paso "el paquete de inspeccion profunda trae su binario" \
+        || falla "mired-dpi no contesta"
+    "$CARPETA/usr/bin/mired-dpi" --configuracion "$CARPETA/mired.toml" 2>&1 \
+        | grep -q "interfaz configurada" \
+        && paso "mired-dpi sin interfaz avisa en vez de reventar" \
+        || falla "mired-dpi deberia avisar cuando no tiene interfaz"
+else
+    falla "el paquete de inspeccion profunda no trae su binario"
+fi
 
 pedir -X DELETE "$API/api/redes/$CLAVE" | grep -q '"borrada":true' \
     && paso "borra la red" || falla "no se pudo borrar la red"
