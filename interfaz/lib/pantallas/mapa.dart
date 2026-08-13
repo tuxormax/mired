@@ -7,6 +7,7 @@ import '../modelos/modelos.dart';
 import '../servicios/api.dart';
 import '../servicios/descarga.dart';
 import '../servicios/exportar_mapa.dart';
+import '../servicios/frescura.dart';
 import '../widgets/mensajes.dart';
 import 'mapa_plano.dart';
 
@@ -62,8 +63,22 @@ class _PantallaMapaState extends State<PantallaMapa> {
       final sello = momento.toIso8601String().substring(0, 16).replaceAll(':', '');
       final base = 'mapa-${widget.red.clave}-$sello';
 
+      // Las DOS fechas, y la de los datos primero: un mapa exportado hoy con
+      // datos de hace tres semanas no es un mapa de hoy, y quien lo reciba tiene
+      // que poder saberlo sin preguntar. Va en los CUATRO formatos, CSV incluido.
+      final deCuandoSonLosDatos = datos.mapa.momento.isEmpty
+          ? 'sin escanear todavia'
+          : _enPalabras(datos.mapa.momento);
+      final encabezado = EncabezadoMapa(
+        titulo: 'Mapa de ${widget.red.nombre}',
+        subtitulo: 'Datos del $deCuandoSonLosDatos'
+            '  ·  Exportado el '
+            '${momento.toIso8601String().substring(0, 19).replaceFirst('T', ' ')}'
+            '  ·  ${Api.instancia.version}',
+      );
+
       if (formato == _Formato.portapapeles) {
-        await Clipboard.setData(ClipboardData(text: csvDelMapa(datos)));
+        await Clipboard.setData(ClipboardData(text: csvDelMapa(datos, encabezado)));
         if (mounted) {
           mensajeAviso(context,
               'Mapa copiado como CSV: ya se puede pegar en una hoja de calculo.');
@@ -72,12 +87,6 @@ class _PantallaMapaState extends State<PantallaMapa> {
       }
 
       final plano = armarPlano(datos, coloresParaExportar);
-      final encabezado = EncabezadoMapa(
-        titulo: 'Mapa de ${widget.red.nombre}',
-        subtitulo: '${datos.mapa.explicacion}  ·  Exportado el '
-            '${momento.toIso8601String().substring(0, 19).replaceFirst('T', ' ')}'
-            '  ·  ${Api.instancia.version}',
-      );
 
       var donde = '';
       switch (formato) {
@@ -92,7 +101,7 @@ class _PantallaMapaState extends State<PantallaMapa> {
               '$base.pdf', 'application/pdf', pdfDelPlano(plano, encabezado));
         case _Formato.csv:
           donde = await descargarArchivo('$base.csv', 'text/csv;charset=utf-8',
-              Uint8List.fromList(utf8.encode(csvDelMapa(datos))));
+              Uint8List.fromList(utf8.encode(csvDelMapa(datos, encabezado))));
         case _Formato.portapapeles:
           break; // Resuelto arriba.
       }
@@ -108,6 +117,13 @@ class _PantallaMapaState extends State<PantallaMapa> {
     } finally {
       if (mounted) setState(() => _exportando = false);
     }
+  }
+
+  /// _enPalabras deja una fecha ISO legible, sin la T ni la zona horaria.
+  static String _enPalabras(String iso) {
+    final momento = DateTime.tryParse(iso);
+    if (momento == null) return iso;
+    return momento.toIso8601String().substring(0, 19).replaceFirst('T', ' ');
   }
 
   @override
@@ -256,6 +272,7 @@ class _Leyenda extends StatelessWidget {
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           Text(mapa.explicacion, style: Theme.of(contexto).textTheme.bodySmall),
+          _DeCuandoEs(momento: mapa.momento),
           const _Marca(texto: 'Linea llena: puerto confirmado', punteada: false),
           const _Marca(texto: 'Linea punteada: grupo tras algo no administrable', punteada: true),
           if (mapa.enlacesUnicos.isNotEmpty)
@@ -288,4 +305,36 @@ class _Marca extends StatelessWidget {
               style: Theme.of(contexto).textTheme.labelSmall?.copyWith(color: color)),
         ],
       );
+}
+
+/// _DeCuandoEs dice de cuando son los datos del mapa que se esta viendo.
+///
+/// Lo mismo que va en el archivo exportado, porque la pregunta es la misma:
+/// ¿esto que veo sigue siendo cierto?
+class _DeCuandoEs extends StatelessWidget {
+  const _DeCuandoEs({required this.momento});
+
+  final String momento;
+
+  @override
+  Widget build(BuildContext contexto) {
+    final cuando = haceCuanto(momento.isEmpty ? null : momento);
+    final colores = Theme.of(contexto).colorScheme;
+    final alarmante = cuando.frescura == Frescura.viejo ||
+        cuando.frescura == Frescura.muyViejo ||
+        cuando.frescura == Frescura.nunca;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.schedule, size: 16, color: alarmante ? colores.error : null),
+        const SizedBox(width: 4),
+        Text(
+          momento.isEmpty ? 'Sin datos todavia' : 'Datos de ${cuando.texto.toLowerCase()}',
+          style: Theme.of(contexto).textTheme.labelSmall
+              ?.copyWith(color: alarmante ? colores.error : null),
+        ),
+      ],
+    );
+  }
 }

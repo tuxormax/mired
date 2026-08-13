@@ -27,8 +27,15 @@ import (
 var (
 	// ErrYaEnCurso es que esa red ya se esta escaneando.
 	ErrYaEnCurso = errors.New("ya hay un escaneo en curso en esta red")
-	// ErrSinSubredes es que no hay nada que barrer.
-	ErrSinSubredes = errors.New("la red no tiene subredes marcadas para escanear")
+	// ErrSinSubredes es que no hay nada que barrer y tampoco se pudo preguntar.
+	ErrSinSubredes = errors.New("no hay nada que escanear en esta red")
+	// ErrEquipoSinRed es que este equipo no esta conectado a ninguna red.
+	//
+	// Va aparte de ErrSinSubredes porque **son problemas distintos y se arreglan
+	// en sitios distintos**: uno se arregla configurando MiRed, el otro
+	// enchufando un cable o conectandose al WiFi. Darles el mismo mensaje manda a
+	// buscar donde no hay nada.
+	ErrEquipoSinRed = errors.New("este equipo no esta conectado a ninguna red")
 )
 
 // esperaEscaneo es lo que se le da a la sonda para terminar un barrido antes de
@@ -90,8 +97,18 @@ func (s *Servicio) Lanzar(ctx context.Context, clave string, soloPresencia bool)
 	if err != nil {
 		return 0, nil, err
 	}
+	// Un sitio recien creado no tiene nada configurado: se adopta la red de este
+	// equipo, que es lo que el usuario quiere decir con "escanear toda la red".
+	// No se le pregunta —el programa ya lo sabe— pero SI se dice, porque en un
+	// sitio remoto la red de este equipo no seria la correcta.
 	if len(subredes) == 0 {
-		return 0, nil, ErrSinSubredes
+		adoptadas, err := s.adoptarLaRedDetectada(ctx, clave)
+		if err != nil {
+			s.Bitacora.Warn("no se pudo adoptar la red de este equipo",
+				"red", clave, "error", err)
+			return 0, nil, err
+		}
+		subredes = adoptadas
 	}
 
 	if !s.apartar(clave) {

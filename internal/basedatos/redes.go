@@ -235,6 +235,42 @@ func (e *Enrutador) BorrarRed(ctx context.Context, clave string) error {
 	return nil
 }
 
+// BorrarRedYSusDatos borra la red **y su archivo**, sin vuelta atras.
+//
+// El borrado normal es suave a proposito: conserva el archivo para poder
+// recuperar un sitio borrado por error con todo su historico. Esto es lo otro —
+// cuando de verdad se quiere que no quede nada, como al dejar de dar servicio a
+// un cliente o al hacer pruebas.
+//
+// **El orden importa.** Primero se cierra la base, despues se borra el registro
+// y solo al final el archivo: si se borrara el archivo con la base abierta, el
+// proceso seguiria escribiendo en un archivo que ya no tiene nombre, y el
+// registro quedaria apuntando a algo que no existe.
+func (e *Enrutador) BorrarRedYSusDatos(ctx context.Context, clave string) error {
+	// Cerrarla y sacarla del juego de conexiones antes de tocar el disco.
+	e.Olvidar(clave)
+
+	resultado, err := e.Catalogo.ExecContext(ctx,
+		`DELETE FROM redes WHERE clave = ?`, clave)
+	if err != nil {
+		return fmt.Errorf("no se pudo borrar la red del catalogo: %w", err)
+	}
+	if filas, _ := resultado.RowsAffected(); filas == 0 {
+		return ErrRedNoExiste
+	}
+
+	// El archivo y sus dos acompañantes: SQLite en modo WAL deja un `-wal` y un
+	// `-shm` al lado, y dejarlos seria dejar los datos a medias.
+	archivo := e.ArchivoDeRed(clave)
+	for _, sufijo := range []string{"", "-wal", "-shm"} {
+		if err := os.Remove(archivo + sufijo); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("la red se quito del catalogo pero no se pudo borrar %s: %w",
+				archivo+sufijo, err)
+		}
+	}
+	return nil
+}
+
 // RenombrarRed cambia el nombre visible de la red. La clave y el archivo no
 // cambian nunca: renombrar un archivo abierto es justo lo que se quiso evitar.
 func (e *Enrutador) RenombrarRed(ctx context.Context, clave, nombre, descripcion string) (Red, error) {

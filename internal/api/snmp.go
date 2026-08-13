@@ -77,10 +77,16 @@ func (a *API) mapaDePuertos(escritor http.ResponseWriter, peticion *http.Request
 
 	var mapa []basedatos.PuertoDeSwitch
 	var enlaces []basedatos.EnlaceEntreEquipos
-	var capacidad string
+	var capacidad, momento string
 	err := a.Datos.ConRed(peticion.Context(), clave, func(base *basedatos.Base) error {
 		var err error
 		mapa, err = base.MapaDePuertos(peticion.Context())
+		if err != nil {
+			return err
+		}
+		// De cuando son estos datos. Va con el mapa para que lo exportado pueda
+		// decir de que momento es, no solo cuando se guardo el archivo.
+		momento, err = base.MomentoDelMapa(peticion.Context())
 		if err != nil {
 			return err
 		}
@@ -106,6 +112,7 @@ func (a *API) mapaDePuertos(escritor http.ResponseWriter, peticion *http.Request
 		"explicacion": explicarCapacidad(capacidad),
 		"puertos":     mapa,
 		"enlaces":     enlaces,
+		"momento":     momento,
 	})
 }
 

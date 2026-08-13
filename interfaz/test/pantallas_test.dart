@@ -69,7 +69,7 @@ void main() {
     expect(find.text('Equipos'), findsOneWidget);
     expect(find.text('Puertos'), findsOneWidget);
     expect(find.text('Consumo'), findsOneWidget);
-    expect(find.text('Subredes'), findsOneWidget);
+    expect(find.text('Que se revisa'), findsOneWidget);
     expect(tomaDeErrores(), isNull);
   });
 

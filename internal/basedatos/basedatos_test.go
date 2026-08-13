@@ -477,3 +477,53 @@ func TestElHistorialDeVersionesSeSiembraSinDuplicar(t *testing.T) {
 		t.Fatalf("la nota no se actualizo: %q", leidoSistema[0].Notas)
 	}
 }
+
+func TestBorrarUnaRedConSusDatosNoDejaArchivo(t *testing.T) {
+	// El borrado normal conserva el archivo a proposito. Este es el otro: cuando
+	// de verdad no debe quedar nada. Si el archivo sobreviviera, crear una red
+	// con el mismo nombre resucitaria datos que alguien mando borrar.
+	enrutador := enrutadorDePrueba(t)
+	ctx := context.Background()
+
+	red, err := enrutador.CrearRed(ctx, "Para borrar", "", []string{"192.168.5.0/24"})
+	if err != nil {
+		t.Fatalf("no se pudo crear la red: %v", err)
+	}
+	archivo := enrutador.ArchivoDeRed(red.Clave)
+	if _, err := os.Stat(archivo); err != nil {
+		t.Fatalf("no se creo el archivo: %v", err)
+	}
+
+	if err := enrutador.BorrarRedYSusDatos(ctx, red.Clave); err != nil {
+		t.Fatalf("no se pudo borrar: %v", err)
+	}
+
+	if _, err := os.Stat(archivo); !os.IsNotExist(err) {
+		t.Fatal("el archivo deberia haber desaparecido")
+	}
+	// Y los acompañantes del modo WAL tampoco pueden quedarse.
+	for _, sufijo := range []string{"-wal", "-shm"} {
+		if _, err := os.Stat(archivo + sufijo); !os.IsNotExist(err) {
+			t.Errorf("quedo el archivo %s", archivo+sufijo)
+		}
+	}
+
+	// Y el nombre queda libre de verdad: la red nueva empieza vacia, no revive.
+	revivida, err := enrutador.CrearRed(ctx, "Para borrar", "", nil)
+	if err != nil {
+		t.Fatalf("no se pudo volver a crear: %v", err)
+	}
+	err = enrutador.ConRed(ctx, revivida.Clave, func(base *Base) error {
+		subredes, err := base.ListarSubredes(ctx)
+		if err != nil {
+			return err
+		}
+		if len(subredes) != 0 {
+			t.Fatalf("resucitaron datos que se mandaron borrar: %+v", subredes)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("no se pudo leer la red nueva: %v", err)
+	}
+}

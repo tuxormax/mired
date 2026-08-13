@@ -50,6 +50,22 @@ errores tontos.
 - **La clave de la red no cambia nunca; el nombre si.** El archivo se llama por
   la clave (`matriz-a1b2.db`). Renombrar NO mueve el archivo.
 
+## Todo dato dice de cuando es
+Regla del proyecto (2026-08-13, la pidio el usuario):
+
+- **Todo reporte que salga de MiRed dice de que momento son los datos.** No de
+  cuando se exporto: **de cuando se midieron**. Un mapa exportado hoy con datos
+  de hace tres semanas llevaria la fecha de hoy y pareceria al dia. Los cuatro
+  formatos lo llevan, CSV incluido.
+- **En pantalla igual**: la tarjeta de cada red, la cabecera de la red y la
+  leyenda del mapa dicen "hace 5 minutos" o "hace 3 dias", no una fecha ISO que
+  obligue a hacer la cuenta. Y en rojo cuando lleva mas de un dia.
+- Vive en `interfaz/lib/servicios/frescura.dart`, en un solo sitio. Si se agrega
+  otro reporte, **usa eso**; no se vuelve a escribir el calculo.
+- El dato de "de cuando es el mapa" NO es la fecha del ultimo escaneo: es
+  `MAX(ultima_vez)` de `conexiones_puerto`, que es cuando se le pregunto a los
+  switches. Son cosas distintas y se sienten distintas al mirarlas.
+
 ## Interfaz: no pedir lo que el programa ya sabe
 - **El formulario de nueva red NO pide una subred en notacion con barra.** Pedia
   `192.168.1.0/24` y el usuario —que es el dueño del proyecto— no supo que poner:
@@ -59,6 +75,14 @@ errores tontos.
   en un solo sitio. Acepta rango (`a - b`), direccion suelta y notacion con
   barra, y **siempre dice lo que entendio antes de crear nada**: aceptar varias
   formas sin enseñar el resultado seria magia.
+- **Crear una red pide SOLO nombre y descripcion.** Nada de rangos: al pulsar
+  "Escanear toda la red", MiRed adopta la red de este equipo, la guarda y lo
+  dice. Antes se podia crear una red sin nada que escanear y el escaneo no
+  encontraba nada, sin explicar por que.
+- **"Este equipo no esta conectado a ninguna red" es un error propio**
+  (`ErrEquipoSinRed`), distinto de "no hay nada configurado": uno se arregla en
+  MiRed y el otro enchufando un cable. Darles el mismo mensaje manda a buscar
+  donde no hay nada.
 - Regla general que salio de ahi: **si el programa puede averiguar un dato, no se
   lo pregunta al usuario.**
 

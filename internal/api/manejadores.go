@@ -380,11 +380,29 @@ func (a *API) borrarRed(escritor http.ResponseWriter, peticion *http.Request) {
 		return
 	}
 
-	if err := a.Datos.BorrarRed(peticion.Context(), clave); err != nil {
+	// Con ?datos=si se borra tambien el archivo, sin vuelta atras. Por omision el
+	// borrado es suave y el archivo se conserva: es la regla de la casa, y lo que
+	// permite recuperar un sitio borrado por error con todo su historico.
+	tambienLosDatos := peticion.URL.Query().Get("datos") == "si"
+
+	borrar := a.Datos.BorrarRed
+	if tambienLosDatos {
+		borrar = a.Datos.BorrarRedYSusDatos
+	}
+	if err := borrar(peticion.Context(), clave); err != nil {
 		a.responderError(escritor, peticion, contextoError{
 			Modulo: "Redes", Accion: "Borrar", Causa: CausaBaseDatos,
 			Tabla: "redes", Codigo: http.StatusInternalServerError,
+			Estado: "La red NO se borro.",
 		}, "No se pudo borrar la red.", err)
+		return
+	}
+	if tambienLosDatos {
+		a.anotarActividad(peticion, "Redes", "Borrar red "+clave+" Y SUS DATOS")
+		responderOk(escritor, map[string]any{
+			"borrada": true,
+			"aviso":   "La red y todos sus datos se borraron. No se puede deshacer.",
+		})
 		return
 	}
 
@@ -393,7 +411,8 @@ func (a *API) borrarRed(escritor http.ResponseWriter, peticion *http.Request) {
 	// la red por su nombre. Se dice para que nadie lo busque en la papelera.
 	responderOk(escritor, map[string]any{
 		"borrada": true,
-		"aviso":   "El archivo de datos de la red se conservo en el servidor.",
+		"aviso": "El archivo de datos de la red se conservo. Puede recuperarla " +
+			"creando una red con el mismo nombre.",
 	})
 }
 

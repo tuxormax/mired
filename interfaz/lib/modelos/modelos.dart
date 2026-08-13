@@ -421,11 +421,17 @@ class MapaPuertos {
   final List<PuertoDeSwitch> puertos;
   final List<EnlaceEntreEquipos> enlaces;
 
+  /// De cuando son estos datos, en ISO. **No es cuando se exporto**: un mapa se
+  /// puede guardar hoy con datos de hace tres semanas, y sin esto el archivo
+  /// llevaria la fecha de hoy y pareceria al dia.
+  final String momento;
+
   const MapaPuertos({
     required this.capacidad,
     required this.explicacion,
     required this.puertos,
     this.enlaces = const [],
+    this.momento = '',
   });
 
   factory MapaPuertos.desdeJson(Map<String, dynamic> json) => MapaPuertos(
@@ -437,6 +443,7 @@ class MapaPuertos {
         enlaces: ((json['enlaces'] as List<dynamic>?) ?? [])
             .map((fila) => EnlaceEntreEquipos.desdeJson(fila as Map<String, dynamic>))
             .toList(),
+        momento: json['momento'] as String? ?? '',
       );
 
   bool get hayMapa => puertos.isNotEmpty;

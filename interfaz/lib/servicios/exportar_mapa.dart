@@ -408,8 +408,18 @@ String _colorPdf(Color color) {
 ///
 /// Los equipos sin ubicar van tambien, marcados como tales. Un inventario que
 /// calla lo que no supo ubicar se lee como si estuviera completo.
-String csvDelMapa(DatosMapa datos) {
+///
+/// **Empieza diciendo de cuando son los datos**, igual que los otros tres
+/// formatos. Es la regla del proyecto: todo reporte que salga de MiRed dice de
+/// que momento es, porque un archivo suelto sin fecha, a la semana, ya no se
+/// sabe si sirve. Va en su propio renglon y con un renglon en blanco detras, para
+/// que la hoja de calculo siga encontrando los encabezados como una fila.
+String csvDelMapa(DatosMapa datos, [EncabezadoMapa? encabezado]) {
   final renglones = <String>[
+    if (encabezado != null) ...[
+      _paraCsv('${encabezado.titulo} — ${encabezado.subtitulo}'),
+      '',
+    ],
     'switch,ip_switch,puerto,equipo,ip_equipo,mac,certeza,equipos_en_la_boca',
   ];
   for (final puerto in datos.mapa.puertos) {

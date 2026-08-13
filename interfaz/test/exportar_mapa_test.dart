@@ -79,6 +79,7 @@ void main() {
     final renglones = const LineSplitter().convert(csvDelMapa(datos));
 
     expect(renglones.first, startsWith('switch,ip_switch,puerto'));
+
     expect(renglones.any((r) => r.contains('Gi0/5') && r.contains('confirmado')), isTrue);
     expect(renglones.any((r) => r.contains('Gi0/7') && r.contains('grupo')), isTrue);
     // El equipo 9 no cuelga de ninguna boca: tiene que salir marcado, no
@@ -86,6 +87,20 @@ void main() {
     expect(renglones.any((r) => r.contains('sin ubicar')), isTrue);
     // Un nombre con coma va entrecomillado o parte el renglon en dos columnas.
     expect(renglones.any((r) => r.contains('"Camara del pasillo, ala norte «ñ»"')), isTrue);
+  });
+
+  test('el CSV dice de cuando son los datos, como los otros tres formatos', () {
+    // Es la regla del proyecto: todo reporte que salga de MiRed dice de que
+    // momento es. Un archivo suelto sin fecha, a la semana, ya no se sabe si
+    // sirve — y el CSV es el que mas facil acaba en el correo de alguien.
+    final renglones = const LineSplitter().convert(csvDelMapa(datos, encabezado));
+
+    expect(renglones.first, contains('Mapa de Matriz'));
+    expect(renglones.first, contains('Exportado el 2026-08-13'));
+    // Con un renglon en blanco detras, para que la hoja de calculo siga
+    // encontrando los encabezados como una fila.
+    expect(renglones[1], isEmpty);
+    expect(renglones[2], startsWith('switch,ip_switch,puerto'));
   });
 
   test('el SVG sale bien formado y con una caja por nodo del plano', () {

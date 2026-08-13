@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../modelos/modelos.dart';
 import '../servicios/api.dart';
+import '../servicios/frescura.dart';
 import '../servicios/trayectoria.dart';
 import '../widgets/mensajes.dart';
 import 'alertas.dart';
@@ -181,12 +182,24 @@ class _PantallaRedState extends State<PantallaRed> {
       length: 4,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(_red.nombre),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(_red.nombre),
+              // Cuando se escaneo por ultima vez, siempre a la vista: es lo que
+              // dice si lo que se esta mirando sigue siendo cierto.
+              Text(
+                haceCuanto(_red.ultimoEscaneo).texto,
+                style: Theme.of(contexto).textTheme.labelSmall,
+              ),
+            ],
+          ),
           bottom: const TabBar(tabs: [
             Tab(icon: Icon(Icons.devices_other), text: 'Equipos'),
             Tab(icon: Icon(Icons.settings_input_component), text: 'Puertos'),
             Tab(icon: Icon(Icons.speed), text: 'Consumo'),
-            Tab(icon: Icon(Icons.route_outlined), text: 'Subredes'),
+            Tab(icon: Icon(Icons.route_outlined), text: 'Que se revisa'),
           ]),
           actions: [
             if (_escaneando)
@@ -204,7 +217,7 @@ class _PantallaRedState extends State<PantallaRed> {
                     value: 'completo',
                     child: ListTile(
                       leading: Icon(Icons.travel_explore),
-                      title: Text('Escaneo completo'),
+                      title: Text('Escanear toda la red'),
                       subtitle: Text('Equipos, nombres y puertos'),
                     ),
                   ),
@@ -218,6 +231,23 @@ class _PantallaRedState extends State<PantallaRed> {
                   ),
                 ],
               ),
+            PopupMenuButton<String>(
+              tooltip: 'Mas',
+              icon: const Icon(Icons.more_vert),
+              onSelected: (opcion) {
+                if (opcion == 'borrar') _borrar();
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(
+                  value: 'borrar',
+                  child: ListTile(
+                    dense: true,
+                    leading: Icon(Icons.delete_outline),
+                    title: Text('Eliminar esta red'),
+                  ),
+                ),
+              ],
+            ),
             IconButton(
               tooltip: 'Alertas',
               icon: Badge(
@@ -269,6 +299,30 @@ class _PantallaRedState extends State<PantallaRed> {
         ),
       ),
     );
+  }
+
+  /// _borrar quita la red, preguntando antes si tambien se van los datos.
+  ///
+  /// Por omision el borrado es **recuperable**: el archivo se conserva y volver
+  /// a crear una red con el mismo nombre la revive con todo su historico. Quien
+  /// quiera que no quede nada tiene que marcarlo a proposito, porque eso no
+  /// tiene vuelta atras.
+  Future<void> _borrar() async {
+    final tambienLosDatos = await showDialog<bool>(
+      context: context,
+      builder: (_) => _DialogoBorrarRed(red: _red),
+    );
+    if (tambienLosDatos == null) return;
+
+    try {
+      await Api.instancia.borrarRed(_red.clave, tambienLosDatos: tambienLosDatos);
+      if (!mounted) return;
+      // Se vuelve al panel: la pantalla de una red que ya no existe no tiene
+      // nada que mostrar.
+      Navigator.of(context).pop();
+    } catch (problema, pila) {
+      if (mounted) await mostrarProblema(context, problema, pila: pila.toString());
+    }
   }
 
   Widget _pestanaEquipos(BuildContext contexto) {
@@ -645,12 +699,26 @@ class _PantallaRedState extends State<PantallaRed> {
 
         final subredes = resultado.data ?? [];
         if (subredes.isEmpty) {
-          return const Center(
+          // No se le pide nada: al escanear, MiRed averigua solo en que red esta
+          // este equipo. Esto solo explica que va a pasar.
+          return Center(
             child: Padding(
-              padding: EdgeInsets.all(32),
-              child: Text('Este sitio todavia no tiene subredes que escanear.\n'
-                  'Agregue al menos una para poder descubrir equipos.',
-                  textAlign: TextAlign.center),
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.radar, size: 40,
+                      color: Theme.of(contexto).colorScheme.primary),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Todavia no se ha escaneado nada.\n\n'
+                    'Use el boton del radar y elija «Escanear toda la red»: '
+                    'MiRed averigua solo en que red esta este equipo y la revisa '
+                    'entera.',
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
           );
         }
@@ -668,7 +736,7 @@ class _PantallaRedState extends State<PantallaRed> {
                       subtitle: Text([
                         if (subred.nombre.isNotEmpty) subred.nombre,
                         if (subred.vlan != null) 'VLAN ${subred.vlan}',
-                        subred.escanear ? 'Se escanea' : 'No se escanea',
+                        subred.escanear ? 'Se revisa' : 'No se revisa',
                       ].join(' · ')),
                     ),
                 ],
@@ -1399,6 +1467,97 @@ class _EnQueSeGasta extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+/// _DialogoBorrarRed pregunta que tan a fondo hay que borrar.
+///
+/// Se separan las dos cosas porque son muy distintas: quitar una red de la vista
+/// se deshace creandola otra vez con el mismo nombre; borrar sus datos, no. Un
+/// solo boton que hiciera lo segundo sin avisar seria una trampa.
+class _DialogoBorrarRed extends StatefulWidget {
+  const _DialogoBorrarRed({required this.red});
+
+  final Red red;
+
+  @override
+  State<_DialogoBorrarRed> createState() => _DialogoBorrarRedState();
+}
+
+class _DialogoBorrarRedState extends State<_DialogoBorrarRed> {
+  bool _tambienLosDatos = false;
+
+  @override
+  Widget build(BuildContext contexto) {
+    final colores = Theme.of(contexto).colorScheme;
+
+    return AlertDialog(
+      title: Text('Eliminar «${widget.red.nombre}»'),
+      content: SizedBox(
+        width: 460,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Se quitara del panel con sus ${widget.red.equipos} equipos, '
+                'su historico y sus alertas.'),
+            const SizedBox(height: 12),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _tambienLosDatos,
+              onChanged: (valor) => setState(() => _tambienLosDatos = valor ?? false),
+              title: const Text('Borrar tambien los datos del disco'),
+              subtitle: const Text('No se puede deshacer'),
+            ),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: _tambienLosDatos
+                    ? colores.errorContainer
+                    : colores.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    _tambienLosDatos ? Icons.warning_amber_outlined : Icons.info_outline,
+                    size: 18,
+                    color: _tambienLosDatos ? colores.onErrorContainer : null,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _tambienLosDatos
+                          ? 'Se borrara el archivo de datos. Todo lo descubierto en '
+                              'este sitio se pierde para siempre.'
+                          : 'El archivo de datos se conserva: puede recuperar este '
+                              'sitio creando una red con el mismo nombre.',
+                      style: Theme.of(contexto).textTheme.bodySmall?.copyWith(
+                          color: _tambienLosDatos ? colores.onErrorContainer : null),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(contexto).pop(),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          style: _tambienLosDatos
+              ? FilledButton.styleFrom(backgroundColor: colores.error)
+              : null,
+          onPressed: () => Navigator.of(contexto).pop(_tambienLosDatos),
+          child: Text(_tambienLosDatos ? 'Borrar todo' : 'Eliminar'),
+        ),
+      ],
     );
   }
 }

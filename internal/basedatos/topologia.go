@@ -433,6 +433,23 @@ type PuertoDeSwitch struct {
 	CuantosEnBoca int    `json:"cuantosEnBoca"`
 }
 
+// MomentoDelMapa dice de cuando son los datos del mapa de puertos.
+//
+// **No es lo mismo que "cuando se exporto".** Un mapa se puede exportar hoy con
+// datos de hace tres semanas, y sin este dato el archivo llevaria la fecha de
+// hoy y pareceria al dia. Es la diferencia entre un plano util y uno que engaña.
+//
+// Devuelve vacio si nunca se ha consultado a ningun switch.
+func (b *Base) MomentoDelMapa(ctx context.Context) (string, error) {
+	var momento sql.NullString
+	err := b.QueryRowContext(ctx,
+		`SELECT MAX(ultima_vez) FROM conexiones_puerto`).Scan(&momento)
+	if err != nil {
+		return "", fmt.Errorf("no se pudo leer de cuando es el mapa: %w", err)
+	}
+	return momento.String, nil
+}
+
 // MapaDePuertos devuelve que hay conectado en cada boca de cada switch.
 func (b *Base) MapaDePuertos(ctx context.Context) ([]PuertoDeSwitch, error) {
 	filas, err := b.QueryContext(ctx, `

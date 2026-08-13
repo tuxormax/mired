@@ -35,9 +35,15 @@ func (a *API) lanzarEscaneo(escritor http.ResponseWriter, peticion *http.Request
 
 	escaneoID, subredes, err := a.Programador.Lanzar(peticion.Context(), clave, cuerpo.SoloPresencia)
 	switch {
+	case errors.Is(err, programador.ErrEquipoSinRed):
+		a.errorValidacion(escritor, peticion, "Escaneo", "Lanzar",
+			"Este equipo no esta conectado a ninguna red. Conectelo por cable o por "+
+				"WiFi y vuelva a intentarlo.")
+		return
 	case errors.Is(err, programador.ErrSinSubredes):
 		a.errorValidacion(escritor, peticion, "Escaneo", "Lanzar",
-			"Esta red no tiene ninguna subred marcada para escanear. Agregue al menos una.")
+			"No hay nada que escanear en esta red y no se pudo averiguar solo. "+
+				"Revise que el servicio de escaneo este corriendo.")
 		return
 	case errors.Is(err, programador.ErrYaEnCurso):
 		a.errorValidacion(escritor, peticion, "Escaneo", "Lanzar",

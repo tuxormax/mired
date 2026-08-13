@@ -44,6 +44,19 @@ contra una de verdad (sólo contra un servidor de mentira que imita las dos
 generaciones); y la inspección profunda contra un puerto espejo real. El switch
 administrable sigue siendo el riesgo abierto más grande del proyecto.
 
+### Todo dato dice de cuándo es
+
+Regla que salió de usar el programa: **todo reporte que salga de MiRed dice de
+qué momento son los datos** — no de cuándo se exportó, sino de cuándo se
+midieron. Un mapa exportado hoy con datos de hace tres semanas llevaría la fecha
+de hoy y parecería al día; quien lo reciba tiene que poder saberlo sin preguntar.
+Va en los cuatro formatos, CSV incluido.
+
+En pantalla, lo mismo pero en cristiano: «hace 5 minutos», «hace 3 días», y en
+rojo cuando lleva más de un día. Una fecha ISO obliga a hacer la cuenta de
+cabeza, y no responde la pregunta que de verdad importa: *¿esto que veo sigue
+siendo cierto?*
+
 ### Lo que enseñó la primera sesión de uso real
 
 Los dos fallos del 2026-08-13 **no los encontró ninguna prueba: los encontró

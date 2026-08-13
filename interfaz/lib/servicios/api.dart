@@ -231,7 +231,10 @@ class Api {
     return Red.desdeJson(datos as Map<String, dynamic>);
   }
 
-  Future<void> borrarRed(String clave) => borrar('/api/redes/$clave');
+  /// borrarRed quita la red. Por omision el archivo de datos se conserva, que
+  /// es lo que permite recuperarla; con tambienLosDatos se borra de verdad.
+  Future<void> borrarRed(String clave, {bool tambienLosDatos = false}) =>
+      borrar('/api/redes/$clave${tambienLosDatos ? '?datos=si' : ''}');
 
   Future<List<Subred>> listarSubredes(String clave) async {
     final datos = await obtener('/api/redes/$clave/subredes') as List<dynamic>;
