@@ -124,6 +124,30 @@ tipo = "ajuste"
 modulo = "Redes"
 notas = "El formulario de nueva red ya no pide una subred en notacion con barra: propone la red detectada y entiende rangos, direcciones sueltas y la notacion de siempre, diciendo lo que entendio antes de crear nada."
 
+[[sistema]]
+version = "1.14"
+revision = 13
+fecha = "2026-08-13"
+tipo = "change"
+modulo = "Redes"
+notas = "Crear una red pide solo nombre y descripcion. Al escanear, MiRed adopta la red de este equipo y lo dice; antes se podia crear una red sin nada que escanear y el barrido no encontraba nada sin explicar por que. Error propio para cuando el equipo no esta conectado a ninguna red."
+
+[[sistema]]
+version = "1.14"
+revision = 14
+fecha = "2026-08-13"
+tipo = "feature"
+modulo = "Redes"
+notas = "Boton para eliminar una red, con la opcion de borrar tambien sus datos del disco. Por omision el borrado es recuperable: el archivo se conserva y volver a crear la red con el mismo nombre la revive."
+
+[[sistema]]
+version = "1.14"
+revision = 15
+fecha = "2026-08-13"
+tipo = "feature"
+modulo = "Mapa visual"
+notas = "Todo reporte dice de cuando son los datos, no solo cuando se exporto: los cuatro formatos del mapa y el CSV. En pantalla, cuando fue el ultimo escaneo se lee como 'hace 3 dias' y en rojo cuando ya no es de fiar."
+
 # ----------------------------------------------------------------- la base --
 #
 # Cada entrada apunta al numero de migracion que la trae. El esquema de las bases
