@@ -110,3 +110,44 @@ pasaba de 12 ms a mas de 10 s, y ahi reventaba el plazo que `Abrir` se ponia.
 
 **Tripwire.** Si una prueba de base de datos falla con *deadline exceeded*, lo
 primero que hay que mirar es que mas estaba corriendo en el equipo, no el SQL.
+
+## 2026-08-13 — La pantalla del primer acceso se ponia gris al teclear el usuario
+
+**Que pasaba.** Al instalar el programa y escribir el usuario en la pantalla de
+primer acceso, la ventana se quedaba **en gris**. Sin mensaje, sin modal, sin
+nada que copiar. El usuario no llego ni a escribir la clave.
+
+**Por que.** La comprobacion de la regla de TUXOR —que el usuario o la clave
+lleven uno de los signos `+ - * % ^ & | < > #`— armaba una expresion regular
+metiendo esa lista en una clase de caracteres. **`RegExp.escape` de Dart NO
+escapa el guion**, asi que quedaba `[\+-\*%...]` y el `-` se leia como un RANGO
+de `+` (0x2B) a `*` (0x2A): al reves, invalido, y la expresion lanza
+`FormatException`.
+
+Dos cosas lo hacian traicionero:
+
+1. **Solo reventaba al teclear uno de esos signos**, que es exactamente lo que la
+   pantalla pide hacer. Con cualquier otra letra la funcion salia antes de llegar
+   a la expresion.
+2. **Nadie lo vio venir porque el error ocurria al DIBUJAR.** Los tres
+   capturadores globales de la casa no alcanzan ahi: para mostrar un modal hace
+   falta una pantalla, y la pantalla era justo lo que fallaba. Flutter, en
+   compilacion de entrega, pinta un hueco gris.
+
+**Que se corrigio.** Dos cosas, y la segunda importa mas que la primera:
+
+1. `_tieneOperador` ya **no usa ninguna expresion regular**: recorta con
+   operaciones de texto, que no pueden fallar. Con pruebas que teclean **los diez
+   signos uno por uno**, que es lo que faltaba.
+2. **Se agrego el CUARTO candado**: `ErrorWidget.builder = pantallaRota`
+   (`interfaz/lib/widgets/pantalla_rota.dart`). Un error al dibujar ya no deja
+   gris: muestra que paso, donde, el stack y un boton de copiar. No se apoya en
+   el tema ni en `Material`, porque es lo ultimo que queda en pie cuando ya fallo
+   algo.
+
+**Tripwires.**
+- Si tocas una expresion regular con una clase de caracteres → **el guion va al
+  final o escapado a mano**; `RegExp.escape` no lo hace por ti.
+- Si armas una expresion regular en un `build()` o en algo que corre por tecla →
+  no lo hagas. Reventar ahi deja la pantalla en gris.
+- Si alguien quita `ErrorWidget.builder` del arranque, vuelven los grises mudos.

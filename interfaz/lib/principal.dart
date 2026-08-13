@@ -11,6 +11,7 @@ import 'pantallas/redes.dart';
 import 'servicios/api.dart';
 import 'servicios/supervisor.dart';
 import 'widgets/mensajes.dart';
+import 'widgets/pantalla_rota.dart';
 
 /// navegador permite abrir el modal de error desde cualquier lado, incluso
 /// desde un fallo que ocurrio fuera del arbol de pantallas.
@@ -26,6 +27,12 @@ void main() {
       FlutterError.presentError(detalles);
       _reportarGlobal(detalles.exception, detalles.stack);
     };
+
+    // El CUARTO candado, y el que faltaba: un error que ocurre mientras se
+    // dibuja no se puede contar con un modal, porque para abrir un modal hace
+    // falta una pantalla y la pantalla es lo que acaba de fallar. Sin esto,
+    // Flutter pinta un hueco gris: sin mensaje, sin causa y sin nada que copiar.
+    ErrorWidget.builder = pantallaRota;
 
     PlatformDispatcher.instance.onError = (problema, pila) {
       _reportarGlobal(problema, pila);

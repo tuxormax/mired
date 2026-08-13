@@ -55,30 +55,49 @@ class _PantallaPrimerAccesoState extends State<PantallaPrimerAcceso> {
     super.dispose();
   }
 
+  /// Los signos que acepta el algoritmo TUXOR como operadores.
+  static const _signos = '+-*%^&|<>#';
+
   /// _tieneOperador replica la regla del algoritmo: el texto tiene que empezar o
   /// terminar con uno de esos signos y dejar algo mas.
   ///
   /// Se comprueba aqui Y en el servidor. Que el formulario avise no exime al
-  /// servidor: un navegador viejo o una peticion hecha por fuera se saltan esto.
+  /// servidor: una peticion hecha por fuera del programa se salta esto.
+  ///
+  /// **Aqui NO se usa ninguna expresion regular, a proposito.** La primera
+  /// version armaba una con la lista de signos metida en una clase de
+  /// caracteres, y el guion de la lista quedaba entre `+` y `*`: la expresion lo
+  /// leia como un rango al reves y reventaba. Como esto corre en cada tecla
+  /// mientras alguien escribe su clave, reventar aqui deja la pantalla en gris.
+  /// Con recortes de texto no hay nada que pueda fallar.
   static bool _tieneOperador(String texto) {
-    const signos = '+-*%^&|<>#';
     var letras = texto;
     // El modificador @ va por fuera de los operadores.
-    if (letras.startsWith('@@') || letras.endsWith('@@')) {
-      letras = letras.replaceAll(RegExp(r'^@@|@@$'), '');
-    } else if (letras.startsWith('@') || letras.endsWith('@')) {
-      letras = letras.replaceAll(RegExp(r'^@|@$'), '');
+    if (letras.startsWith('@@')) {
+      letras = letras.substring(2);
+    } else if (letras.endsWith('@@')) {
+      letras = letras.substring(0, letras.length - 2);
+    } else if (letras.startsWith('@')) {
+      letras = letras.substring(1);
+    } else if (letras.endsWith('@')) {
+      letras = letras.substring(0, letras.length - 1);
     }
     if (letras.isEmpty) return false;
 
-    final alPrincipio = signos.contains(letras[0]);
-    final alFinal = signos.contains(letras[letras.length - 1]);
+    final alPrincipio = _signos.contains(letras[0]);
+    final alFinal = _signos.contains(letras[letras.length - 1]);
     if (!alPrincipio && !alFinal) return false;
 
     // Y tiene que quedar algo que no sea un signo.
-    final resto = letras.replaceAll(RegExp('^[${RegExp.escape(signos)}]+'), '')
-        .replaceAll(RegExp('[${RegExp.escape(signos)}]+\$'), '');
-    return resto.isNotEmpty;
+    var inicio = 0;
+    var fin = letras.length;
+    while (inicio < fin && _signos.contains(letras[inicio])) {
+      inicio++;
+    }
+    while (fin > inicio && _signos.contains(letras[fin - 1])) {
+      fin--;
+    }
+    return fin > inicio;
   }
 
   bool get _cumpleTuxor =>

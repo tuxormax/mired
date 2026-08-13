@@ -50,6 +50,19 @@ errores tontos.
 - **La clave de la red no cambia nunca; el nombre si.** El archivo se llama por
   la clave (`matriz-a1b2.db`). Renombrar NO mueve el archivo.
 
+## Interfaz: errores que no se ven
+- **Los tres capturadores globales NO alcanzan a los errores de dibujo.** Para
+  mostrar un modal hace falta una pantalla, y la pantalla es lo que fallo. Por
+  eso hay un CUARTO candado, `ErrorWidget.builder = pantallaRota` en el arranque:
+  sin el, un error al dibujar deja la ventana **en gris**, muda. Ya mordio.
+  Ver [[historial-bugs]].
+- **`RegExp.escape` de Dart no escapa el guion.** Meter una lista de signos en
+  una clase de caracteres `[...]` puede convertir el `-` en un rango invalido y
+  lanzar `FormatException`. En una clase de caracteres, el guion va **al final**
+  o escapado a mano.
+- **Nada de expresiones regulares en un `build()`** ni en algo que corra por cada
+  tecla: si revientan ahi, se llevan la pantalla entera.
+
 ## El programa de escritorio
 - **MiRed NO tiene interfaz web.** Si alguien vuelve a servir paginas desde el
   servidor, esta deshaciendo la decision del 2026-08-13.
