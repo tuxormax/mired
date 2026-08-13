@@ -39,7 +39,7 @@ type redAbierta struct {
 // NuevoEnrutador abre el catalogo, lo migra si hace falta y deja listo el juego
 // de conexiones a las bases de red.
 func NuevoEnrutador(ctx context.Context, archivoCatalogo, carpetaRedes string, maximo int, inactividad time.Duration) (*Enrutador, error) {
-	catalogo, err := Abrir(archivoCatalogo)
+	catalogo, err := Abrir(ctx, archivoCatalogo)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func (e *Enrutador) Red(ctx context.Context, clave string) (*Base, func(), error
 	// Abrir y migrar puede tardar, asi que se hace fuera del candado. Si dos
 	// peticiones abren la misma red a la vez, una de las dos sobra y se cierra
 	// mas abajo; es raro y barato comparado con bloquear a todos.
-	base, err := Abrir(e.ArchivoDeRed(clave))
+	base, err := Abrir(ctx, e.ArchivoDeRed(clave))
 	if err != nil {
 		return nil, nil, err
 	}

@@ -78,3 +78,35 @@ de mentira: es la unica prueba que las habria encontrado.
 
 **Ver tambien:** [[gotchas]], [[modulo-escaneo]], [[modulo-topologia]],
 [[modulo-alertas]]
+
+## 2026-08-13 — La suite de pruebas fallaba sola cuando el equipo estaba ocupado
+
+**Que pasaba.** `go test ./...` fallaba de vez en cuando en el paquete
+`basedatos`, siempre igual: *"no se pudo conectar a .../mired.db: context
+deadline exceeded"*, en pruebas distintas cada vez. Con `-p 1` no fallaba nunca,
+y corriendo el paquete solo tampoco. Parecia cosa de la maquina.
+
+**Por que.** Cada prueba crea dos bases —catalogo y red— y les corre dos docenas
+de migraciones, sobre `t.TempDir()`, o sea sobre disco, con WAL y
+`synchronous=NORMAL`. Son cientos de sincronizaciones que **no prueban nada**:
+esas pruebas comprueban SQL, no que el disco aguante un corte de corriente. Con
+el equipo ocupado —bastaba una compilacion de Flutter en paralelo— abrir una base
+pasaba de 12 ms a mas de 10 s, y ahi reventaba el plazo que `Abrir` se ponia.
+
+**Como se reprodujo.** Lanzando `flutter build web` y `go test ./...` a la vez:
+5 fallos y 118 s en el paquete. Sin la compilacion al lado, ni uno.
+
+**Que se corrigio.** Dos cosas, en dos sitios distintos a proposito:
+
+1. **En las pruebas** (`carpetaDePrueba`): las bases se crean en `/dev/shm`, que
+   es memoria. Con caida a `t.TempDir()` si no hay. **De 118 s con 5 fallos a
+   0.6 s sin ninguno, bajo la misma carga.**
+2. **En produccion** (`Abrir`): ya no se inventa su propio plazo — recibe
+   contexto y lo respeta, con `EsperaAlAbrir` de 30 s cuando el que llama no trae
+   uno. Y el error separa "tardo demasiado, el equipo puede estar saturado" de
+   "no se pudo conectar". No era solo cosa de las pruebas: **una Raspberry con
+   tarjeta SD escribiendo un escaneo es el caso normal**, y con el plazo viejo el
+   sintoma habria sido una red desapareciendo de la interfaz sin explicacion.
+
+**Tripwire.** Si una prueba de base de datos falla con *deadline exceeded*, lo
+primero que hay que mirar es que mas estaba corriendo en el equipo, no el SQL.

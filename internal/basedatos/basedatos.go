@@ -47,8 +47,23 @@ var opcionesConexion = map[string]string{
 	"synchronous":  "NORMAL",
 }
 
+// EsperaAlAbrir es cuanto se le da a una base para contestar la primera vez.
+//
+// Es generoso a proposito. SQLite aqui es Go puro y la primera conexion escribe
+// en el disco —crea el archivo, lo pone en modo WAL—, asi que en un equipo
+// ocupado eso puede tardar segundos: una Raspberry con tarjeta SD escribiendo un
+// escaneo es el caso normal, no el raro. Con la espera corta que habia antes, el
+// sintoma era que una red desaparecia de la interfaz sin explicacion mientras el
+// equipo estaba ocupado. Esperar de mas cuesta una pantalla lenta; esperar de
+// menos cuesta un dato que no aparece.
+const EsperaAlAbrir = 30 * time.Second
+
 // Abrir abre (o crea) una base en la ruta indicada, con los PRAGMA de la casa.
-func Abrir(archivo string) (*Base, error) {
+//
+// Respeta el contexto del que llama: si la peticion se cancela o el servicio se
+// esta apagando, esto se entera. Cuando el contexto no trae plazo propio se le
+// pone EsperaAlAbrir, para no quedarse esperando para siempre.
+func Abrir(ctx context.Context, archivo string) (*Base, error) {
 	if err := os.MkdirAll(filepath.Dir(archivo), 0o750); err != nil {
 		return nil, fmt.Errorf("no se pudo crear la carpeta de %s: %w", archivo, err)
 	}
@@ -72,10 +87,24 @@ func Abrir(archivo string) (*Base, error) {
 	db.SetMaxIdleConns(2)
 	db.SetConnMaxIdleTime(5 * time.Minute)
 
-	ctx, cancelar := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancelar()
+	if _, hayPlazo := ctx.Deadline(); !hayPlazo {
+		var cancelar context.CancelFunc
+		ctx, cancelar = context.WithTimeout(ctx, EsperaAlAbrir)
+		defer cancelar()
+	}
+
+	inicio := time.Now()
 	if err := db.PingContext(ctx); err != nil {
 		db.Close()
+		// Se distingue "tardo demasiado" de "no se pudo": son problemas
+		// distintos y se arreglan en sitios distintos. Sin esta distincion, un
+		// equipo saturado y un archivo corrupto dan el mismo mensaje, y el
+		// primero manda a buscar donde no hay nada.
+		if ctx.Err() != nil {
+			return nil, fmt.Errorf(
+				"%s no contesto en %s; el equipo puede estar saturado de disco o de CPU: %w",
+				archivo, time.Since(inicio).Round(time.Second), err)
+		}
 		return nil, fmt.Errorf("no se pudo conectar a %s: %w", archivo, err)
 	}
 

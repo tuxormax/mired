@@ -26,6 +26,11 @@ errores tontos.
   `CrearRed`.
 - **Migrar es idempotente y se llama al ABRIR**, no al instalar: una base
   restaurada de un respaldo viejo llega con esquema atrasado.
+- **`Abrir` recibe contexto y lo respeta.** No se inventa su propio plazo: si el
+  que llama trae uno, manda el suyo; si no, se le pone `EsperaAlAbrir` (30 s).
+  El plazo es generoso a proposito —una Raspberry con tarjeta SD escribiendo un
+  escaneo tarda— y el error distingue "tardo demasiado" de "no se pudo": son
+  problemas distintos y se arreglan en sitios distintos.
 - **`ON CONFLICT` contra un indice parcial exige repetir su condicion**:
   `ON CONFLICT (cidr) WHERE estatus >= 0 DO UPDATE …`.
 - **NUNCA decidir "esto es nuevo" o "esto ya no esta" comparando marcas de
@@ -109,11 +114,14 @@ errores tontos.
   carpeta en ingles. Adentro, todo en espanol.
 
 ## Pruebas
-- **`go test ./...` es intermitentemente flojo** desde que hay 6 paquetes con
-  pruebas: al correr en paralelo, abrir una base con modernc/sqlite (Go puro,
-  intensivo en CPU) puede pasarse de los 10 s del `PingContext` de `Abrir` y
-  fallar con "context deadline exceeded". **`go test ./... -p 1` siempre pasa.**
-  Es del entorno de pruebas, no del codigo: el camino que falla no se ha tocado.
+- **Las bases de prueba van en `/dev/shm`, no en `t.TempDir()`** (helper
+  `carpetaDePrueba`). Cada prueba crea dos bases con dos docenas de migraciones;
+  sobre disco son cientos de sincronizaciones que no prueban nada. Con el equipo
+  ocupado —una compilacion de Flutter al lado basta— eso hacia que abrir una base
+  tardara mas de 10 s y **la suite fallara con "context deadline exceeded" por
+  algo que no tenia que ver con lo que se estaba probando**. Reproducido y
+  corregido el 2026-08-13: de 118 s con 5 fallos a 0.6 s sin ninguno.
+  Ver [[historial-bugs]].
 - Las pruebas de exportacion del mapa a PNG necesitan `probador.runAsync` o se
   cuelgan 10 minutos (ver seccion de Flutter).
 

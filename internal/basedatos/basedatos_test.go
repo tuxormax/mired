@@ -5,16 +5,41 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
 
+// carpetaDePrueba devuelve un directorio temporal, preferiblemente en memoria.
+//
+// Estas pruebas comprueban SQL, no que el disco aguante un corte de corriente, y
+// cada una crea dos bases con dos docenas de migraciones. Sobre disco eso son
+// cientos de sincronizaciones que no prueban nada y que, en un equipo ocupado,
+// hacen que abrir una base tarde mas de la cuenta y la prueba falle por algo que
+// no tiene que ver con lo que estaba probando. En `/dev/shm` el mismo trabajo no
+// toca el disco.
+//
+// Si no hay memoria compartida —otro sistema, o montada de otra forma— se cae al
+// directorio temporal normal: la prueba sigue siendo valida, solo mas lenta.
+func carpetaDePrueba(t *testing.T) string {
+	t.Helper()
+
+	if info, err := os.Stat("/dev/shm"); err == nil && info.IsDir() {
+		carpeta, err := os.MkdirTemp("/dev/shm", "mired-prueba-")
+		if err == nil {
+			t.Cleanup(func() { os.RemoveAll(carpeta) })
+			return carpeta
+		}
+	}
+	return t.TempDir()
+}
+
 // enrutadorDePrueba arma un catalogo y una carpeta de redes en un directorio
-// temporal que el propio Go limpia al terminar.
+// temporal que se limpia al terminar.
 func enrutadorDePrueba(t *testing.T) *Enrutador {
 	t.Helper()
 
-	carpeta := t.TempDir()
+	carpeta := carpetaDePrueba(t)
 	enrutador, err := NuevoEnrutador(context.Background(),
 		filepath.Join(carpeta, "mired.db"),
 		filepath.Join(carpeta, "redes"),
@@ -338,5 +363,68 @@ func TestSesionVencidaNoSirve(t *testing.T) {
 	}
 	if _, err := enrutador.BuscarSesion(ctx, sesion.ID, time.Hour); !errors.Is(err, ErrSesionInvalida) {
 		t.Fatalf("una sesion vencida no deberia servir: %v", err)
+	}
+}
+
+func TestAbrirRespetaElContextoDelQueLlama(t *testing.T) {
+	// Antes, Abrir se inventaba su propio plazo y se desentendia del contexto.
+	// Eso tiene dos consecuencias malas: al apagar el servicio hay que esperar a
+	// que termine, y quien tiene su propio presupuesto de tiempo no puede
+	// imponerlo.
+	ctx, cancelar := context.WithCancel(context.Background())
+	cancelar()
+
+	archivo := filepath.Join(carpetaDePrueba(t), "cancelada.db")
+	base, err := Abrir(ctx, archivo)
+	if err == nil {
+		base.Close()
+		t.Fatal("con el contexto ya cancelado no deberia abrir")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("deberia decir que se cancelo: %v", err)
+	}
+}
+
+func TestUnaBaseQueTardaDemasiadoLoDiceClaro(t *testing.T) {
+	// "No se pudo conectar" a secas manda a buscar un archivo corrupto cuando en
+	// realidad el equipo estaba saturado. Son problemas distintos y se arreglan
+	// en sitios distintos, asi que el mensaje tiene que separarlos.
+	ctx, cancelar := context.WithTimeout(context.Background(), time.Nanosecond)
+	defer cancelar()
+
+	archivo := filepath.Join(carpetaDePrueba(t), "lenta.db")
+	_, err := Abrir(ctx, archivo)
+	if err == nil {
+		t.Fatal("con un plazo de un nanosegundo no deberia dar tiempo")
+	}
+	if !strings.Contains(err.Error(), "no contesto en") ||
+		!strings.Contains(err.Error(), "saturado") {
+		t.Fatalf("el mensaje deberia apuntar a que el equipo esta ocupado: %v", err)
+	}
+}
+
+func TestUnPlazoPropioDelQueLlamaManda(t *testing.T) {
+	// Cuando el contexto ya trae plazo, Abrir NO le pone otro encima: el que
+	// llama sabe cuanto tiempo tiene y esto no puede pasarse de ahi.
+	ctx, cancelar := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancelar()
+
+	plazo, hay := ctx.Deadline()
+	if !hay {
+		t.Fatal("el contexto de la prueba deberia traer plazo")
+	}
+
+	archivo := filepath.Join(carpetaDePrueba(t), "conplazo.db")
+	base, err := Abrir(ctx, archivo)
+	if err != nil {
+		t.Fatalf("deberia abrir sin problema: %v", err)
+	}
+	defer base.Close()
+
+	// El plazo del contexto no se movio: si Abrir hubiera puesto el suyo, este
+	// seria otro.
+	nuevoPlazo, _ := ctx.Deadline()
+	if !nuevoPlazo.Equal(plazo) {
+		t.Fatal("Abrir no deberia cambiar el plazo del que llama")
 	}
 }
