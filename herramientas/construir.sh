@@ -41,18 +41,39 @@ VERSION_DEB="${VERSION#v}-${REVISION}"
 echo "== MiRed $VERSION Rev $REVISION ($BUILD)"
 
 # ---------------------------------------------------------------- interfaz --
+#
+# La MISMA interfaz se compila dos veces, a dos objetivos distintos:
+#
+#   web        la sirve mired-servidor; se entra desde cualquier navegador de la red
+#   escritorio un programa con su icono en el menu, que le habla al servidor
+#
+# Es el mismo codigo Dart. Esa es justo la razon por la que la interfaz se
+# escribio en Flutter y no en HTML.
 WEB=""
+ESCRITORIO=""
 if [[ -f "$RAIZ/interfaz/pubspec.yaml" ]]; then
     if command -v flutter >/dev/null 2>&1; then
-        echo "== Compilando la interfaz Flutter"
+        echo "== Compilando la interfaz Flutter para el navegador"
         (cd "$RAIZ/interfaz" && flutter build web --release -t lib/principal.dart)
         WEB="$RAIZ/interfaz/build/web"
+
+        # El programa de escritorio solo se puede compilar para la arquitectura
+        # de ESTE equipo: Flutter no cruza a arm64. Se avisa en vez de callar,
+        # porque un paquete de arm64 sin programa es una sorpresa.
+        if [[ -d "$RAIZ/interfaz/linux" ]]; then
+            echo "== Compilando el programa de escritorio"
+            (cd "$RAIZ/interfaz" && flutter build linux --release -t lib/principal.dart)
+            ESCRITORIO="$(echo "$RAIZ"/interfaz/build/linux/*/release/bundle)"
+        fi
     else
         echo "AVISO: Flutter no esta instalado; el paquete saldra sin interfaz."
     fi
 else
     echo "AVISO: todavia no hay proyecto Flutter en interfaz/; el paquete saldra sin interfaz."
 fi
+
+# La arquitectura de este equipo, para saber a que paquete le cabe el programa.
+ARQ_LOCAL="$(dpkg --print-architecture)"
 
 # --------------------------------------------------------------- paquetes ---
 mkdir -p "$SALIDA"
@@ -98,6 +119,31 @@ for ARQ in "${ARQUITECTURAS[@]}"; do
         cp -r "$WEB/." "$ARBOL/usr/share/mired/web/"
     fi
 
+    # El programa de escritorio, su icono y su entrada de menu. Solo cabe en el
+    # paquete de la arquitectura de este equipo: Flutter no compila a arm64
+    # desde aqui, y meter un binario de amd64 en el .deb de arm64 seria entregar
+    # algo que no arranca.
+    if [[ -n "$ESCRITORIO" && "$ARQ" == "$ARQ_LOCAL" ]]; then
+        mkdir -p "$ARBOL/usr/share/mired/escritorio" \
+                 "$ARBOL/usr/share/applications" \
+                 "$ARBOL/usr/share/icons/hicolor/scalable/apps"
+        cp -r "$ESCRITORIO/." "$ARBOL/usr/share/mired/escritorio/"
+        cp "$RAIZ/empaquetado/escritorio/mired.desktop" "$ARBOL/usr/share/applications/"
+        cp "$RAIZ/empaquetado/escritorio/mired.svg" \
+           "$ARBOL/usr/share/icons/hicolor/scalable/apps/mired.svg"
+
+        # Un lanzador en el PATH: el binario de Flutter carga sus bibliotecas y
+        # sus recursos con rutas relativas a donde esta, asi que un enlace
+        # simbolico a /usr/bin no serviria.
+        cat > "$ARBOL/usr/bin/mired" <<'LANZADOR'
+#!/bin/sh
+# Lanzador del programa de escritorio de MiRed.
+exec /usr/share/mired/escritorio/mired_interfaz "$@"
+LANZADOR
+    elif [[ -n "$ESCRITORIO" ]]; then
+        echo "   (sin programa de escritorio para $ARQ: Flutter solo compila para $ARQ_LOCAL)"
+    fi
+
     sed -e "s/^Version: VERSION/Version: $VERSION_DEB/" \
         -e "s/^Architecture: ARQUITECTURA/Architecture: $ARQ/" \
         "$RAIZ/empaquetado/debian/control" > "$ARBOL/DEBIAN/control"
@@ -120,6 +166,13 @@ for ARQ in "${ARQUITECTURAS[@]}"; do
     find "$ARBOL" -type f -exec chmod 0644 {} +
     chmod 0755 "$ARBOL/usr/bin/mired-servidor" "$ARBOL/usr/bin/mired-sonda" \
                "$ARBOL/usr/bin/mired-dpi"
+    [[ -f "$ARBOL/usr/bin/mired" ]] && chmod 0755 "$ARBOL/usr/bin/mired"
+    # El binario de Flutter y sus bibliotecas tienen que quedar ejecutables: el
+    # chmod 0644 de mas arriba los dejo sin permiso de ejecucion.
+    if [[ -d "$ARBOL/usr/share/mired/escritorio" ]]; then
+        chmod 0755 "$ARBOL/usr/share/mired/escritorio/mired_interfaz"
+        find "$ARBOL/usr/share/mired/escritorio/lib" -name '*.so' -exec chmod 0755 {} + 2>/dev/null || true
+    fi
     chmod 0755 "$ARBOL/DEBIAN/postinst" "$ARBOL/DEBIAN/prerm" "$ARBOL/DEBIAN/postrm"
 
     dpkg-deb --build --root-owner-group "$ARBOL" \

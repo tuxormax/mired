@@ -18,10 +18,15 @@ el tercero —la inspección profunda— viene apagado hasta que usted lo encien
 ## Instalar
 
 ```
-sudo dpkg -i mired_1.0-5_amd64.deb
+sudo dpkg -i mired_1.0-6_amd64.deb
 ```
 
-Al terminar, entre desde el navegador a `http://<el-equipo>:60072`.
+Al terminar, **ábralo desde el menú de aplicaciones** buscando «MiRed», o
+escribiendo `mired` en una terminal. Es un programa: levanta lo que necesita al
+abrirse y lo apaga al cerrarse.
+
+También puede entrar desde el navegador de cualquier equipo de la red, en
+`http://<el-equipo>:60072`, mientras el programa esté abierto.
 
 **MiRed no trae ningún usuario ni clave de fábrica.** La primera vez que entre le
 pedirá que cree el administrador con el usuario y la clave que usted elija. Las
@@ -41,8 +46,8 @@ Hay paquete para `amd64` y para `arm64`, que es lo que necesita una Raspberry Pi
 | `/etc/mired/mired.toml` | Configuración |
 | `/etc/mired/dispositivos/` | Definiciones de dispositivos propias |
 | `/usr/share/mired/dispositivos/` | Catálogo de dispositivos del paquete |
-| `/var/lib/mired/mired.db` | Catálogo: usuarios, permisos y registro de redes |
-| `/var/lib/mired/redes/` | **Una base por red. Es lo único que hay que respaldar** |
+| `~/.local/share/mired/` | **Sus datos, cuando lo usa como programa. Es lo que hay que respaldar** |
+| `/var/lib/mired/` | Los datos cuando se deja corriendo como servicio |
 
 ## Cómo está hecho
 

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Icono de MiRed. Un switch en el centro y cuatro equipos colgando: es
+     literalmente lo que dibuja el programa. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <rect width="128" height="128" rx="26" fill="#7B2D8E"/>
+
+  <!-- Los cables, debajo de todo -->
+  <g stroke="#E9D5F0" stroke-width="4" stroke-linecap="round" fill="none">
+    <path d="M64 56 L64 44"/>
+    <path d="M52 64 L30 64 L30 84"/>
+    <path d="M76 64 L98 64 L98 84"/>
+    <path d="M64 72 L64 92"/>
+  </g>
+
+  <!-- El switch -->
+  <rect x="44" y="52" width="40" height="24" rx="6" fill="#FFFFFF"/>
+  <g fill="#7B2D8E">
+    <circle cx="53" cy="64" r="3"/>
+    <circle cx="64" cy="64" r="3"/>
+    <circle cx="75" cy="64" r="3"/>
+  </g>
+
+  <!-- Los equipos que cuelgan -->
+  <g fill="#E9D5F0">
+    <rect x="50" y="22" width="28" height="20" rx="4"/>
+    <rect x="16" y="84" width="28" height="20" rx="4"/>
+    <rect x="84" y="84" width="28" height="20" rx="4"/>
+    <rect x="50" y="94" width="28" height="20" rx="4"/>
+  </g>
+</svg>

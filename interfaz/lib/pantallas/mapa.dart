@@ -79,21 +79,29 @@ class _PantallaMapaState extends State<PantallaMapa> {
             '  ·  ${Api.instancia.version}',
       );
 
+      var donde = '';
       switch (formato) {
         case _Formato.png:
-          await descargarArchivo(
+          donde = await descargarArchivo(
               '$base.png', 'image/png', await pngDelPlano(plano, encabezado));
         case _Formato.svg:
-          await descargarArchivo('$base.svg', 'image/svg+xml',
+          donde = await descargarArchivo('$base.svg', 'image/svg+xml',
               Uint8List.fromList(utf8.encode(svgDelPlano(plano, encabezado))));
         case _Formato.pdf:
-          await descargarArchivo(
+          donde = await descargarArchivo(
               '$base.pdf', 'application/pdf', pdfDelPlano(plano, encabezado));
         case _Formato.csv:
-          await descargarArchivo('$base.csv', 'text/csv;charset=utf-8',
+          donde = await descargarArchivo('$base.csv', 'text/csv;charset=utf-8',
               Uint8List.fromList(utf8.encode(csvDelMapa(datos))));
         case _Formato.portapapeles:
           break; // Resuelto arriba.
+      }
+
+      // En el programa de escritorio se dice DONDE quedo. Un archivo guardado en
+      // un sitio que el usuario no sabe cual es no sirve de nada; en web no hace
+      // falta, porque el navegador ya lo anuncia a su manera.
+      if (donde.isNotEmpty && mounted) {
+        mensajeAviso(context, 'Guardado en $donde');
       }
     } catch (problema, pila) {
       if (mounted) await mostrarProblema(context, problema, pila: pila.toString());

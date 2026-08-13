@@ -1,3 +1,14 @@
+# Esta unidad NO se habilita al instalar.
+#
+# MiRed es un programa: al abrirlo levanta sus servicios y al cerrarlo los mata.
+# Esta unidad es para el otro caso —un equipo que vigila de continuo, sin nadie
+# que abra un programa: una Raspberry en una sucursal—. Encenderla es cosa suya:
+#
+#     sudo systemctl enable --now mired-sonda mired-servidor
+#
+# Las dos formas NO se mezclan: asi los datos van a /var/lib/mired, y con el
+# programa van a la carpeta de cada usuario.
+
 [Unit]
 Description=MiRed — servidor web y API
 Documentation=https://github.com/tuxormax/mired

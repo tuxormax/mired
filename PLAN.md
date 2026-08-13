@@ -107,10 +107,28 @@ una base con SQLite en Go puro puede pasarse de los 10 s de espera. **Con
 Rust habría dado algo menos de memoria a cambio de un lenguaje que hoy no se
 maneja en casa y que habría que mantener durante años. No compensa.
 
-### 1.2 Flutter Web para la interfaz
+### 1.2 Flutter para la interfaz: un programa, y también web
 
-La interfaz se escribe en Flutter y se compila a web estática, que el propio
-binario del servidor sirve. Razones:
+La interfaz se escribe **una vez en Flutter** y se compila a **dos objetivos**
+desde el mismo código:
+
+- **Un programa de escritorio**, con su icono en el menú de aplicaciones. Es la
+  forma normal de usarlo: se instala y ya. **El programa levanta los servicios al
+  abrirse y los mata al cerrarse** (decidido el 2026-08-13), así que no hay nada
+  que habilitar ni que dejar corriendo. Sus datos van a
+  `~/.local/share/mired`.
+- **Web estática**, que el propio binario del servidor sirve, para entrar desde
+  el navegador de cualquier equipo de la red.
+
+**Lo que cuesta esa simplicidad, dicho claro:** con el programa cerrado, MiRed no
+vigila nada — ni escaneos programados, ni alertas de equipo desconocido, ni
+recepción de los flujos del router. Para un equipo que tiene que vigilar de
+continuo sin nadie delante (una Raspberry en una sucursal), el paquete trae las
+unidades de systemd **instaladas pero apagadas**; encenderlas es una orden. Las
+dos formas no se mezclan: el servicio guarda en `/var/lib/mired` y el programa en
+la carpeta de cada usuario.
+
+Razones de fondo del stack:
 
 - Se accede desde el navegador de cualquier equipo de la red, que es como se usa
   una herramienta que vive en un servidor o en una Raspberry.

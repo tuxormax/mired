@@ -18,6 +18,14 @@ import (
 // RutaPorOmision es donde el paquete .deb deja el archivo de configuracion.
 const RutaPorOmision = "/etc/mired/mired.toml"
 
+// RutaDelUsuario es la configuracion propia de quien usa el programa.
+//
+// Existe porque MiRed tambien se usa como programa de escritorio, y ahi los
+// servicios corren como el usuario: no puede editar /etc/mired/mired.toml sin
+// ser administrador, y no tendria por que. Si este archivo existe, manda sobre
+// el del sistema.
+const RutaDelUsuario = ".config/mired/mired.toml"
+
 // Configuracion son todos los ajustes del servicio.
 type Configuracion struct {
 	Servidor Servidor `toml:"servidor"`
@@ -154,6 +162,16 @@ func Cargar(ruta string) (Configuracion, error) {
 	cfg := PorOmision()
 
 	if ruta == "" {
+		// La del usuario primero: en el programa de escritorio es la unica que
+		// puede editar quien lo usa.
+		if casa, err := os.UserHomeDir(); err == nil {
+			propia := filepath.Join(casa, RutaDelUsuario)
+			if _, err := os.Stat(propia); err == nil {
+				ruta = propia
+			}
+		}
+	}
+	if ruta == "" {
 		ruta = RutaPorOmision
 	}
 	contenido, err := os.ReadFile(ruta)
@@ -208,6 +226,8 @@ func aplicarEntorno(cfg *Configuracion) {
 	entero("MIRED_REDES_ABIERTAS", &cfg.Datos.RedesAbiertas)
 	duracion("MIRED_INACTIVIDAD_RED", &cfg.Datos.InactividadRed)
 	texto("MIRED_SOCKET_SONDA", &cfg.Sonda.Socket)
+	texto("MIRED_SOCKET_DPI", &cfg.Dpi.Socket)
+	texto("MIRED_INTERFAZ_DPI", &cfg.Dpi.Interfaz)
 	texto("MIRED_ESCUCHA_FLUJOS", &cfg.Flujos.Escucha)
 	if valor, hay := os.LookupEnv("MIRED_DISPOSITIVOS"); hay && valor != "" {
 		cfg.Catalogo.Carpetas = strings.Split(valor, ":")

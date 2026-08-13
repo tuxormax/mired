@@ -29,18 +29,35 @@ preparar_datos() {
     chmod 750 "$DATOS/redes" 2>/dev/null || true
 }
 
-habilitar_servicios() {
-    if ! command -v systemctl >/dev/null 2>&1; then
-        echo "AVISO: este sistema no usa systemd; arranque MiRed a mano."
-        return 0
-    fi
+# MiRed es un PROGRAMA: el programa arranca los servicios al abrirse y los mata
+# al cerrarse. Aqui no se habilita nada.
+#
+# Las unidades de systemd se instalan igual, pero apagadas, para quien quiera
+# dejar un equipo vigilando de continuo —una Raspberry en una sucursal— donde no
+# hay nadie que abra un programa. Encenderlas es cosa suya:
+#
+#     sudo systemctl enable --now mired-sonda mired-servidor
+#
+# Las dos formas NO se mezclan: el servicio guarda en /var/lib/mired y el
+# programa en la carpeta de cada usuario.
+no_habilitar_nada() {
+    command -v systemctl >/dev/null 2>&1 || return 0
     systemctl daemon-reload 2>/dev/null || true
-    for servicio in mired-sonda mired-servidor; do
-        systemctl enable "$servicio" >/dev/null 2>&1 \
-            || echo "AVISO: no se pudo habilitar $servicio"
-        systemctl restart "$servicio" >/dev/null 2>&1 \
-            || echo "AVISO: no se pudo arrancar $servicio (revise: journalctl -u $servicio)"
-    done
+}
+
+# La sonda necesita red cruda para el barrido ARP. Corriendo bajo systemd se la
+# daba la unidad; lanzada por el programa, como un usuario normal, hay que
+# ponersela AL BINARIO. Sin esto el descubrimiento cae a sondeo de puertos: mas
+# lento y sin direcciones MAC.
+dar_permisos_de_red() {
+    command -v setcap >/dev/null 2>&1 || {
+        echo "AVISO: falta setcap (paquete libcap2-bin); el escaneo ARP no va a funcionar."
+        return 0
+    }
+    setcap cap_net_raw,cap_net_admin+ep /usr/bin/mired-sonda 2>/dev/null \
+        || echo "AVISO: no se pudieron dar permisos de red a mired-sonda"
+    [ -x /usr/bin/mired-dpi ] && \
+        setcap cap_net_raw,cap_net_admin+ep /usr/bin/mired-dpi 2>/dev/null || true
 }
 
 # La inspeccion profunda viene en el paquete pero NO se enciende sola.
@@ -70,18 +87,46 @@ habilitar_inspeccion() {
         || echo "AVISO: no se pudo arrancar mired-dpi (revise: journalctl -u mired-dpi)"
 }
 
+# El escritorio no muestra un programa nuevo hasta que le avisan: sin esto,
+# MiRed no aparece en el menu hasta el siguiente reinicio de sesion, que es justo
+# lo que hace pensar que la instalacion no funciono.
+refrescar_menu() {
+    [ -d /usr/share/applications ] || return 0
+    command -v update-desktop-database >/dev/null 2>&1 \
+        && update-desktop-database -q /usr/share/applications 2>/dev/null || true
+    command -v gtk-update-icon-cache >/dev/null 2>&1 \
+        && gtk-update-icon-cache -q -f /usr/share/icons/hicolor 2>/dev/null || true
+}
+
 case "$1" in
     configure)
         crear_usuario
         preparar_datos
-        habilitar_servicios
-        habilitar_inspeccion
+        no_habilitar_nada
+        dar_permisos_de_red
+        refrescar_menu
 
         PUERTO=$(sed -n 's/^escucha *= *"\(.*\)"/\1/p' /etc/mired/mired.toml 2>/dev/null | head -1)
         [ -n "$PUERTO" ] || PUERTO=":60072"
         echo ""
-        echo "  MiRed quedo instalado."
-        echo "  Entre desde el navegador:  http://$(hostname -I 2>/dev/null | awk '{print $1}')${PUERTO}"
+        if [ -x /usr/share/mired/escritorio/mired_interfaz ]; then
+            echo "  MiRed quedo instalado."
+            echo ""
+            echo "  ABRALO desde el menu de aplicaciones, buscando \"MiRed\"."
+            echo "  O desde una terminal, escribiendo:  mired"
+            echo ""
+            echo "  El programa levanta solo lo que necesita al abrirse y lo apaga"
+            echo "  al cerrarse. No hay nada mas que configurar."
+            echo ""
+            echo "  Sus datos van a ~/.local/share/mired  (es lo que hay que respaldar)."
+        else
+            echo "  MiRed quedo instalado, pero SIN el programa de escritorio:"
+            echo "  este paquete se armo para otra arquitectura."
+            echo ""
+            echo "  Puede dejarlo corriendo como servicio y entrar por el navegador:"
+            echo "    sudo systemctl enable --now mired-sonda mired-servidor"
+            echo "    http://$(hostname -I 2>/dev/null | awk '{print $1}')${PUERTO}"
+        fi
         echo ""
         echo "  No hay usuario ni clave de fabrica: la primera vez que entre le"
         echo "  pedira crear el administrador con los que usted elija."

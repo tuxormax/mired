@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -15,6 +16,15 @@ class Api {
   static final Api instancia = Api._();
 
   static const _claveToken = 'mired.token';
+  static const _claveServidor = 'mired.servidor';
+
+  /// ServidorPorOmision es a donde apunta el programa de escritorio recien
+  /// instalado: al MiRed de este mismo equipo.
+  ///
+  /// Se puede cambiar para conectarse al de otro sitio —la Raspberry de la
+  /// sucursal, por ejemplo—, que es justo para lo que sirve tener un programa y
+  /// no solo la pagina que sirve cada servidor.
+  static const servidorPorOmision = 'http://localhost:60072';
 
   /// En produccion la interfaz la sirve el mismo binario, asi que el servidor
   /// es el mismo origen. Para desarrollar con recarga en caliente se compila
@@ -30,9 +40,40 @@ class Api {
   Map<String, String> permisos = {};
   String version = '';
 
+  /// servidor es la direccion del MiRed al que se le habla.
+  ///
+  /// **Solo la usa el programa de escritorio.** En web no existe la pregunta: la
+  /// interfaz la sirve el propio servidor, asi que el suyo es el mismo origen de
+  /// la pagina. En escritorio no hay pagina de la que deducirlo, y ademas el
+  /// programa puede querer hablarle al MiRed de otro sitio.
+  String servidor = servidorPorOmision;
+
   String get _base {
     if (baseDePrueba != null) return baseDePrueba!;
-    return _apiDefinida.isNotEmpty ? _apiDefinida : Uri.base.origin;
+    if (_apiDefinida.isNotEmpty) return _apiDefinida;
+    // En web, el servidor es siempre el que sirvio la pagina. Deducirlo asi
+    // evita que la interfaz deje de funcionar cuando se entra por la IP en vez
+    // de por el nombre, o al reves.
+    if (kIsWeb) return Uri.base.origin;
+    return servidor;
+  }
+
+  /// cargarServidor recupera la direccion guardada. Solo en escritorio.
+  Future<void> cargarServidor() async {
+    if (kIsWeb) return;
+    final guardado = await SharedPreferences.getInstance();
+    servidor = guardado.getString(_claveServidor) ?? servidorPorOmision;
+  }
+
+  /// guardarServidor apunta el programa a otro MiRed y cierra lo que hubiera
+  /// abierto: la sesion es de un servidor, no del programa.
+  Future<void> guardarServidor(String direccion) async {
+    servidor = direccion.trim().replaceAll(RegExp(r'/+$'), '');
+    final guardado = await SharedPreferences.getInstance();
+    await guardado.setString(_claveServidor, servidor);
+    await _guardarToken(null);
+    usuario = null;
+    permisos = {};
   }
 
   Future<void> cargarToken() async {
@@ -151,6 +192,7 @@ class Api {
   /// falso si ya no vale, para mandar a la pantalla de entrada sin tratarlo como
   /// error.
   Future<bool> recuperarSesion() async {
+    await cargarServidor();
     await cargarToken();
     if (!hayToken) return false;
     try {

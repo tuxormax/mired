@@ -11,7 +11,12 @@ import 'package:web/web.dart' as navegador;
 /// click. Al terminar hay que **soltar la URL**: si no, los bytes del PNG se
 /// quedan en memoria hasta que se recargue la pagina, y un mapa grande son
 /// varios megas por cada exportacion.
-Future<void> descargarArchivo(String nombre, String tipoMime, Uint8List datos) async {
+
+/// descargarArchivo entrega el archivo al navegador.
+///
+/// Devuelve cadena vacia: en web no hay una ruta que decir, porque cada
+/// navegador guarda donde tenga configurado y ni siquiera puede consultarse.
+Future<String> descargarArchivo(String nombre, String tipoMime, Uint8List datos) async {
   final partes = <JSAny>[datos.toJS].toJS;
   final blob = navegador.Blob(partes, navegador.BlobPropertyBag(type: tipoMime));
   final direccion = navegador.URL.createObjectURL(blob);
@@ -24,6 +29,7 @@ Future<void> descargarArchivo(String nombre, String tipoMime, Uint8List datos) a
   enlace.remove();
 
   navegador.URL.revokeObjectURL(direccion);
+  return '';
 }
 
 /// abrirEnlace abre una direccion en otra pestana.

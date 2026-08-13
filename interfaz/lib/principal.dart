@@ -9,6 +9,7 @@ import 'pantallas/entrar.dart';
 import 'pantallas/primer_acceso.dart';
 import 'pantallas/redes.dart';
 import 'servicios/api.dart';
+import 'servicios/supervisor.dart';
 import 'widgets/mensajes.dart';
 
 /// navegador permite abrir el modal de error desde cualquier lado, incluso
@@ -92,14 +93,44 @@ class PantallaArranque extends StatefulWidget {
   State<PantallaArranque> createState() => _PantallaArranqueState();
 }
 
-class _PantallaArranqueState extends State<PantallaArranque> {
+class _PantallaArranqueState extends State<PantallaArranque> with WidgetsBindingObserver {
+  String _paso = 'Arrancando MiRed...';
+
   @override
   void initState() {
     super.initState();
+    // Escuchar el cierre de la ventana es lo que permite matar los servicios:
+    // sin esto quedarian corriendo despues de cerrar el programa, que es
+    // justamente lo que no se quiere.
+    WidgetsBinding.instance.addObserver(this);
     _decidir();
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// didRequestAppExit es el aviso de que el usuario cerro la ventana.
+  ///
+  /// Se detienen los servicios ANTES de dejar salir al programa. Devolver
+  /// `exit` sin esperar dejaria los procesos huerfanos: el programa se cierra y
+  /// mired-servidor sigue con el puerto tomado.
+  @override
+  Future<AppExitResponse> didRequestAppExit() async {
+    await Servicios.instancia.detener();
+    return AppExitResponse.exit;
+  }
+
   Future<void> _decidir() async {
+    // Antes que nada, levantar lo que MiRed necesita para funcionar. En web esto
+    // no hace nada: ahi la pagina la sirvio el propio servidor.
+    setState(() => _paso = 'Arrancando los servicios de MiRed...');
+    await Servicios.instancia.arrancar();
+    if (!mounted) return;
+    setState(() => _paso = 'Conectando...');
+
     var haySesion = false;
     var sinEstrenar = false;
     var operadores = '';
@@ -125,10 +156,28 @@ class _PantallaArranqueState extends State<PantallaArranque> {
         return const PantallaEntrar();
       },
     ));
+
+    // Si algo quedo a medias se dice, pero DESPUES de dejar entrar: casi nada de
+    // lo que puede fallar al arrancar impide trabajar, y bloquear el paso por un
+    // aviso seria peor que el aviso.
+    final aviso = Servicios.instancia.aviso;
+    if (aviso != null && mounted) mensajeAviso(context, aviso);
   }
 
   @override
-  Widget build(BuildContext contexto) => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+  Widget build(BuildContext contexto) => Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.lan_outlined, size: 48,
+                  color: Theme.of(contexto).colorScheme.primary),
+              const SizedBox(height: 20),
+              const CircularProgressIndicator(),
+              const SizedBox(height: 20),
+              Text(_paso, style: Theme.of(contexto).textTheme.bodySmall),
+            ],
+          ),
+        ),
       );
 }

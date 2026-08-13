@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../servicios/api.dart';
 import '../servicios/trayectoria.dart';
 import '../widgets/mensajes.dart';
 import 'redes.dart';
+import 'servidor.dart';
 
 class PantallaEntrar extends StatefulWidget {
   const PantallaEntrar({super.key});
@@ -24,6 +26,19 @@ class _PantallaEntrarState extends State<PantallaEntrar> {
     _usuario.dispose();
     _clave.dispose();
     super.dispose();
+  }
+
+  /// _cambiarServidor apunta el programa a otro MiRed.
+  ///
+  /// Vive en esta pantalla porque es donde hace falta: si el servidor de este
+  /// equipo no esta corriendo, o se quiere ver el de otro sitio, aqui es donde
+  /// uno se da cuenta.
+  Future<void> _cambiarServidor() async {
+    final cambio = await showDialog<bool>(
+      context: context,
+      builder: (_) => const DialogoServidor(),
+    );
+    if (cambio == true && mounted) setState(() {});
   }
 
   Future<void> _entrar() async {
@@ -111,6 +126,17 @@ class _PantallaEntrarState extends State<PantallaEntrar> {
                                 height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
                             : const Text('Entrar'),
                       ),
+                      // Solo en el programa: en el navegador el servidor es
+                      // siempre el que sirvio la pagina y no hay nada que elegir.
+                      if (!kIsWeb) ...[
+                        const SizedBox(height: 8),
+                        TextButton.icon(
+                          onPressed: _ocupado ? null : _cambiarServidor,
+                          icon: const Icon(Icons.dns_outlined, size: 18),
+                          label: Text(Api.instancia.servidor,
+                              style: Theme.of(contexto).textTheme.labelSmall),
+                        ),
+                      ],
                     ],
                   ),
                 ),

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=MiRed
+GenericName=Mapeo de redes
+Comment=Descubre los equipos de la red y dibuja en que puerto de que switch esta cada uno
+Exec=mired %U
+Icon=mired
+Terminal=false
+Categories=Network;Monitor;System;
+Keywords=red;network;switch;snmp;mapa;inventario;
+StartupNotify=true
+StartupWMClass=mired_interfaz
