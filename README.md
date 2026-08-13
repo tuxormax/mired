@@ -5,8 +5,7 @@ qué switch está conectado cada aparato**.
 
 Sin topes de redes ni de usuarios. Cada red vive en su propia base de datos
 SQLite, así que respaldar un sitio es copiar un archivo. No necesita servidor de
-base de datos ni Docker: son tres binarios y tres servicios en un solo `.deb`, y
-el tercero —la inspección profunda— viene apagado hasta que usted lo encienda.
+base de datos ni Docker: se instala el `.deb` y aparece en el menú.
 
 > **Estado: en construcción (fases 1 a 10, falta publicar).** Ya descubre los equipos de la
 > red, guarda quién está encendido en cada momento, escanea solo con la
@@ -18,15 +17,16 @@ el tercero —la inspección profunda— viene apagado hasta que usted lo encien
 ## Instalar
 
 ```
-sudo dpkg -i mired_1.0-6_amd64.deb
+sudo dpkg -i mired_1.0-7_amd64.deb
 ```
 
 Al terminar, **ábralo desde el menú de aplicaciones** buscando «MiRed», o
-escribiendo `mired` en una terminal. Es un programa: levanta lo que necesita al
-abrirse y lo apaga al cerrarse.
+escribiendo `mired` en una terminal.
 
-También puede entrar desde el navegador de cualquier equipo de la red, en
-`http://<el-equipo>:60072`, mientras el programa esté abierto.
+**Es un programa, no una página web.** Levanta lo que necesita al abrirse y lo
+apaga al cerrarse: no hay servicios que habilitar ni nada que dejar corriendo.
+Desde el mismo programa puede ver también el MiRed de otro equipo — la Raspberry
+de una sucursal, por ejemplo.
 
 **MiRed no trae ningún usuario ni clave de fábrica.** La primera vez que entre le
 pedirá que cree el administrador con el usuario y la clave que usted elija. Las
@@ -53,7 +53,8 @@ Hay paquete para `amd64` y para `arm64`, que es lo que necesita una Raspberry Pi
 
 - **Go** para el servicio: dos binarios estáticos, sin dependencias, que cruzan a
   `arm64` sin toolchain cruzado.
-- **Flutter** para la interfaz, compilada a web y servida por el propio binario.
+- **Flutter** para la interfaz: un programa de escritorio nativo, que arranca y
+  detiene los servicios él mismo.
 - **SQLite** para los datos, con una base independiente por cada red.
 - Descubrimiento en tres capas —ARP, ICMP y TCP—, que degradan con honestidad:
   cada equipo dice con qué método se vio, y el mapa distingue el puerto

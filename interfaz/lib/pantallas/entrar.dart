@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../servicios/api.dart';
@@ -126,17 +125,13 @@ class _PantallaEntrarState extends State<PantallaEntrar> {
                                 height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
                             : const Text('Entrar'),
                       ),
-                      // Solo en el programa: en el navegador el servidor es
-                      // siempre el que sirvio la pagina y no hay nada que elegir.
-                      if (!kIsWeb) ...[
-                        const SizedBox(height: 8),
-                        TextButton.icon(
-                          onPressed: _ocupado ? null : _cambiarServidor,
-                          icon: const Icon(Icons.dns_outlined, size: 18),
-                          label: Text(Api.instancia.servidor,
-                              style: Theme.of(contexto).textTheme.labelSmall),
-                        ),
-                      ],
+                      const SizedBox(height: 8),
+                      TextButton.icon(
+                        onPressed: _ocupado ? null : _cambiarServidor,
+                        icon: const Icon(Icons.dns_outlined, size: 18),
+                        label: Text(Api.instancia.servidor,
+                            style: Theme.of(contexto).textTheme.labelSmall),
+                      ),
                     ],
                   ),
                 ),

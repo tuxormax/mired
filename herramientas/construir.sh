@@ -42,34 +42,24 @@ echo "== MiRed $VERSION Rev $REVISION ($BUILD)"
 
 # ---------------------------------------------------------------- interfaz --
 #
-# La MISMA interfaz se compila dos veces, a dos objetivos distintos:
+# MiRed es un PROGRAMA DE ESCRITORIO. No hay interfaz web y no se compila
+# ninguna: el servidor solo expone la API, que es como el programa y los
+# servicios se entienden.
 #
-#   web        la sirve mired-servidor; se entra desde cualquier navegador de la red
-#   escritorio un programa con su icono en el menu, que le habla al servidor
-#
-# Es el mismo codigo Dart. Esa es justo la razon por la que la interfaz se
-# escribio en Flutter y no en HTML.
-WEB=""
+# El programa solo se puede compilar para la arquitectura de ESTE equipo:
+# Flutter no cruza a arm64. Se avisa en vez de callar, porque un paquete de
+# arm64 sin programa es una sorpresa desagradable.
 ESCRITORIO=""
 if [[ -f "$RAIZ/interfaz/pubspec.yaml" ]]; then
     if command -v flutter >/dev/null 2>&1; then
-        echo "== Compilando la interfaz Flutter para el navegador"
-        (cd "$RAIZ/interfaz" && flutter build web --release -t lib/principal.dart)
-        WEB="$RAIZ/interfaz/build/web"
-
-        # El programa de escritorio solo se puede compilar para la arquitectura
-        # de ESTE equipo: Flutter no cruza a arm64. Se avisa en vez de callar,
-        # porque un paquete de arm64 sin programa es una sorpresa.
-        if [[ -d "$RAIZ/interfaz/linux" ]]; then
-            echo "== Compilando el programa de escritorio"
-            (cd "$RAIZ/interfaz" && flutter build linux --release -t lib/principal.dart)
-            ESCRITORIO="$(echo "$RAIZ"/interfaz/build/linux/*/release/bundle)"
-        fi
+        echo "== Compilando el programa de escritorio"
+        (cd "$RAIZ/interfaz" && flutter build linux --release -t lib/principal.dart)
+        ESCRITORIO="$(echo "$RAIZ"/interfaz/build/linux/*/release/bundle)"
     else
-        echo "AVISO: Flutter no esta instalado; el paquete saldra sin interfaz."
+        echo "AVISO: Flutter no esta instalado; el paquete saldra sin el programa."
     fi
 else
-    echo "AVISO: todavia no hay proyecto Flutter en interfaz/; el paquete saldra sin interfaz."
+    echo "AVISO: todavia no hay proyecto Flutter en interfaz/; el paquete saldra sin el programa."
 fi
 
 # La arquitectura de este equipo, para saber a que paquete le cabe el programa.
@@ -114,11 +104,6 @@ for ARQ in "${ARQUITECTURAS[@]}"; do
     if [[ -d "$RAIZ/catalogo/dispositivos" ]]; then
         cp -r "$RAIZ/catalogo/dispositivos/." "$ARBOL/usr/share/mired/dispositivos/" 2>/dev/null || true
     fi
-    if [[ -n "$WEB" ]]; then
-        mkdir -p "$ARBOL/usr/share/mired/web"
-        cp -r "$WEB/." "$ARBOL/usr/share/mired/web/"
-    fi
-
     # El programa de escritorio, su icono y su entrada de menu. Solo cabe en el
     # paquete de la arquitectura de este equipo: Flutter no compila a arm64
     # desde aqui, y meter un binario de amd64 en el .deb de arm64 seria entregar

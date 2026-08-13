@@ -107,18 +107,21 @@ una base con SQLite en Go puro puede pasarse de los 10 s de espera. **Con
 Rust habría dado algo menos de memoria a cambio de un lenguaje que hoy no se
 maneja en casa y que habría que mantener durante años. No compensa.
 
-### 1.2 Flutter para la interfaz: un programa, y también web
+### 1.2 Flutter para la interfaz: un programa de escritorio
 
-La interfaz se escribe **una vez en Flutter** y se compila a **dos objetivos**
-desde el mismo código:
+**MiRed es un programa, no una página.** Se instala, aparece en el menú de
+aplicaciones y se abre como cualquier otro. No hay interfaz web y no se compila
+ninguna (decidido el 2026-08-13, después de haberla tenido).
 
-- **Un programa de escritorio**, con su icono en el menú de aplicaciones. Es la
-  forma normal de usarlo: se instala y ya. **El programa levanta los servicios al
-  abrirse y los mata al cerrarse** (decidido el 2026-08-13), así que no hay nada
-  que habilitar ni que dejar corriendo. Sus datos van a
-  `~/.local/share/mired`.
-- **Web estática**, que el propio binario del servidor sirve, para entrar desde
-  el navegador de cualquier equipo de la red.
+- **El programa manda sobre los servicios**: los levanta al abrirse y los mata al
+  cerrarse. No hay nada que habilitar ni que dejar corriendo.
+- **Sus datos van a `~/.local/share/mired`**, no a `/var/lib`: los servicios
+  corren como el usuario, y no tendría por qué poder escribir en una carpeta del
+  sistema.
+- El servidor **solo expone la API**. Sigue hablando HTTP porque es la forma más
+  simple de que el programa y los servicios se entiendan — y porque así el
+  programa puede ver también el MiRed de otro equipo, que es lo que sirve para
+  administrar varios sitios desde uno.
 
 **Lo que cuesta esa simplicidad, dicho claro:** con el programa cerrado, MiRed no
 vigila nada — ni escaneos programados, ni alertas de equipo desconocido, ni
@@ -130,13 +133,10 @@ la carpeta de cada usuario.
 
 Razones de fondo del stack:
 
-- Se accede desde el navegador de cualquier equipo de la red, que es como se usa
-  una herramienta que vive en un servidor o en una Raspberry.
 - Es el entorno que ya se maneja en casa (MiAuto, la app de SCOLELTE, el POS).
-- **El mismo código da después la app de escritorio y la de Android** sin
-  reescribir la interfaz: se cambia el objetivo de compilación y apunta a la
-  misma API. Eso es gratis aquí y sería un proyecto entero en cualquier otro
-  stack.
+- **El mismo código da después la app de Android** sin reescribir la interfaz:
+  se cambia el objetivo de compilación y apunta a la misma API. Eso es gratis
+  aquí y sería un proyecto entero en cualquier otro stack.
 - El mapa de red es un grafo dibujado sobre lienzo, que es justo lo que Flutter
   hace bien y lo que en HTML obligaría a meter una biblioteca de terceros.
 
@@ -329,7 +329,7 @@ Esqueleto del proyecto en Go, base de datos y una interfaz que ya entra.
   proyecto público, una puerta que cualquiera puede buscar. Las claves se guardan
   con el algoritmo **TUXOR** de la casa sobre scrypt.
 - API REST con el contrato base y el manejo de errores de la casa.
-- Interfaz Flutter que compila a web, entra con usuario y contraseña y lista las
+- Programa de escritorio en Flutter: entra con usuario y contraseña y lista las
   redes.
 - `.deb` mínimo que instala, crea el usuario de sistema, levanta los dos
   servicios y no falla nunca en el `postinst`.

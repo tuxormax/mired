@@ -49,7 +49,6 @@ dpkg-deb -x "$PAQUETE" "$CARPETA"
 cat > "$CARPETA/mired.toml" <<FIN
 [servidor]
 escucha = "127.0.0.1:$PUERTO"
-ruta_web = "$CARPETA/usr/share/mired/web"
 [datos]
 ruta = "$CARPETA/datos"
 [flujos]
@@ -86,8 +85,19 @@ echo "== Recorriendo el flujo completo"
 curl -s "$API/api/estado" | grep -q '"ok":true' \
     && paso "el servicio responde" || falla "el servicio no responde"
 
-curl -s -o /dev/null -w '%{http_code}' "$API/" | grep -q 200 \
-    && paso "el paquete trae la interfaz y la sirve" || falla "la interfaz no se sirve"
+# MiRed no tiene interfaz web: la raiz explica que es un programa, en vez de dar
+# un 404 seco que haria pensar que algo se rompio.
+curl -s "$API/" | grep -q "programa de escritorio" \
+    && paso "la raiz explica que MiRed no se usa desde el navegador" \
+    || falla "la raiz no explica nada"
+
+[[ -x "$CARPETA/usr/share/mired/escritorio/mired_interfaz" ]] \
+    && paso "el paquete trae el programa de escritorio" \
+    || falla "el paquete no trae el programa de escritorio"
+
+[[ -f "$CARPETA/usr/share/applications/mired.desktop" ]] \
+    && paso "y su entrada en el menu de aplicaciones" \
+    || falla "falta la entrada de menu"
 
 # Una instalacion recien hecha NO trae usuario de fabrica: lo dice y pide crearlo.
 curl -s "$API/api/estado" | grep -q '"sinEstrenar":true' \

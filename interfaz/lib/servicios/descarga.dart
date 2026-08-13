@@ -1,9 +1,9 @@
 library;
 
-/// descarga guarda un archivo y abre enlaces, en web y en escritorio.
+/// descarga guarda un archivo en el equipo y abre enlaces en el navegador.
 ///
-/// Son dos cosas distintas de verdad, no una con dos nombres: en web se le
-/// entrega el archivo al navegador y es el quien decide donde ponerlo; en
-/// escritorio hay que escribirlo y **decir donde quedo**. Por eso cada objetivo
-/// tiene su archivo y `descargarArchivo` devuelve la ruta cuando la hay.
-export 'descarga_generica.dart' if (dart.library.js_interop) 'descarga_web.dart';
+/// Antes esto era una exportacion condicional, porque la interfaz se compilaba
+/// tambien a web y ahi guardar un archivo es cosa del navegador. **MiRed ya no
+/// tiene interfaz web**: es un programa de escritorio, asi que hay una sola
+/// forma de hacerlo y no hace falta elegir.
+export 'descarga_generica.dart';

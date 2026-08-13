@@ -24,9 +24,6 @@ type API struct {
 	Datos    *basedatos.Enrutador
 	Auth     *autenticacion.Servicio
 	Bitacora *slog.Logger
-	// RutaWeb es la carpeta con la interfaz Flutter compilada. Si esta vacia o
-	// no existe, el servicio funciona igual: solo responde la API.
-	RutaWeb string
 	// Seguro marca las cookies como Secure. Se activa cuando MiRed se sirve
 	// detras de HTTPS.
 	Seguro bool
@@ -116,7 +113,10 @@ func (a *API) Rutas() http.Handler {
 
 	// La interfaz. Va al final: cualquier ruta que no sea /api/ la atiende el
 	// sitio compilado.
-	mux.Handle("/", a.servirInterfaz())
+	// La raiz NO sirve ninguna pagina: MiRed es un programa de escritorio y esto
+	// es solo su motor. Quien llegue aqui con un navegador se lleva una
+	// explicacion, no un error a secas.
+	mux.HandleFunc("/", a.noHayPaginaWeb)
 
 	return conRegistro(a.Bitacora, mux)
 }
@@ -193,32 +193,26 @@ func (a *API) conRed(manejador http.HandlerFunc) http.Handler {
 	})
 }
 
-// servirInterfaz entrega la interfaz Flutter compilada, con retorno al index
-// para que las rutas internas de la aplicacion funcionen al recargar.
-func (a *API) servirInterfaz() http.Handler {
-	if a.RutaWeb == "" {
-		return http.HandlerFunc(a.sinInterfaz)
-	}
-	archivos := http.FileServer(http.Dir(a.RutaWeb))
-
-	return http.HandlerFunc(func(escritor http.ResponseWriter, peticion *http.Request) {
-		if strings.HasPrefix(peticion.URL.Path, "/api/") {
-			http.NotFound(escritor, peticion)
-			return
-		}
-		archivos.ServeHTTP(escritor, peticion)
-	})
-}
-
-func (a *API) sinInterfaz(escritor http.ResponseWriter, peticion *http.Request) {
+// noHayPaginaWeb explica a quien llegue con un navegador que aqui no hay nada
+// que mirar.
+//
+// **MiRed no tiene interfaz web.** Es un programa de escritorio; esto es su
+// motor, y habla HTTP solo porque es la forma mas simple de que el programa y
+// los servicios se entiendan, incluso a traves de la red cuando se quiere ver
+// otro equipo. Devolver un 404 seco haria pensar que algo se rompio.
+func (a *API) noHayPaginaWeb(escritor http.ResponseWriter, peticion *http.Request) {
 	if strings.HasPrefix(peticion.URL.Path, "/api/") {
 		http.NotFound(escritor, peticion)
 		return
 	}
 	escritor.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	escritor.WriteHeader(http.StatusServiceUnavailable)
-	escritor.Write([]byte("La interfaz de MiRed no esta instalada en este servidor.\n" +
-		"El servicio funciona: pruebe /api/estado\n"))
+	escritor.WriteHeader(http.StatusNotFound)
+	escritor.Write([]byte(
+		"MiRed no se usa desde el navegador: es un programa de escritorio.\n\n" +
+			"Abralo desde el menu de aplicaciones, o escriba  mired  en una terminal.\n" +
+			"Para conectarse a ESTE equipo desde otro, abra el programa alla y ponga\n" +
+			"esta direccion en el boton del servidor.\n\n" +
+			"Esto de aqui es el motor, y si funciona: pruebe /api/estado\n"))
 }
 
 // conRegistro anota cada peticion en la bitacora, con su duracion.

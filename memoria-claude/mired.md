@@ -44,9 +44,24 @@ Ademas WatchYourLAN, la herramienta mas liviana de la categoria, es Go: el
 presupuesto de recursos es alcanzable. Rust daria algo menos de memoria a cambio
 de un lenguaje que hoy no se maneja en casa.
 
-**Flutter compilado a web**, servido por el propio binario: se entra desde
-cualquier navegador de la red, es el entorno que ya se maneja en casa, y **el
-mismo codigo da despues la app de escritorio y Android** sin reescribir nada.
+**MiRed es un PROGRAMA DE ESCRITORIO en Flutter** (decidido el 2026-08-13, tras
+haber tenido interfaz web). Se instala el `.deb` y aparece en el menu. **No hay
+interfaz web y no se compila ninguna**: el servidor solo expone la API.
+
+**El programa manda sobre los servicios**: los levanta al abrirse y los mata al
+cerrarse (`interfaz/lib/servicios/supervisor_generico.dart`). Datos en
+`~/.local/share/mired`, no en `/var/lib`. Dos reglas que no se pueden olvidar:
+
+1. **Solo mata lo que el arranco.** Si al abrir ya habia un MiRed vivo, se cuelga
+   de el y al cerrar no lo toca: matar el servicio de otro dejaria sin
+   vigilancia una red que si la tenia.
+2. **Con el programa cerrado MiRed no vigila nada** — ni escaneos programados, ni
+   alertas, ni flujos del router. Es el precio elegido a cambio de "se instala y
+   ya". Para vigilancia continua (Raspberry en sucursal) el paquete trae las
+   unidades de systemd **instaladas y apagadas**; las dos formas NO se mezclan.
+
+La sonda recibe `CAP_NET_RAW` por `setcap` sobre el binario, no por systemd:
+lanzada por un usuario normal, es la unica forma.
 
 **Python solo auxiliar**: scripts, generadores del catalogo, laboratorio. Nunca
 en el servicio, para no romper el binario unico.

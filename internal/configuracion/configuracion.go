@@ -41,8 +41,6 @@ type Configuracion struct {
 type Servidor struct {
 	// Escucha es la direccion y puerto del servicio, por ejemplo ":60072".
 	Escucha string `toml:"escucha"`
-	// RutaWeb es la carpeta con la interfaz Flutter ya compilada.
-	RutaWeb string `toml:"ruta_web"`
 	// DuracionSesion es cuanto vale una sesion desde el ultimo uso.
 	DuracionSesion Duracion `toml:"duracion_sesion"`
 }
@@ -125,7 +123,6 @@ func PorOmision() Configuracion {
 	return Configuracion{
 		Servidor: Servidor{
 			Escucha:        ":60072",
-			RutaWeb:        "/usr/share/mired/web",
 			DuracionSesion: Duracion{12 * time.Hour},
 		},
 		Datos: Datos{
@@ -220,7 +217,6 @@ func aplicarEntorno(cfg *Configuracion) {
 	}
 
 	texto("MIRED_ESCUCHA", &cfg.Servidor.Escucha)
-	texto("MIRED_RUTA_WEB", &cfg.Servidor.RutaWeb)
 	duracion("MIRED_DURACION_SESION", &cfg.Servidor.DuracionSesion)
 	texto("MIRED_DATOS", &cfg.Datos.Ruta)
 	entero("MIRED_REDES_ABIERTAS", &cfg.Datos.RedesAbiertas)

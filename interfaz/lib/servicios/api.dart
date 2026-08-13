@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -42,25 +41,19 @@ class Api {
 
   /// servidor es la direccion del MiRed al que se le habla.
   ///
-  /// **Solo la usa el programa de escritorio.** En web no existe la pregunta: la
-  /// interfaz la sirve el propio servidor, asi que el suyo es el mismo origen de
-  /// la pagina. En escritorio no hay pagina de la que deducirlo, y ademas el
-  /// programa puede querer hablarle al MiRed de otro sitio.
+  /// Por omision el de este mismo equipo, que es el que levanta el propio
+  /// programa. Se puede cambiar para ver el de otro sitio —la Raspberry de la
+  /// sucursal—, que es justo lo que se gana teniendo un programa.
   String servidor = servidorPorOmision;
 
   String get _base {
     if (baseDePrueba != null) return baseDePrueba!;
     if (_apiDefinida.isNotEmpty) return _apiDefinida;
-    // En web, el servidor es siempre el que sirvio la pagina. Deducirlo asi
-    // evita que la interfaz deje de funcionar cuando se entra por la IP en vez
-    // de por el nombre, o al reves.
-    if (kIsWeb) return Uri.base.origin;
     return servidor;
   }
 
-  /// cargarServidor recupera la direccion guardada. Solo en escritorio.
+  /// cargarServidor recupera la direccion guardada.
   Future<void> cargarServidor() async {
-    if (kIsWeb) return;
     final guardado = await SharedPreferences.getInstance();
     servidor = guardado.getString(_claveServidor) ?? servidorPorOmision;
   }

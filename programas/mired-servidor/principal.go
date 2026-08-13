@@ -98,7 +98,6 @@ func correr(cfg configuracion.Configuracion, bitacora *slog.Logger) error {
 		Datos:       datos,
 		Auth:        autenticador,
 		Bitacora:    bitacora,
-		RutaWeb:     cfg.Servidor.RutaWeb,
 		SocketSonda: cfg.Sonda.Socket,
 		Programador: agenda,
 		Catalogo:    dispositivos,

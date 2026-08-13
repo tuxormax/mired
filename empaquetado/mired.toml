@@ -5,12 +5,13 @@
 # con variables de entorno MIRED_* (util para pruebas).
 
 [servidor]
-# Direccion y puerto donde escucha la interfaz web.
-# Para exponerlo solo en este equipo: "127.0.0.1:60072"
+# Direccion y puerto donde escucha el motor de MiRed.
+#
+# MiRed NO tiene interfaz web: es un programa de escritorio, y esto es solo como
+# el programa habla con los servicios. Se deja abierto a la red para poder ver
+# este equipo desde el programa de otro; para que solo se vea aqui:
+# "127.0.0.1:60072"
 escucha = ":60072"
-
-# Carpeta con la interfaz ya compilada. La deja el paquete.
-ruta_web = "/usr/share/mired/web"
 
 # Cuanto dura una sesion desde el ultimo uso.
 duracion_sesion = "12h"
