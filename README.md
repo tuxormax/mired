@@ -85,6 +85,20 @@ MIRED_DATOS=./datos MIRED_ESCUCHA=127.0.0.1:60072 go run ./programas/mired-servi
 MIRED_SOCKET_SONDA=/tmp/sonda.sock go run ./programas/mired-sonda
 ```
 
+## Quitarlo
+
+```
+sudo ./herramientas/desinstalar.sh
+```
+
+Desinstalar el paquete a secas **no basta**: `dpkg --purge` deja a propósito las
+bases de datos de las redes, que es lo correcto al actualizar —nadie quiere
+perder el histórico de su red por reinstalar— pero no es lo que se quiere para
+empezar de cero. Este script para los servicios, purga el paquete, pregunta si
+borra los datos, quita el usuario de sistema y comprueba que no quedó nada.
+
+Con `--todo` no pregunta.
+
 ## Documentación
 
 - [Instalación y primeros pasos](documentacion/instalacion.md)
