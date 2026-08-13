@@ -37,13 +37,20 @@ type InterfazSNMP struct {
 	VelocidadMbps int
 }
 
-// VecinoSNMP es un equipo anunciado por LLDP en una boca.
+// VecinoSNMP es un equipo anunciado en una boca, por LLDP o por CDP.
 type VecinoSNMP struct {
 	InterfazLocal string
 	Nombre        string
 	Descripcion   string
 	PuertoRemoto  string
 	ChasisID      string
+	// Origen es "lldp" o "cdp"; vacio se guarda como "lldp". La tabla lo lleva en
+	// su clave unica, asi que un mismo enlace visto por los dos protocolos ocupa
+	// dos renglones en vez de pisarse.
+	Origen string
+	// DireccionIP es la que el vecino anuncia. La manda CDP; por LLDP suele venir
+	// vacia.
+	DireccionIP string
 }
 
 // Capacidad del mapa de puertos de una red.
@@ -321,11 +328,24 @@ func guardarEnlaces(ctx context.Context, tx *sql.Tx, equipoID int64, vecinos []V
 		if id, hay := porMAC[strings.ToLower(vecino.ChasisID)]; hay {
 			vecinoID = id
 		}
+		// CDP no manda el chasis pero si la IP del vecino, que es lo unico con lo
+		// que se le puede poner cara: sin esto, un enlace visto solo por CDP se
+		// quedaria como un nombre suelto sin equipo al que colgarse.
+		if vecinoID == nil && vecino.DireccionIP != "" {
+			if id, hay := porIP(ctx, tx, vecino.DireccionIP); hay {
+				vecinoID = id
+			}
+		}
+
+		origen := vecino.Origen
+		if origen == "" {
+			origen = "lldp"
+		}
 
 		_, err := tx.ExecContext(ctx, `
 			INSERT INTO enlaces (equipo_id, interfaz_local, vecino_nombre, vecino_puerto,
 			                     vecino_chasis, vecino_equipo_id, origen, ultima_vez)
-			VALUES (?, ?, ?, ?, ?, ?, 'lldp', ?)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT (equipo_id, interfaz_local, origen) DO UPDATE SET
 				vecino_nombre = excluded.vecino_nombre,
 				vecino_puerto = excluded.vecino_puerto,
@@ -333,12 +353,66 @@ func guardarEnlaces(ctx context.Context, tx *sql.Tx, equipoID int64, vecinos []V
 				vecino_equipo_id = excluded.vecino_equipo_id,
 				ultima_vez = excluded.ultima_vez`,
 			equipoID, vecino.InterfazLocal, nuloSiVacio(vecino.Nombre),
-			nuloSiVacio(vecino.PuertoRemoto), nuloSiVacio(vecino.ChasisID), vecinoID, momento)
+			nuloSiVacio(vecino.PuertoRemoto), nuloSiVacio(vecino.ChasisID), vecinoID,
+			origen, momento)
 		if err != nil {
 			return fmt.Errorf("no se pudo guardar el enlace de %s: %w", vecino.InterfazLocal, err)
 		}
 	}
 	return nil
+}
+
+// EnlaceEntreEquipos es un cable de switch a switch, anunciado por LLDP o CDP.
+//
+// Es lo que convierte una lista de switches sueltos en un arbol: sin esto no se
+// sabe cual cuelga de cual, solo que existen.
+type EnlaceEntreEquipos struct {
+	EquipoID      int64  `json:"equipoId"`
+	EquipoNombre  string `json:"equipoNombre"`
+	InterfazLocal string `json:"interfazLocal"`
+	VecinoNombre  string `json:"vecinoNombre"`
+	VecinoPuerto  string `json:"vecinoPuerto"`
+	VecinoID      *int64 `json:"vecinoId"`
+	Origen        string `json:"origen"`
+	UltimaVez     string `json:"ultimaVez"`
+}
+
+// Enlaces devuelve los cables entre equipos administrables.
+//
+// Un mismo cable puede venir dos veces —una por LLDP y otra por CDP— porque cada
+// protocolo lo describe a su manera. Se devuelven los dos y se prefiere el
+// confirmado por los dos lados: **el origen se conserva** para que la interfaz
+// pueda decir de donde salio el dato en vez de presentarlo como verdad sin
+// procedencia.
+func (b *Base) Enlaces(ctx context.Context) ([]EnlaceEntreEquipos, error) {
+	filas, err := b.QueryContext(ctx, `
+		SELECT e.equipo_id,
+		       COALESCE(eq.alias, eq.nombre, eq.ip),
+		       e.interfaz_local,
+		       COALESCE(e.vecino_nombre, ''),
+		       COALESCE(e.vecino_puerto, ''),
+		       e.vecino_equipo_id,
+		       e.origen,
+		       e.ultima_vez
+		  FROM enlaces e
+		  JOIN equipos eq ON eq.id = e.equipo_id
+		 ORDER BY eq.ip, e.interfaz_local, e.origen`)
+	if err != nil {
+		return nil, fmt.Errorf("no se pudieron leer los enlaces: %w", err)
+	}
+	defer filas.Close()
+
+	enlaces := []EnlaceEntreEquipos{}
+	for filas.Next() {
+		var enlace EnlaceEntreEquipos
+		if err := filas.Scan(&enlace.EquipoID, &enlace.EquipoNombre, &enlace.InterfazLocal,
+			&enlace.VecinoNombre, &enlace.VecinoPuerto, &enlace.VecinoID,
+			&enlace.Origen, &enlace.UltimaVez); err != nil {
+			return nil, err
+		}
+		enlaces = append(enlaces, enlace)
+	}
+	return enlaces, filas.Err()
 }
 
 // PuertoDeSwitch es un renglon del mapa de puertos.
@@ -465,6 +539,10 @@ type ConsumoDePuerto struct {
 	BpsEntrada    int64  `json:"bpsEntrada"`
 	BpsSalida     int64  `json:"bpsSalida"`
 	Momento       string `json:"momento"`
+	// Estimado dice que la cifra sale de un muestreo (sFlow) y no de una cuenta.
+	// Los contadores del switch y NetFlow cuentan; sFlow estima. Presentar las
+	// dos igual seria hacer pasar una estimacion por una medicion.
+	Estimado bool `json:"estimado"`
 }
 
 // GuardarTrafico anota los contadores y calcula la tasa contra la muestra
@@ -642,6 +720,9 @@ type ConsumoPorFlujo struct {
 	BytesSube      uint64
 	BytesBaja      uint64
 	Conversaciones int
+	// Estimado dice que la cifra viene de un muestreo (sFlow) y no de una cuenta
+	// exacta. Se guarda con el dato porque despues ya no hay forma de saberlo.
+	Estimado bool
 }
 
 // GuardarFlujos anota lo que el router reporto y lo enlaza con el equipo que ya
@@ -662,10 +743,12 @@ func (b *Base) GuardarFlujos(ctx context.Context, consumos []ConsumoPorFlujo) er
 				equipoID = id
 			}
 			_, err := tx.ExecContext(ctx, `
-				INSERT INTO trafico_flujos (equipo_id, ip, momento, bytes_sube, bytes_baja, conversaciones)
-				VALUES (?, ?, ?, ?, ?, ?)`,
+				INSERT INTO trafico_flujos (equipo_id, ip, momento, bytes_sube, bytes_baja,
+				                            conversaciones, estimado)
+				VALUES (?, ?, ?, ?, ?, ?, ?)`,
 				equipoID, consumo.IP, momento, int64(consumo.BytesSube),
-				int64(consumo.BytesBaja), consumo.Conversaciones)
+				int64(consumo.BytesBaja), consumo.Conversaciones,
+				boolAEntero(consumo.Estimado))
 			if err != nil {
 				return fmt.Errorf("no se pudo guardar el flujo de %s: %w", consumo.IP, err)
 			}
@@ -688,7 +771,8 @@ func (b *Base) ConsumoPorEquipo(ctx context.Context, horas int) ([]ConsumoDePuer
 	filas, err := b.QueryContext(ctx, `
 		SELECT f.ip,
 		       COALESCE(e.alias, e.nombre, f.ip),
-		       SUM(f.bytes_sube), SUM(f.bytes_baja), MAX(f.momento)
+		       SUM(f.bytes_sube), SUM(f.bytes_baja), MAX(f.momento),
+		       MAX(f.estimado)
 		  FROM trafico_flujos f
 		  LEFT JOIN equipos e ON e.id = f.equipo_id
 		 WHERE f.momento >= ?
@@ -707,15 +791,24 @@ func (b *Base) ConsumoPorEquipo(ctx context.Context, horas int) ([]ConsumoDePuer
 	for filas.Next() {
 		var c ConsumoDePuerto
 		var sube, baja int64
-		if err := filas.Scan(&c.EquipoIP, &c.EquipoNombre, &sube, &baja, &c.Momento); err != nil {
+		var estimado int
+		if err := filas.Scan(&c.EquipoIP, &c.EquipoNombre, &sube, &baja, &c.Momento,
+			&estimado); err != nil {
 			return nil, err
 		}
+		// Basta con que UNA de las mediciones del periodo venga de un muestreo
+		// para que la suma sea una estimacion. Redondear hacia "es exacto" seria
+		// mentir por comodidad.
+		c.Estimado = estimado == 1
 		// Los flujos son bytes del periodo; se muestran como bits para poder
 		// compararlos con lo del switch.
 		c.BpsSalida = sube * 8
 		c.BpsEntrada = baja * 8
 		c.Puerto = "por el router"
 		c.SwitchNombre = "Router"
+		if c.Estimado {
+			c.Puerto = "por el router (muestreo)"
+		}
 		consumo = append(consumo, c)
 	}
 	return consumo, filas.Err()

@@ -76,10 +76,15 @@ func (a *API) mapaDePuertos(escritor http.ResponseWriter, peticion *http.Request
 	clave, _ := autenticacion.RedActivaDe(peticion.Context())
 
 	var mapa []basedatos.PuertoDeSwitch
+	var enlaces []basedatos.EnlaceEntreEquipos
 	var capacidad string
 	err := a.Datos.ConRed(peticion.Context(), clave, func(base *basedatos.Base) error {
 		var err error
 		mapa, err = base.MapaDePuertos(peticion.Context())
+		if err != nil {
+			return err
+		}
+		enlaces, err = base.Enlaces(peticion.Context())
 		if err != nil {
 			return err
 		}
@@ -100,6 +105,7 @@ func (a *API) mapaDePuertos(escritor http.ResponseWriter, peticion *http.Request
 		"capacidad":   capacidad,
 		"explicacion": explicarCapacidad(capacidad),
 		"puertos":     mapa,
+		"enlaces":     enlaces,
 	})
 }
 

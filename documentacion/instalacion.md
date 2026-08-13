@@ -111,10 +111,28 @@ Hay dos formas y no se estorban:
   sabe qué aparato cuelga de cada una, eso le dice quién consume. Necesita al
   menos dos escaneos completos, porque el consumo se calcula restando dos
   lecturas.
-- **Sin ellos**: configure su router para que exporte **NetFlow** al puerto
-  `2055` del equipo donde instaló MiRed. En MikroTik está en `IP → Traffic Flow`;
-  en pfSense, con el paquete `softflowd`. Eso le da el consumo por equipo, aunque
-  no diga en qué puerto está.
+- **Sin ellos**: configure su router o su switch para que exporte flujos al
+  puerto `2055` del equipo donde instaló MiRed. En MikroTik está en
+  `IP → Traffic Flow`; en pfSense, con el paquete `softflowd`; en un switch HP o
+  Dell, como `sFlow`. Eso le da el consumo por equipo, aunque no diga en qué
+  puerto está.
+
+  MiRed entiende los cuatro formatos que hay, y no hay que decirle cuál es: lo
+  reconoce solo.
+
+  | Formato | Quién lo exporta |
+  |---|---|
+  | **NetFlow v5** | MikroTik, pfSense y casi todo router de oficina |
+  | **NetFlow v9** | Cisco y equipo de gama media |
+  | **IPFIX** | El estándar de IETF, cada vez más común |
+  | **sFlow** | Switches HP, Dell, Brocade y de centro de datos |
+
+  Con una diferencia que MiRed le dice en la pantalla en vez de dejarlo suponer:
+  **los tres primeros cuentan el tráfico y sFlow lo estima.** sFlow no mira todos
+  los paquetes, mira uno de cada N y multiplica. Sirve de sobra para saber quién
+  se está llevando el ancho de banda; no sirve para facturarle a nadie. Cuando la
+  cifra viene de ahí, aparece con una tilde delante (`~1.2 Gb`) y el título dice
+  *«estimado por muestreo»*.
 
 ## 7. Que le avise
 

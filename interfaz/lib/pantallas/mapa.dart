@@ -250,6 +250,13 @@ class _Leyenda extends StatelessWidget {
           Text(mapa.explicacion, style: Theme.of(contexto).textTheme.bodySmall),
           const _Marca(texto: 'Linea llena: puerto confirmado', punteada: false),
           const _Marca(texto: 'Linea punteada: grupo tras algo no administrable', punteada: true),
+          if (mapa.enlacesUnicos.isNotEmpty)
+            _Marca(
+              texto: 'Arco: cable entre switches, anunciado por '
+                  '${mapa.enlaces.map((e) => e.origen.toUpperCase()).toSet().join(' y ')}',
+              punteada: false,
+              color: colores.primary,
+            ),
         ],
       ),
     );
@@ -257,18 +264,20 @@ class _Leyenda extends StatelessWidget {
 }
 
 class _Marca extends StatelessWidget {
-  const _Marca({required this.texto, required this.punteada});
+  const _Marca({required this.texto, required this.punteada, this.color});
 
   final String texto;
   final bool punteada;
+  final Color? color;
 
   @override
   Widget build(BuildContext contexto) => Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(punteada ? Icons.more_horiz : Icons.remove, size: 18),
+          Icon(punteada ? Icons.more_horiz : Icons.remove, size: 18, color: color),
           const SizedBox(width: 4),
-          Text(texto, style: Theme.of(contexto).textTheme.labelSmall),
+          Text(texto,
+              style: Theme.of(contexto).textTheme.labelSmall?.copyWith(color: color)),
         ],
       );
 }

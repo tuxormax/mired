@@ -30,6 +30,26 @@ void main() {
           velocidadMbps: 100, mac: 'cc:cc:cc:00:00:20',
           equipoNombre: '', equipoIp: '', confirmado: false, cuantosEnBoca: 4,
         ),
+        PuertoDeSwitch(
+          switchId: 8, switchNombre: 'sw-bodega', switchIp: '192.168.1.2',
+          indice: 3, puerto: 'Fa0/3', alias: '', activa: true,
+          velocidadMbps: 100, mac: 'dd:dd:dd:00:00:01',
+          equipoNombre: '', equipoIp: '', confirmado: false, cuantosEnBoca: 9,
+        ),
+      ],
+      // Dos switches unidos por un cable, visto por los dos protocolos: es el
+      // caso en que el arco tiene que salir una sola vez y mas grueso.
+      enlaces: [
+        EnlaceEntreEquipos(
+          equipoId: 3, equipoNombre: 'sw-principal', interfazLocal: 'Gi0/1',
+          vecinoNombre: 'sw-bodega', vecinoPuerto: 'Gi0/24', vecinoId: 8,
+          origen: 'lldp',
+        ),
+        EnlaceEntreEquipos(
+          equipoId: 3, equipoNombre: 'sw-principal', interfazLocal: 'Gi0/1',
+          vecinoNombre: 'sw-bodega.local', vecinoPuerto: 'GigabitEthernet0/24',
+          vecinoId: 8, origen: 'cdp',
+        ),
       ],
     ),
     equipos: const [
@@ -153,6 +173,49 @@ void main() {
     expect(texto, contains(r'\361'));
     // Ningun byte por encima de 255: el flujo tiene que ser puro latin1.
     expect(() => latin1.encode(texto), returnsNormally);
+  });
+
+  test('el cable entre switches se dibuja una vez aunque lo vean los dos protocolos', () {
+    // El switch anuncia el mismo cable por LLDP y por CDP. Dibujarlo dos veces
+    // no agrega nada; lo que si agrega es que los dos coincidan, y eso se marca
+    // con un trazo mas grueso.
+    expect(datos.mapa.enlaces.length, 2);
+    expect(plano.enlaces.length, 1);
+    expect(plano.enlaces.first.porAmbos, isTrue);
+
+    final svg = svgDelPlano(plano, encabezado);
+    expect(RegExp('<path ').allMatches(svg).length, 1);
+    expect(svg, contains('stroke-width="3"'));
+    expect(svg, contains('Gi0/1 ↔ Gi0/24'));
+
+    // Y en el PDF, una sola curva cubica. La flecha, que no existe en la fuente
+    // del PDF, cae a un guion en vez de a un "?" que se leeria como dato dudoso.
+    final pdf = latin1.decode(pdfDelPlano(plano, encabezado));
+    expect(RegExp(r' c S').allMatches(pdf).length, 1);
+    expect(pdf, contains('(Gi0/1 - Gi0/24)'));
+    expect(pdf, isNot(contains('(Gi0/1 ? Gi0/24)')));
+  });
+
+  test('un cable a un switch que no esta en el mapa no se dibuja', () {
+    // Un switch puede anunciar como vecino a algo que MiRed no ha descubierto.
+    // Ahi no hay donde poner el otro extremo del arco: se calla, no se inventa.
+    final huerfano = DatosMapa(
+      mapa: MapaPuertos(
+        capacidad: 'exacta',
+        explicacion: 'prueba',
+        puertos: datos.mapa.puertos,
+        enlaces: const [
+          EnlaceEntreEquipos(
+            equipoId: 3, equipoNombre: 'sw-principal', interfazLocal: 'Gi0/2',
+            vecinoNombre: 'sw-que-nadie-descubrio', vecinoPuerto: 'Gi0/1',
+            origen: 'lldp',
+          ),
+        ],
+      ),
+      equipos: datos.equipos,
+    );
+
+    expect(armarPlano(huerfano, coloresParaExportar).enlaces, isEmpty);
   });
 
   testWidgets('el PNG sale con la firma de un PNG de verdad', (probador) async {

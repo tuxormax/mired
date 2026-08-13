@@ -569,7 +569,12 @@ class _PantallaRedState extends State<PantallaRed> {
               const SizedBox(height: 8),
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: Text('Medido en el router, ultimas 24 horas',
+                child: Text(
+                    consumo.porFlujos.any((equipo) => equipo.estimado)
+                        // sFlow muestrea: decirle "medido" a eso seria hacer
+                        // pasar una estimacion por una medicion.
+                        ? 'Estimado en el router por muestreo (sFlow), ultimas 24 horas'
+                        : 'Medido en el router, ultimas 24 horas',
                     style: Theme.of(contexto).textTheme.titleSmall),
               ),
               for (final equipo in consumo.porFlujos)
@@ -587,7 +592,8 @@ class _PantallaRedState extends State<PantallaRed> {
                                   style: const TextStyle(fontWeight: FontWeight.w600),
                                   overflow: TextOverflow.ellipsis),
                             ),
-                            Text(ConsumoDePuerto.enPalabras(equipo.total)),
+                            Text('${equipo.estimado ? '~' : ''}'
+                                '${ConsumoDePuerto.enPalabras(equipo.total)}'),
                           ],
                         ),
                         const SizedBox(height: 4),

@@ -132,6 +132,16 @@ String svgDelPlano(Plano plano, EncabezadoMapa encabezado) {
 
   salida.writeln('<g transform="translate(0 ${_n(EncabezadoMapa.alto)})">');
 
+  for (final enlace in plano.enlaces) {
+    salida.writeln('<path d="M ${_n(enlace.desde.dx)} ${_n(enlace.desde.dy)} '
+        'Q ${_n(enlace.cima.dx)} ${_n(enlace.cima.dy)} '
+        '${_n(enlace.hasta.dx)} ${_n(enlace.hasta.dy)}" fill="none" '
+        'stroke="${_color(plano.colorEnlace)}" stroke-width="${enlace.porAmbos ? 3 : 2}"/>');
+    salida.writeln('<text x="${_n(enlace.cima.dx)}" y="${_n(enlace.cima.dy - 4)}" '
+        'font-size="11" text-anchor="middle" fill="${_color(plano.colorEnlace)}">'
+        '${_xml(enlace.etiqueta)}</text>');
+  }
+
   for (final linea in plano.lineas) {
     // El punteado del SVG lo hace el propio formato con stroke-dasharray, con
     // los mismos 6 y 5 que usa el pintor de la pantalla.
@@ -197,6 +207,30 @@ Uint8List pdfDelPlano(Plano plano, EncabezadoMapa encabezado) {
         '${_n(ancho - 20)} ${_n(EncabezadoMapa.alto - 6)} l S');
 
   const double desplazamiento = EncabezadoMapa.alto;
+
+  // Los cables entre switches. El PDF no tiene curva cuadratica, solo cubica:
+  // los dos puntos de control de la cubica salen del unico de la cuadratica a
+  // dos tercios del camino hacia cada extremo. Es una conversion exacta, no una
+  // aproximacion.
+  contenido.writeln('${_colorPdf(plano.colorEnlace)} RG');
+  for (final enlace in plano.enlaces) {
+    final desde = enlace.desde.translate(0, desplazamiento);
+    final hasta = enlace.hasta.translate(0, desplazamiento);
+    final cima = enlace.cima.translate(0, desplazamiento);
+    final control1 = Offset(desde.dx + 2 / 3 * (cima.dx - desde.dx),
+        desde.dy + 2 / 3 * (cima.dy - desde.dy));
+    final control2 = Offset(hasta.dx + 2 / 3 * (cima.dx - hasta.dx),
+        hasta.dy + 2 / 3 * (cima.dy - hasta.dy));
+
+    contenido
+      ..writeln('${enlace.porAmbos ? 3 : 2} w')
+      ..writeln('${_n(desde.dx)} ${_n(desde.dy)} m '
+          '${_n(control1.dx)} ${_n(control1.dy)} '
+          '${_n(control2.dx)} ${_n(control2.dy)} '
+          '${_n(hasta.dx)} ${_n(hasta.dy)} c S');
+    _textoPdf(contenido, enlace.etiqueta, cima.dx - 60, cima.dy - 15, 11, false,
+        plano.colorEnlace);
+  }
 
   contenido.writeln('${_colorPdf(plano.colorLinea)} RG');
   for (final linea in plano.lineas) {
@@ -337,6 +371,10 @@ String _cadenaPdf(String texto) {
     0x2022: 0x95, // viñeta
     0x2013: 0x96, 0x2014: 0x97, // guiones largos
     0x20AC: 0x80, // euro
+    // Las flechas NO existen en WinAnsi. Sin esto, la etiqueta de un cable
+    // saldria "Gi0/1 ? Gi0/24" en el PDF, que parece un dato dudoso cuando en
+    // realidad es un caracter que la fuente no tiene. Un guion dice lo mismo.
+    0x2192: 0x2D, 0x2190: 0x2D, 0x2194: 0x2D, // → ← ↔
   };
 
   final salida = StringBuffer('(');

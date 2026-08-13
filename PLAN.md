@@ -24,11 +24,11 @@ Actualizado el **2026-08-12**, al cerrar la primera jornada de trabajo.
 | 1 — Cimientos | ✅ terminada | Servidor, sonda, base por red, auth, API, interfaz y `.deb` |
 | 2 — Descubrimiento | ✅ terminada | ARP, ICMP y TCP; puertos, DNS inverso y fabricante por OUI |
 | 3 — Presencia en vivo | ✅ terminada | Barrido rapido, historial de conexiones y agenda por red |
-| 4 — SNMP y capa 2 | ⚠️ hecha, sin probar en equipo real | Falta un switch administrable de verdad. Falta CDP y controladora WiFi |
+| 4 — SNMP y capa 2 | ⚠️ hecha, sin probar en equipo real | LLDP y CDP listos, y los enlaces entre switches ya se dibujan. **Falta un switch administrable de verdad** y la controladora WiFi |
 | 5 — El mapa | ✅ terminada | Mapa visual y exportacion a PNG, SVG, PDF y CSV |
 | 6 — Catalogo `.toml` | ✅ terminada | Formato, motor de reconocimiento, 15 definiciones semilla y "proponer definicion" |
 | 7 — Alertas | ✅ terminada | Las 6 reglas detectan y los 4 destinos de aviso funcionan |
-| 8 — Ancho de banda | ✅ terminada | Contadores SNMP por puerto y receptor de flujos NetFlow v5 del router. Falta sFlow e IPFIX |
+| 8 — Ancho de banda | ✅ terminada | Contadores SNMP por puerto y receptor de flujos: NetFlow v5, NetFlow v9, IPFIX y sFlow |
 | 9 — Publicacion | ⚠️ parcial | Licencia decidida (AGPL-3.0) y documentacion lista (ES y EN). **Falta firmar y publicar los paquetes** |
 | 10 — Inspeccion profunda | ⏳ pendiente | Opcional |
 
@@ -360,9 +360,17 @@ Salidas: correo, webhook, ntfy y Telegram.
 
 - Sondeo de contadores SNMP por puerto y su gráfica por equipo, apoyada en el
   mapa de puertos de la fase 4.
-- Receptor de flujos NetFlow, sFlow e IPFIX del router, que es lo que cubre los
-  sitios sin switches administrables.
+- Receptor de flujos NetFlow v5, NetFlow v9, IPFIX y sFlow, que es lo que cubre
+  los sitios sin switches administrables. El formato se reconoce solo, sin
+  configurarlo.
 - Alertas que salen de ahí: un equipo que se dispara, un enlace saturado.
+
+**Los tres primeros formatos cuentan el tráfico; sFlow lo estima**, porque
+muestrea uno de cada N paquetes y multiplica. Esa diferencia viaja con el dato
+—columna `estimado` en la base— hasta la pantalla, donde la cifra sale con una
+tilde delante. Presentar una estimación como si fuera una medición es la misma
+mentira silenciosa que el mapa evita cuando distingue el puerto confirmado del
+grupo inferido.
 
 ### Fase 9 — Empaquetado y publicación (1 semana)
 

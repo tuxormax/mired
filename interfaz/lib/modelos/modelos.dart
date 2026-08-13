@@ -377,16 +377,55 @@ class PuertoDeSwitch {
       equipoNombre.isNotEmpty ? equipoNombre : (equipoIp.isNotEmpty ? equipoIp : mac);
 }
 
+/// Un cable de switch a switch, anunciado por LLDP o por CDP.
+///
+/// Es lo que convierte una lista de switches sueltos en un arbol: sin esto se
+/// sabe que existen, pero no cual cuelga de cual.
+class EnlaceEntreEquipos {
+  final int equipoId;
+  final String equipoNombre;
+  final String interfazLocal;
+  final String vecinoNombre;
+  final String vecinoPuerto;
+  final int? vecinoId;
+
+  /// `lldp` o `cdp`. Se conserva para poder decir de donde salio el dato: los
+  /// dos protocolos ven el mismo cable y lo describen distinto.
+  final String origen;
+
+  const EnlaceEntreEquipos({
+    required this.equipoId,
+    required this.equipoNombre,
+    required this.interfazLocal,
+    required this.vecinoNombre,
+    required this.vecinoPuerto,
+    this.vecinoId,
+    required this.origen,
+  });
+
+  factory EnlaceEntreEquipos.desdeJson(Map<String, dynamic> json) => EnlaceEntreEquipos(
+        equipoId: json['equipoId'] as int,
+        equipoNombre: json['equipoNombre'] as String? ?? '',
+        interfazLocal: json['interfazLocal'] as String? ?? '',
+        vecinoNombre: json['vecinoNombre'] as String? ?? '',
+        vecinoPuerto: json['vecinoPuerto'] as String? ?? '',
+        vecinoId: json['vecinoId'] as int?,
+        origen: json['origen'] as String? ?? 'lldp',
+      );
+}
+
 /// El mapa de puertos de una red, con que tan seguro es en este sitio.
 class MapaPuertos {
   final String capacidad;
   final String explicacion;
   final List<PuertoDeSwitch> puertos;
+  final List<EnlaceEntreEquipos> enlaces;
 
   const MapaPuertos({
     required this.capacidad,
     required this.explicacion,
     required this.puertos,
+    this.enlaces = const [],
   });
 
   factory MapaPuertos.desdeJson(Map<String, dynamic> json) => MapaPuertos(
@@ -395,9 +434,49 @@ class MapaPuertos {
         puertos: ((json['puertos'] as List<dynamic>?) ?? [])
             .map((fila) => PuertoDeSwitch.desdeJson(fila as Map<String, dynamic>))
             .toList(),
+        enlaces: ((json['enlaces'] as List<dynamic>?) ?? [])
+            .map((fila) => EnlaceEntreEquipos.desdeJson(fila as Map<String, dynamic>))
+            .toList(),
       );
 
   bool get hayMapa => puertos.isNotEmpty;
+
+  /// enlacesUnicos deja un renglon por cable, sin repetir el mismo visto por los
+  /// dos protocolos, y dice cuales lo confirmaron.
+  ///
+  /// Un switch que habla LLDP y CDP anuncia cada cable dos veces. Dibujarlo dos
+  /// veces no agrega informacion: lo que si agrega es **que los dos coincidan**,
+  /// porque un cable confirmado por ambos protocolos es un dato mas firme que
+  /// uno que solo vio uno.
+  List<EnlaceDibujable> get enlacesUnicos {
+    final porCable = <String, EnlaceDibujable>{};
+    for (final enlace in enlaces) {
+      final clave = '${enlace.equipoId}|${enlace.interfazLocal}';
+      final existente = porCable[clave];
+      if (existente == null) {
+        porCable[clave] = EnlaceDibujable(enlace: enlace, origenes: {enlace.origen});
+      } else {
+        existente.origenes.add(enlace.origen);
+        // Se prefiere el que si supo a que equipo apunta: entre un nombre suelto
+        // y un enlace con destino conocido, el segundo dibuja algo.
+        if (existente.enlace.vecinoId == null && enlace.vecinoId != null) {
+          porCable[clave] = EnlaceDibujable(enlace: enlace, origenes: existente.origenes);
+        }
+      }
+    }
+    return porCable.values.toList();
+  }
+}
+
+/// Un cable ya sin repetir, con la lista de protocolos que lo vieron.
+class EnlaceDibujable {
+  EnlaceDibujable({required this.enlace, required this.origenes});
+
+  final EnlaceEntreEquipos enlace;
+  final Set<String> origenes;
+
+  /// Confirmado por los dos protocolos: el dato mas firme que hay de un cable.
+  bool get porAmbos => origenes.length > 1;
 }
 
 /// Una credencial para hablarle a los switches por SNMP.
@@ -541,6 +620,13 @@ class ConsumoDePuerto {
   final int bpsSalida;
   final String momento;
 
+  /// La cifra viene de un muestreo (sFlow) y no de una cuenta exacta.
+  ///
+  /// Se arrastra desde el receptor hasta aqui a proposito: presentar una
+  /// estimacion como si fuera una medicion es la clase de mentira silenciosa
+  /// que este proyecto evita en el mapa, y aqui vale igual.
+  final bool estimado;
+
   const ConsumoDePuerto({
     required this.switchId,
     required this.switchNombre,
@@ -553,6 +639,7 @@ class ConsumoDePuerto {
     required this.bpsEntrada,
     required this.bpsSalida,
     required this.momento,
+    this.estimado = false,
   });
 
   factory ConsumoDePuerto.desdeJson(Map<String, dynamic> json) => ConsumoDePuerto(
@@ -567,6 +654,7 @@ class ConsumoDePuerto {
         bpsEntrada: json['bpsEntrada'] as int? ?? 0,
         bpsSalida: json['bpsSalida'] as int? ?? 0,
         momento: json['momento'] as String? ?? '',
+        estimado: json['estimado'] as bool? ?? false,
       );
 
   int get total => bpsEntrada + bpsSalida;

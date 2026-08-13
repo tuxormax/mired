@@ -434,6 +434,8 @@ func (s *Servicio) consultarSNMP(ctx context.Context, clave string, vistos []son
 				Descripcion:   vecino.Descripcion,
 				PuertoRemoto:  vecino.PuertoRemoto,
 				ChasisID:      vecino.ChasisID,
+				Origen:        vecino.Origen,
+				DireccionIP:   vecino.DireccionIP,
 			})
 		}
 		contadores := make([]basedatos.ContadorPuerto, 0, len(ficha.Contadores))

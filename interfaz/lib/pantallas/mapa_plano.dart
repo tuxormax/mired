@@ -63,28 +63,63 @@ class LineaPlano {
   final String etiqueta;
 }
 
+/// EnlacePlano es un cable de switch a switch, dibujado como arco por encima de
+/// la fila de switches.
+///
+/// Va en arco y no en linea recta porque los switches estan todos en la misma
+/// fila: una recta entre el primero y el tercero cruzaria por encima del
+/// segundo y se leeria como si lo tocara.
+class EnlacePlano {
+  EnlacePlano({
+    required this.desde,
+    required this.hasta,
+    required this.cima,
+    required this.etiqueta,
+    required this.porAmbos,
+  });
+
+  final Offset desde;
+  final Offset hasta;
+
+  /// Punto de control del arco: por donde tira la curva hacia arriba.
+  final Offset cima;
+  final String etiqueta;
+
+  /// Lo vieron LLDP y CDP. Es el dato mas firme que hay de un cable, y se dibuja
+  /// mas grueso para que se note a simple vista.
+  final bool porAmbos;
+}
+
 class Plano {
   Plano({
     required this.cajas,
     required this.lineas,
+    required this.enlaces,
     required this.tamano,
     required this.colorLinea,
     required this.colorTexto,
     required this.colorFondo,
+    required this.colorEnlace,
   });
 
   final List<CajaPlano> cajas;
   final List<LineaPlano> lineas;
+  final List<EnlacePlano> enlaces;
   final Size tamano;
   final Color colorLinea;
   final Color colorTexto;
   final Color colorFondo;
+  final Color colorEnlace;
 }
 
 const double anchoCaja = 190;
 const double altoCaja = 54;
 const double separacionX = 30;
 const double separacionY = 130;
+
+/// Espacio que se reserva arriba para los arcos de los enlaces entre switches.
+/// Solo se reserva si hay enlaces que dibujar: si no, seria un hueco en blanco.
+const double altoEnlaces = 90;
 
 /// coloresParaExportar son los que usa todo archivo exportado, sin importar si
 /// la pantalla esta en claro o en oscuro.
@@ -111,16 +146,30 @@ Plano armarPlano(DatosMapa datos, ColorScheme colores) {
         .add(puerto);
   }
 
+  // Los cables entre switches solo se pueden dibujar si se conocen los dos
+  // extremos. Se calcula antes de colocar nada porque de esto depende cuanto
+  // espacio hay que dejar arriba: reservarlo siempre seria una franja en blanco
+  // en las redes de un solo switch, que son la mayoria.
+  final cables = datos.mapa.enlacesUnicos
+      .where((cable) =>
+          cable.enlace.vecinoId != null &&
+          porSwitch.containsKey(cable.enlace.equipoId) &&
+          porSwitch.containsKey(cable.enlace.vecinoId))
+      .toList();
+  final arriba = cables.isEmpty ? 0.0 : altoEnlaces;
+
   double x = separacionX;
   double anchoMaximo = 0;
   double altoMaximo = 0;
+  final centrosDeSwitch = <int, Offset>{};
 
   porSwitch.forEach((switchId, bocas) {
     final ejemplo = bocas.values.first.first;
     final anchoBloque =
         matematicas.max(bocas.length * (anchoCaja + separacionX), anchoCaja + separacionX);
 
-    final centroSwitch = Offset(x + anchoBloque / 2, separacionY / 2);
+    final centroSwitch = Offset(x + anchoBloque / 2, arriba + separacionY / 2);
+    centrosDeSwitch[switchId] = centroSwitch;
     cajas.add(CajaPlano(
       rectangulo: Rect.fromCenter(
           center: centroSwitch, width: anchoCaja, height: altoCaja),
@@ -133,7 +182,7 @@ Plano armarPlano(DatosMapa datos, ColorScheme colores) {
     double xBoca = x;
     bocas.forEach((indice, enLaBoca) {
       final confirmado = enLaBoca.length == 1 && enLaBoca.first.confirmado;
-      final centroBoca = Offset(xBoca + anchoCaja / 2, separacionY / 2 + separacionY);
+      final centroBoca = Offset(xBoca + anchoCaja / 2, arriba + separacionY / 2 + separacionY);
 
       if (confirmado) {
         final unico = enLaBoca.first;
@@ -176,12 +225,36 @@ Plano armarPlano(DatosMapa datos, ColorScheme colores) {
 
     x += anchoBloque + separacionX * 2;
     anchoMaximo = matematicas.max(anchoMaximo, x);
-    altoMaximo = matematicas.max(altoMaximo, separacionY * 2 + altoCaja);
+    altoMaximo = matematicas.max(altoMaximo, arriba + separacionY * 2 + altoCaja);
   });
+
+  // Los cables entre switches, en arco por encima de la fila.
+  final enlaces = <EnlacePlano>[];
+  for (final cable in cables) {
+    final desde = centrosDeSwitch[cable.enlace.equipoId];
+    final hasta = centrosDeSwitch[cable.enlace.vecinoId];
+    if (desde == null || hasta == null || desde == hasta) continue;
+
+    // Cuanto mas separados esten los dos switches, mas alto sube el arco: asi
+    // dos cables distintos no se encinan en la misma curva.
+    final separacion = (hasta.dx - desde.dx).abs();
+    final altura = matematicas.min(arriba - 12, 24 + separacion / 12);
+
+    enlaces.add(EnlacePlano(
+      desde: desde - const Offset(0, altoCaja / 2),
+      hasta: hasta - const Offset(0, altoCaja / 2),
+      cima: Offset((desde.dx + hasta.dx) / 2, desde.dy - altoCaja / 2 - altura),
+      etiqueta: cable.enlace.vecinoPuerto.isEmpty
+          ? cable.enlace.interfazLocal
+          : '${cable.enlace.interfazLocal} ↔ ${cable.enlace.vecinoPuerto}',
+      porAmbos: cable.porAmbos,
+    ));
+  }
 
   // Los que no cuelgan de ningun switch conocido: en su propia zona, abajo.
   final sinUbicar = datos.sinUbicar;
   if (sinUbicar.isNotEmpty) {
+    if (altoMaximo == 0) altoMaximo = arriba + separacionY / 2;
     final yBase = altoMaximo + separacionY;
     double xSuelto = separacionX;
     double filaY = yBase;
@@ -208,11 +281,13 @@ Plano armarPlano(DatosMapa datos, ColorScheme colores) {
   return Plano(
     cajas: cajas,
     lineas: lineas,
+    enlaces: enlaces,
     tamano: Size(matematicas.max(anchoMaximo + separacionX, 800),
         matematicas.max(altoMaximo + separacionY, 600)),
     colorLinea: colores.outline,
     colorTexto: colores.onSurface,
     colorFondo: colores.surface,
+    colorEnlace: colores.primary,
   );
 }
 
@@ -230,6 +305,25 @@ class PintorMapa extends CustomPainter {
   void paint(Canvas lienzo, Size tamano) {
     if (conFondo) {
       lienzo.drawRect(Offset.zero & tamano, Paint()..color = plano.colorFondo);
+    }
+
+    // Los cables entre switches van primero: son el esqueleto, y lo demas se
+    // dibuja encima.
+    for (final enlace in plano.enlaces) {
+      final arco = Path()
+        ..moveTo(enlace.desde.dx, enlace.desde.dy)
+        ..quadraticBezierTo(
+            enlace.cima.dx, enlace.cima.dy, enlace.hasta.dx, enlace.hasta.dy);
+      lienzo.drawPath(
+        arco,
+        Paint()
+          ..color = plano.colorEnlace
+          ..strokeWidth = enlace.porAmbos ? 3 : 2
+          ..style = PaintingStyle.stroke,
+      );
+      _texto(lienzo, enlace.etiqueta,
+          Offset(enlace.cima.dx - 60, enlace.cima.dy - 4), 11, plano.colorEnlace,
+          ancho: 160);
     }
 
     final trazo = Paint()

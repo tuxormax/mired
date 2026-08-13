@@ -208,3 +208,58 @@ func TestSeGuardanLosVecinosDeLLDP(t *testing.T) {
 		t.Fatal("el vecino deberia haberse enlazado al equipo conocido por su chasis")
 	}
 }
+
+func TestUnMismoEnlaceVistoPorLLDPyPorCDPSeGuardaDosVeces(t *testing.T) {
+	// Los dos protocolos pueden ver el mismo enlace y decir cosas distintas de
+	// el. Si uno pisara al otro, encender CDP en un switch borraria lo que LLDP
+	// ya sabia. Por eso el origen va en la clave unica.
+	_, base, devolver := conRedDePrueba(t)
+	defer devolver()
+	ctx := context.Background()
+
+	sembrarEquipos(t, base, []EquipoDescubierto{
+		{IP: "192.168.1.1", MAC: "aa:aa:aa:00:00:01", Metodo: "arp"},
+		{IP: "192.168.1.2", MAC: "aa:aa:aa:00:00:02", Metodo: "arp"},
+	})
+
+	_, err := base.GuardarSNMP(ctx, []FichaSNMP{{
+		IP: "192.168.1.1", EsSwitch: true,
+		Interfaces: []InterfazSNMP{{Indice: 1, Nombre: "Gi0/1"}},
+		Vecinos: []VecinoSNMP{
+			{
+				InterfazLocal: "Gi0/1", Nombre: "sw-bodega",
+				PuertoRemoto: "Gi0/24", ChasisID: "aa:aa:aa:00:00:02", Origen: "lldp",
+			},
+			{
+				// CDP no manda el chasis: manda la IP que el vecino anuncia. Es lo
+				// unico con lo que se le puede poner cara.
+				InterfazLocal: "Gi0/1", Nombre: "sw-bodega.local",
+				PuertoRemoto: "GigabitEthernet0/24", DireccionIP: "192.168.1.2",
+				Origen: "cdp",
+			},
+		},
+	}})
+	if err != nil {
+		t.Fatalf("no se pudo guardar: %v", err)
+	}
+
+	var cuantos int
+	if err := base.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM enlaces WHERE interfaz_local = 'Gi0/1'`).Scan(&cuantos); err != nil {
+		t.Fatalf("no se pudo contar: %v", err)
+	}
+	if cuantos != 2 {
+		t.Fatalf("deberian quedar los dos enlaces y quedaron %d", cuantos)
+	}
+
+	// El enlace que solo vio CDP tambien tiene que quedar enlazado al equipo, por
+	// la IP anunciada.
+	var vecinoID *int64
+	if err := base.QueryRowContext(ctx,
+		`SELECT vecino_equipo_id FROM enlaces WHERE origen = 'cdp'`).Scan(&vecinoID); err != nil {
+		t.Fatalf("no se guardo el enlace de CDP: %v", err)
+	}
+	if vecinoID == nil {
+		t.Fatal("el vecino de CDP deberia haberse enlazado por la IP que anuncio")
+	}
+}

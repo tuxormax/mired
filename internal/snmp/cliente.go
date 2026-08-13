@@ -69,6 +69,20 @@ const (
 	oidLldpRemPuerto = "1.0.8802.1.1.2.1.4.1.1.7"  // lldpRemPortId
 	oidLldpRemDescr  = "1.0.8802.1.1.2.1.4.1.1.10" // lldpRemSysDesc
 	oidLldpRemChasis = "1.0.8802.1.1.2.1.4.1.1.5"  // lldpRemChassisId
+
+	// CDP: lo mismo que LLDP pero de Cisco, y anterior. Sigue siendo lo unico
+	// que hablan muchos switches Cisco de los que hay instalados, que a menudo
+	// traen LLDP apagado de fabrica.
+	oidCdpVecinoNombre    = "1.3.6.1.4.1.9.9.23.1.2.1.1.6" // cdpCacheDeviceId
+	oidCdpVecinoPuerto    = "1.3.6.1.4.1.9.9.23.1.2.1.1.7" // cdpCacheDevicePort
+	oidCdpVecinoDescr     = "1.3.6.1.4.1.9.9.23.1.2.1.1.8" // cdpCachePlatform
+	oidCdpVecinoDireccion = "1.3.6.1.4.1.9.9.23.1.2.1.1.4" // cdpCacheAddress
+)
+
+// De donde salio un vecino.
+const (
+	OrigenLLDP = "lldp"
+	OrigenCDP  = "cdp"
 )
 
 // Ficha es lo que se averiguo de un equipo por SNMP.
@@ -114,13 +128,20 @@ type Contador struct {
 	SesentaYCuatro bool `json:"sesentaYCuatro"`
 }
 
-// Vecino es un equipo que se anuncio por LLDP en una boca.
+// Vecino es un equipo que se anuncio en una boca, por LLDP o por CDP.
 type Vecino struct {
 	InterfazLocal string `json:"interfazLocal"`
 	Nombre        string `json:"nombre"`
 	Descripcion   string `json:"descripcion"`
 	PuertoRemoto  string `json:"puertoRemoto"`
 	ChasisID      string `json:"chasisId"`
+	// Origen es "lldp" o "cdp". Se conserva porque los dos protocolos pueden ver
+	// al mismo vecino y decir cosas distintas de el: guardar cual lo dijo permite
+	// creerle al que corresponda en vez de que uno pise al otro.
+	Origen string `json:"origen"`
+	// DireccionIP es la que el vecino anuncia de si mismo. CDP la manda; LLDP la
+	// deja en una tabla aparte que casi nadie llena, asi que ahi suele ir vacia.
+	DireccionIP string `json:"direccionIp,omitempty"`
 }
 
 // Consultar le pregunta todo a un equipo con las credenciales dadas.
@@ -186,7 +207,8 @@ func consultarCon(ip string, credencial Credencial, espera time.Duration) (Ficha
 	ficha.Interfaces = leerInterfaces(conexion)
 	ficha.Contadores = leerContadores(conexion)
 	ficha.MacsPorPuerto = leerTablaMac(conexion)
-	ficha.Vecinos = leerVecinos(conexion, ficha.Interfaces)
+	ficha.Vecinos = append(leerVecinos(conexion, ficha.Interfaces),
+		leerVecinosCDP(conexion, ficha.Interfaces)...)
 
 	// Un equipo que reporta una tabla de MAC es un switch aunque sysServices no
 	// lo diga: hay fabricantes que ese campo lo llenan mal o no lo llenan.
@@ -445,23 +467,14 @@ func leerVecinos(conexion *gosnmp.GoSNMP, interfaces []Interfaz) []Vecino {
 
 	vecinos := map[string]*Vecino{}
 	tomar := func(sufijo string) *Vecino {
-		// El indice de LLDP es tiempo.puertoLocal.indiceRemoto; el del medio es
-		// el que interesa.
-		partes := strings.Split(sufijo, ".")
-		if len(partes) < 2 {
+		boca, ok := bocaLocal(sufijo, 1, porIndice)
+		if !ok {
 			return nil
 		}
 		if existente, hay := vecinos[sufijo]; hay {
 			return existente
 		}
-		nuevo := &Vecino{}
-		if numero, err := strconv.Atoi(partes[1]); err == nil {
-			if nombre, hay := porIndice[numero]; hay {
-				nuevo.InterfazLocal = nombre
-			} else {
-				nuevo.InterfazLocal = partes[1]
-			}
-		}
+		nuevo := &Vecino{InterfazLocal: boca}
 		vecinos[sufijo] = nuevo
 		return nuevo
 	}
@@ -490,10 +503,114 @@ func leerVecinos(conexion *gosnmp.GoSNMP, interfaces []Interfaz) []Vecino {
 	lista := make([]Vecino, 0, len(vecinos))
 	for _, vecino := range vecinos {
 		if vecino.Nombre != "" || vecino.PuertoRemoto != "" {
+			vecino.Origen = OrigenLLDP
 			lista = append(lista, *vecino)
 		}
 	}
 	return lista
+}
+
+// leerVecinosCDP hace lo mismo que leerVecinos pero con el protocolo de Cisco.
+//
+// Vale la pena preguntar por los dos: **CDP viene encendido de fabrica en los
+// Cisco y LLDP no**, asi que en una red con equipo Cisco viejo esta tabla es la
+// unica que trae los enlaces entre switches. Y al reves: un switch de otra marca
+// no sabe nada de CDP. Preguntar los dos cuesta dos recorridos y cubre las dos
+// mitades del parque instalado.
+//
+// La diferencia que importa al leerlo: en CDP el indice de la fila es
+// ifIndexLocal.numeroDeVecino, o sea el **primer** numero es la boca local. En
+// LLDP es el del medio. Confundirlos cuelga cada vecino de la boca equivocada.
+func leerVecinosCDP(conexion *gosnmp.GoSNMP, interfaces []Interfaz) []Vecino {
+	porIndice := map[int]string{}
+	for _, puerto := range interfaces {
+		porIndice[puerto.Indice] = puerto.Nombre
+	}
+
+	vecinos := map[string]*Vecino{}
+	tomar := func(sufijo string) *Vecino {
+		boca, ok := bocaLocal(sufijo, 0, porIndice)
+		if !ok {
+			return nil
+		}
+		if existente, hay := vecinos[sufijo]; hay {
+			return existente
+		}
+		nuevo := &Vecino{InterfazLocal: boca, Origen: OrigenCDP}
+		vecinos[sufijo] = nuevo
+		return nuevo
+	}
+
+	recorrer(conexion, oidCdpVecinoNombre, func(sufijo string, dato gosnmp.SnmpPDU) {
+		if vecino := tomar(sufijo); vecino != nil {
+			vecino.Nombre = comoTexto(dato)
+		}
+	})
+	recorrer(conexion, oidCdpVecinoPuerto, func(sufijo string, dato gosnmp.SnmpPDU) {
+		if vecino := tomar(sufijo); vecino != nil {
+			vecino.PuertoRemoto = comoTexto(dato)
+		}
+	})
+	recorrer(conexion, oidCdpVecinoDescr, func(sufijo string, dato gosnmp.SnmpPDU) {
+		if vecino := tomar(sufijo); vecino != nil {
+			vecino.Descripcion = comoTexto(dato)
+		}
+	})
+	recorrer(conexion, oidCdpVecinoDireccion, func(sufijo string, dato gosnmp.SnmpPDU) {
+		if vecino := tomar(sufijo); vecino != nil {
+			vecino.DireccionIP = comoIP(dato)
+		}
+	})
+
+	lista := make([]Vecino, 0, len(vecinos))
+	for _, vecino := range vecinos {
+		if vecino.Nombre != "" || vecino.PuertoRemoto != "" {
+			lista = append(lista, *vecino)
+		}
+	}
+	return lista
+}
+
+// bocaLocal saca de que boca del equipo consultado habla una fila de vecinos, y
+// la devuelve con el nombre bonito del puerto si se conoce.
+//
+// **Los dos protocolos ponen ese numero en un lugar distinto del indice**, y es
+// el error facil de cometer leyendo las MIB:
+//   - LLDP indexa `tiempo.puertoLocal.numeroDeVecino` → posicion 1, la de en medio.
+//   - CDP indexa `ifIndexLocal.numeroDeVecino` → posicion 0, la primera.
+//
+// Equivocarse no revienta nada: cuelga cada vecino de la boca equivocada, que es
+// mucho peor porque el mapa sale plausible y falso.
+func bocaLocal(sufijo string, posicion int, porIndice map[int]string) (string, bool) {
+	partes := strings.Split(sufijo, ".")
+	if posicion >= len(partes) {
+		return "", false
+	}
+	numero, err := strconv.Atoi(partes[posicion])
+	if err != nil {
+		return "", false
+	}
+	if nombre, hay := porIndice[numero]; hay && nombre != "" {
+		return nombre, true
+	}
+	return partes[posicion], true
+}
+
+// comoIP formatea la direccion que CDP manda como bytes crudos: cuatro para IPv4
+// y dieciseis para IPv6.
+func comoIP(dato gosnmp.SnmpPDU) string {
+	crudo, ok := dato.Value.([]byte)
+	if !ok {
+		return ""
+	}
+	if len(crudo) != 4 && len(crudo) != 16 {
+		return ""
+	}
+	direccion := net.IP(crudo)
+	if direccion.IsUnspecified() {
+		return ""
+	}
+	return direccion.String()
 }
 
 // recorrer camina una tabla y entrega a la funcion el sufijo del OID (el indice

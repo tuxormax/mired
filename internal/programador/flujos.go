@@ -92,6 +92,7 @@ func (s *Servicio) guardarFlujos(ctx context.Context, mapa *mapaDeSubredes, cons
 			BytesSube:      consumo.BytesSube,
 			BytesBaja:      consumo.BytesBaja,
 			Conversaciones: consumo.Conversaciones,
+			Estimado:       consumo.Estimado,
 		})
 	}
 

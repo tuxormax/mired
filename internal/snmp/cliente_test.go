@@ -140,3 +140,54 @@ func TestLosProtocolosDesconocidosNoRompen(t *testing.T) {
 		t.Fatal("el nombre del protocolo no deberia depender de mayusculas")
 	}
 }
+
+func TestCadaProtocoloDeVecinosPoneLaBocaEnOtroLugarDelIndice(t *testing.T) {
+	// Es el error mas facil de cometer de los dos protocolos, y el mas caro: no
+	// revienta nada, solo cuelga cada vecino de la boca equivocada, y el mapa
+	// sale plausible y falso.
+	porIndice := map[int]string{5: "Gi0/5", 7: "Gi0/7"}
+
+	// LLDP: tiempo . puertoLocal . numeroDeVecino  -> el de EN MEDIO.
+	if boca, ok := bocaLocal("124578.5.1", 1, porIndice); !ok || boca != "Gi0/5" {
+		t.Fatalf("LLDP deberia leer la boca 5 y dio %q (ok=%v)", boca, ok)
+	}
+	// CDP: ifIndexLocal . numeroDeVecino  -> el PRIMERO.
+	if boca, ok := bocaLocal("7.2", 0, porIndice); !ok || boca != "Gi0/7" {
+		t.Fatalf("CDP deberia leer la boca 7 y dio %q (ok=%v)", boca, ok)
+	}
+
+	// Una boca que el equipo no listo en su tabla de interfaces se queda con el
+	// numero crudo: es peor perder el vecino que mostrarlo sin nombre bonito.
+	if boca, ok := bocaLocal("99.1", 0, porIndice); !ok || boca != "99" {
+		t.Fatalf("sin nombre deberia quedar el numero y dio %q (ok=%v)", boca, ok)
+	}
+
+	// Y lo que no se puede leer se descarta, no se inventa.
+	if _, ok := bocaLocal("124578", 1, porIndice); ok {
+		t.Fatal("un indice corto no deberia dar boca")
+	}
+	if _, ok := bocaLocal("no.es.numero", 0, porIndice); ok {
+		t.Fatal("un indice que no es numero no deberia dar boca")
+	}
+}
+
+func TestLaDireccionQueAnunciaCdpLlegaComoBytes(t *testing.T) {
+	// CDP manda la IP del vecino en crudo. Es lo unico con lo que se le puede
+	// poner cara a un enlace visto solo por CDP, porque CDP no manda el chasis.
+	if obtenido := comoIP(gosnmp.SnmpPDU{Value: []byte{192, 168, 1, 2}}); obtenido != "192.168.1.2" {
+		t.Fatalf("se obtuvo %q", obtenido)
+	}
+
+	casos := []any{
+		[]byte{0, 0, 0, 0},  // sin configurar: no es una direccion
+		[]byte{192, 168, 1}, // incompleta
+		[]byte{},            // vacia
+		"192.168.1.2",       // texto, no bytes
+		nil,
+	}
+	for _, valor := range casos {
+		if obtenido := comoIP(gosnmp.SnmpPDU{Value: valor}); obtenido != "" {
+			t.Errorf("de %v se esperaba vacio y dio %q", valor, obtenido)
+		}
+	}
+}

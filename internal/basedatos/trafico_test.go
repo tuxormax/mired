@@ -136,3 +136,62 @@ func TestPodarBorraLoViejoYConservaLoNuevo(t *testing.T) {
 		t.Fatalf("deberia quedar solo la muestra nueva: quedan %d", cuantas)
 	}
 }
+
+func TestUnaMedicionMuestreadaSeGuardaMarcadaComoEstimada(t *testing.T) {
+	// sFlow no cuenta el trafico: lo muestrea. Una vez que las dos clases de
+	// medicion estan en la misma tabla, sin esta marca ya no hay forma de volver
+	// a separarlas, y una estimacion pasaria por medicion para siempre.
+	_, base, devolver := conRedDePrueba(t)
+	defer devolver()
+	ctx := context.Background()
+
+	sembrarEquipos(t, base, []EquipoDescubierto{
+		{IP: "192.168.1.50", MAC: "aa:aa:aa:00:00:50", Metodo: "arp"},
+	})
+
+	if err := base.GuardarFlujos(ctx, []ConsumoPorFlujo{
+		{IP: "192.168.1.50", BytesSube: 3_000_000, BytesBaja: 1_000_000,
+			Conversaciones: 4, Estimado: true},
+	}); err != nil {
+		t.Fatalf("no se pudieron guardar los flujos: %v", err)
+	}
+
+	consumo, err := base.ConsumoPorEquipo(ctx, 24)
+	if err != nil {
+		t.Fatalf("no se pudo leer el consumo: %v", err)
+	}
+	if len(consumo) != 1 {
+		t.Fatalf("se esperaba un renglon: %+v", consumo)
+	}
+	if !consumo[0].Estimado {
+		t.Fatal("lo que salio de un muestreo tiene que leerse como estimado")
+	}
+	// Y la etiqueta lo dice, para que no haya que saberlo de memoria.
+	if consumo[0].Puerto != "por el router (muestreo)" {
+		t.Fatalf("la etiqueta deberia decir que es muestreo: %q", consumo[0].Puerto)
+	}
+}
+
+func TestLoQueSeCuentaDeVerdadNoSeMarcaComoEstimado(t *testing.T) {
+	_, base, devolver := conRedDePrueba(t)
+	defer devolver()
+	ctx := context.Background()
+
+	sembrarEquipos(t, base, []EquipoDescubierto{
+		{IP: "192.168.1.51", MAC: "aa:aa:aa:00:00:51", Metodo: "arp"},
+	})
+
+	if err := base.GuardarFlujos(ctx, []ConsumoPorFlujo{
+		{IP: "192.168.1.51", BytesSube: 1000, BytesBaja: 2000, Conversaciones: 1},
+	}); err != nil {
+		t.Fatalf("no se pudieron guardar los flujos: %v", err)
+	}
+
+	consumo, err := base.ConsumoPorEquipo(ctx, 24)
+	if err != nil {
+		t.Fatalf("no se pudo leer el consumo: %v", err)
+	}
+	if len(consumo) != 1 || consumo[0].Estimado {
+		t.Fatalf("NetFlow cuenta de verdad, no estima: %+v", consumo)
+	}
+}
