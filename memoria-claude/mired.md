@@ -160,10 +160,40 @@ servicio. El enlace al codigo en el pie del panel (`_PieVersion` en
 `interfaz/lib/pantallas/redes.dart`) tampoco se quita: cuesta nada y es buena
 practica.
 
+## ▶ POR DONDE SEGUIR (al 2026-08-13, fin de la segunda jornada)
+
+Lo primero, y es de un minuto:
+
+1. **Abrir el programa por primera vez.** Se instala con
+   `sudo dpkg -i instaladores/mired_1.1-8_amd64.deb` y se busca "MiRed" en el
+   menu. **Nunca se ha abierto**: no esta comprobado que el supervisor levante
+   `mired-servidor` y `mired-sonda`, ni que los mate al cerrar. Es lo unico de la
+   jornada que quedo sin verificar, y toca todo lo demas.
+   Para probar en limpio: `sudo ./herramientas/desinstalar.sh`.
+
+Despues, en orden de valor:
+
+2. **Cerrar la fase 9.** Falta subir los `.deb` a una release de GitHub. El
+   usuario **ya eligio la opcion 1: publicar SIN firmar**, con las sumas SHA-256.
+   No hay clave GPG en el equipo y crear una es decision suya, no de la sesion.
+3. **Probar contra equipo real** — el riesgo abierto mas grande del proyecto:
+   SNMP y CDP contra un switch administrable, la controladora UniFi contra una de
+   verdad, y la inspeccion profunda contra un puerto espejo. Nada de eso se ha
+   visto funcionar fuera de servidores de mentira.
+4. **Medir el consumo de la inspeccion profunda.** El plan obliga a medir al
+   cerrar cada fase y la 10 se cerro sin medir, porque sin puerto espejo no hay
+   nada que capturar. Es justo el proceso donde mas importa: el unico que trabaja
+   de continuo.
+5. **El programa para arm64.** Hoy el `.deb` de arm64 sale sin el, porque Flutter
+   no cruza desde amd64. Para una Raspberry hay que compilarlo en ella o montar
+   compilacion cruzada.
+
 ## Lo que falta decidir
 - **Inventario de las redes reales** (marca/modelo de switches y puntos de acceso,
-  cuales son administrables). No bloquea hasta la fase 4, pero se necesita antes
-  de llegar ahi para probar SNMP contra equipo de verdad.
+  cuales son administrables). Se necesita para probar SNMP contra equipo de
+  verdad, que es el punto 3 de arriba.
+- **Firmar los paquetes**: hace falta una clave GPG del usuario. Decidido dejarlo
+  para cuando el proyecto tenga usuarios que la necesiten.
 
 ## Sin credenciales de fabrica (2026-08-13)
 **Se quitaron las credenciales sembradas de todo el proyecto** el mismo dia que
