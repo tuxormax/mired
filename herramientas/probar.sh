@@ -41,7 +41,7 @@ trap limpiar EXIT
 # --------------------------------------------------------------- construir --
 echo "== Construyendo el paquete"
 "$RAIZ/herramientas/construir.sh" --arquitectura amd64 >/dev/null
-PAQUETE=$(ls -t "$RAIZ/empaquetado/salida/"mired_*_amd64.deb | head -1)
+PAQUETE=$(ls -t "$RAIZ/instaladores/"mired_*_amd64.deb | head -1)
 echo "   $PAQUETE"
 
 dpkg-deb -x "$PAQUETE" "$CARPETA"

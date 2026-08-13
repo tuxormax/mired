@@ -9,7 +9,8 @@ __pycache__/
 # Binarios y paquetes generados
 /mired-servidor
 /mired-sonda
-/empaquetado/salida/
+# Los instaladores se generan; no se versionan. La carpeta si, con su README.
+/instaladores/*.deb
 *.deb
 
 # Interfaz Flutter

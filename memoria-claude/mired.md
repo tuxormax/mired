@@ -119,7 +119,9 @@ multiplicar mal la tasa de muestreo de sFlow, o desviarse del vector oficial de
 TUXOR. Ninguna de esas revienta nada; todas dan resultados plausibles y falsos.
 
 ## Herramientas del repo
-- `herramientas/construir.sh` — compila y arma el `.deb`.
+- `herramientas/construir.sh` — compila y arma el `.deb`. **Los instaladores
+  quedan en `instaladores/` y solo ahi** (regla del usuario, 2026-08-13: antes
+  salian a `empaquetado/salida/` y no los encontraba).
 - `herramientas/probar.sh` — la prueba de humo sobre el paquete.
 - `herramientas/desinstalar.sh` — **quita MiRed sin dejar rastro**. Hace falta
   porque `dpkg --purge` conserva las bases a proposito, y para probar en limpio

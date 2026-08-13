@@ -10,7 +10,7 @@ no Docker, nothing else installed.
 ## 1. Install the package
 
 ```
-sudo dpkg -i mired_1.0-5_amd64.deb
+sudo dpkg -i mired_1.1-8_amd64.deb
 ```
 
 Use `arm64` instead of `amd64` for a Raspberry Pi.

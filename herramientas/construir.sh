@@ -12,7 +12,9 @@
 set -euo pipefail
 
 RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SALIDA="$RAIZ/empaquetado/salida"
+# Los instaladores van SIEMPRE aqui y en ningun otro sitio: buscarlos por el
+# arbol del proyecto es perder tiempo cada vez.
+SALIDA="$RAIZ/instaladores"
 
 VERSION="v1.0"
 REVISION="0"

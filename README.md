@@ -17,7 +17,7 @@ base de datos ni Docker: se instala el `.deb` y aparece en el menú.
 ## Instalar
 
 ```
-sudo dpkg -i mired_1.0-7_amd64.deb
+sudo dpkg -i instaladores/mired_1.1-8_amd64.deb
 ```
 
 Al terminar, **ábralo desde el menú de aplicaciones** buscando «MiRed», o
@@ -72,6 +72,8 @@ Hace falta Go 1.24 o superior y, para la interfaz, Flutter.
 go test ./...                                    # pruebas
 ./herramientas/probar.sh                         # prueba de humo del paquete
 ```
+
+Los instaladores quedan en **`instaladores/`**, y sólo ahí.
 
 `probar.sh` construye el `.deb`, lo desempaqueta aparte, levanta los servicios
 desde ahí y recorre el flujo completo: entrar, crear una red, escanear, revisar
