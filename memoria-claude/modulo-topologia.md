@@ -69,4 +69,4 @@ pasa por el servidor. Ver [[mired]].
   (cada fabricante contesta distinto). Es el mayor riesgo abierto del proyecto.
 - Falta CDP (solo hay LLDP) y la controladora WiFi tipo UniFi.
 
-**Ver tambien:** [[modulo-escaneo]], [[mired-capacidades]], [[contrato-api]]
+**Ver tambien:** [[modulo-escaneo]], [[modulo-topologia-manual]], [[mired-capacidades]], [[contrato-api]]

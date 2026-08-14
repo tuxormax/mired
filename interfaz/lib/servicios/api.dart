@@ -261,6 +261,75 @@ class Api {
   Future<void> ponerAlias(String clave, int equipoId, String alias) =>
       modificar('/api/redes/$clave/equipos/$equipoId', {'alias': alias});
 
+  // ------------------------------------------------- topologia declarada --
+
+  /// La tercera fuente del mapa: lo que una persona declara porque tiene el
+  /// cable delante. Trae tambien donde eso ya no cuadra con lo que reportan los
+  /// equipos, para poder preguntar en vez de pisar en silencio.
+  Future<TopologiaManual> topologiaManual(String clave) async {
+    final datos = await obtener('/api/redes/$clave/topologia-manual');
+    return TopologiaManual.desdeJson(datos as Map<String, dynamic>);
+  }
+
+  /// Da de alta un aparato que ningun barrido va a encontrar: el switch tonto,
+  /// el modem que no habla SNMP hacia la LAN.
+  Future<Equipo> crearEquipoManual(String clave, Map<String, dynamic> equipo) async {
+    final datos = await enviar('/api/redes/$clave/equipos', equipo);
+    return Equipo.desdeJson(datos as Map<String, dynamic>);
+  }
+
+  /// Guarda lo que una persona sabe del equipo. Sirve igual para lo descubierto
+  /// y para lo declarado.
+  Future<void> guardarFicha(String clave, int equipoId,
+          {required String modelo, required String notas, required String conexion}) =>
+      reemplazar('/api/redes/$clave/equipos/$equipoId',
+          {'modelo': modelo, 'notas': notas, 'conexion': conexion});
+
+  /// Solo borra los declarados a mano. Un equipo descubierto se marca ausente,
+  /// nunca se borra: su historia es lo que despues permite avisar de que lleva
+  /// dias sin aparecer.
+  Future<void> borrarEquipoManual(String clave, int equipoId) =>
+      borrar('/api/redes/$clave/equipos/$equipoId');
+
+  Future<PuertoFisico> agregarPuerto(String clave, int equipoId,
+      {required int numero, required String tipo, int? velocidadMbps, String notas = ''}) async {
+    final datos = await enviar('/api/redes/$clave/equipos/$equipoId/puertos', {
+      'numero': numero,
+      'tipo': tipo,
+      'velocidadMbps': velocidadMbps,
+      'notas': notas,
+    });
+    return PuertoFisico.desdeJson(datos as Map<String, dynamic>);
+  }
+
+  Future<void> editarPuerto(String clave, int puertoId,
+          {required int numero, required String tipo, int? velocidadMbps, String notas = ''}) =>
+      reemplazar('/api/redes/$clave/puertos/$puertoId', {
+        'numero': numero,
+        'tipo': tipo,
+        'velocidadMbps': velocidadMbps,
+        'notas': notas,
+      });
+
+  Future<void> borrarPuerto(String clave, int puertoId) =>
+      borrar('/api/redes/$clave/puertos/$puertoId');
+
+  /// Conecta una boca. El destino es OTRA boca (switch con switch, switch con
+  /// modem) o un equipo entero, cuando ese equipo tiene una sola salida de red y
+  /// no tiene sentido inventarle un "puerto 1".
+  Future<EnlaceFisico> conectar(String clave,
+      {required int puertoOrigenId, int? puertoDestinoId, int? equipoDestinoId}) async {
+    final datos = await enviar('/api/redes/$clave/enlaces', {
+      'puertoOrigenId': puertoOrigenId,
+      'puertoDestinoId': puertoDestinoId,
+      'equipoDestinoId': equipoDestinoId,
+    });
+    return EnlaceFisico.desdeJson(datos as Map<String, dynamic>);
+  }
+
+  Future<void> desconectar(String clave, int enlaceId) =>
+      borrar('/api/redes/$clave/enlaces/$enlaceId');
+
   Future<int> lanzarEscaneo(String clave, {bool soloPresencia = false}) async {
     final datos = await enviar('/api/redes/$clave/escaneos', {'soloPresencia': soloPresencia});
     return (datos as Map<String, dynamic>)['escaneoId'] as int;

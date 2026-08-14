@@ -59,6 +59,13 @@ Hay paquete para `amd64` y para `arm64`, que es lo que necesita una Raspberry Pi
 - Descubrimiento en tres capas —ARP, ICMP y TCP—, que degradan con honestidad:
   cada equipo dice con qué método se vio, y el mapa distingue el puerto
   confirmado del grupo que cuelga de un switch no administrable.
+- **El cableado que ninguna herramienta puede ver, se declara a mano.** Un switch
+  no administrable no tiene dirección y no existe para ningún escaneo; un módem
+  de ISP casi nunca habla SNMP hacia la LAN. El mapa tiene un modo edición donde
+  se dan de alta esos aparatos, se declaran sus bocas y se conectan tocándolas.
+  Lo declarado se dibuja **punteado** —en pantalla y en los cuatro formatos
+  exportados—, y si el equipo acaba contestando algo distinto se avisa con las
+  dos versiones a la vista, sin pisar ninguna.
 - Dos procesos separados a propósito: el que está expuesto a la red no tiene
   privilegios, y el que los tiene no toca la base de datos.
 

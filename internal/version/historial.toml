@@ -22,9 +22,10 @@
 #                   cambiar de version.
 #   tipo            feature | fix | ajuste | change
 #
-# Los 14 modulos de la v1.14: redes, subredes, equipos, escaneo y agenda,
+# Los 15 modulos de la v1.15: redes, subredes, equipos, escaneo y agenda,
 # presencia, mapa de puertos, mapa visual, alertas, consumo, inspeccion profunda,
-# usuarios, credenciales SNMP, controladoras WiFi y catalogo de dispositivos.
+# usuarios, credenciales SNMP, controladoras WiFi, catalogo de dispositivos y
+# topologia manual.
 
 # --------------------------------------------------------------- el sistema --
 
@@ -164,6 +165,14 @@ tipo = "change"
 modulo = "Mapa de puertos"
 notas = "MiRed averigua solo si hay switches administrables: en cada escaneo prueba la comunidad de fabrica, sin pedir nada. Si nadie contesta lo dice claro —son switches simples, es lo normal en una red de casa— en vez de pedir una credencial SNMP para unos switches que no existen."
 
+[[sistema]]
+version = "1.15"
+revision = 18
+fecha = "2026-08-14"
+tipo = "feature"
+modulo = "Topologia manual"
+notas = "El modulo 15: lo que el usuario declara porque tiene el cable delante. Se pueden dar de alta aparatos que ningun escaneo ve —un switch no administrable no tiene direccion—, declarar las bocas de cualquier equipo y conectarlas a mano desde el mapa, con un modo edicion aparte de solo mirarlo. Lo declarado se dibuja punteado en pantalla y en los cuatro formatos exportados, y cuando el switch acaba contestando algo distinto se avisa de la contradiccion en vez de pisar en silencio ninguna de las dos versiones."
+
 # ----------------------------------------------------------------- la base --
 #
 # Cada entrada apunta al numero de migracion que la trae. El esquema de las bases
@@ -208,3 +217,11 @@ fecha = "2026-08-13"
 tipo = "feature"
 modulo = "Historial de versiones"
 notas = "Catalogo 0004: tablas versionessistema y versiondb, que el servidor siembra al arrancar desde el historial que viaja dentro del binario."
+
+[[base]]
+version = "1.15"
+revision = 6
+fecha = "2026-08-14"
+tipo = "feature"
+modulo = "Topologia manual"
+notas = "Red 0011: columnas modelo, origen y conexion en equipos, mas puertos_fisicos y enlaces_fisicos. El cable lleva su origen_dato —manual, snmp, lldp, cdp o inferido— para que lo tecleado no se confunda con lo medido. La tabla enlaces de 0004 NO se toca: aquella guarda lo que un switch anuncia de su vecino, esta guarda el cable ya resuelto."

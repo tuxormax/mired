@@ -46,6 +46,29 @@ valida renueva el vencimiento.
 | `PUT/DELETE /api/usuarios/{id}/permisos/{red}` | superadmin | permisos por red |
 | `POST /api/log-error` | **sin sesion a proposito** | bitacora de errores de la interfaz |
 
+### Topologia declarada a mano (modulo 15, v1.15)
+| Metodo y ruta | Quien puede | Que hace |
+|---|---|---|
+| `GET /api/redes/{clave}/topologia-manual` | lectura | bocas, cables y **contradicciones** contra lo medido |
+| `POST /api/redes/{clave}/equipos` | escritura | dar de alta un aparato que ningun escaneo ve |
+| `PUT /api/redes/{clave}/equipos/{equipo}` | escritura | ficha: `modelo`, `notas`, `conexion` |
+| `DELETE /api/redes/{clave}/equipos/{equipo}` | escritura | **solo si `origen = 'manual'`** |
+| `POST /api/redes/{clave}/equipos/{equipo}/puertos` | escritura | declarar una boca |
+| `PUT/DELETE /api/redes/{clave}/puertos/{puerto}` | escritura | editar o quitar la boca |
+| `POST /api/redes/{clave}/enlaces` | escritura | conectar; **siempre entra con `origen_dato = 'manual'`** |
+| `DELETE /api/redes/{clave}/enlaces/{enlace}` | escritura | desconectar |
+
+Dos cosas del diseno de estas rutas:
+
+- **Cuelgan de `/api/redes/{clave}/`** aunque el documento original las pedia
+  sueltas (`PUT /equipos/{id}`). Lo declarado vive en la base de ESA red, y
+  `conRed` es lo unico que fija la red activa: una ruta suelta no sabria a que
+  archivo escribir.
+- `PATCH /equipos/{equipo}` sigue siendo **solo el alias**; el `PUT` es la ficha.
+  Son dos operaciones distintas y se dejaron separadas a proposito.
+- La API **nunca** deja crear un enlace con origen `snmp`: eso solo lo escribe el
+  propio escaneo. Ver [[modulo-topologia-manual]].
+
 `/api/log-error` no exige sesion porque **el error que mas importa es el que
 ocurre al entrar**; exigir sesion dejaria fuera justo esos.
 

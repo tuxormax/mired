@@ -75,6 +75,19 @@ func (a *API) Rutas() http.Handler {
 
 	mux.Handle("GET /api/redes/{clave}/mapa-puertos", a.conRed(a.mapaDePuertos))
 
+	// Topologia declarada a mano: la tercera fuente del mapa, junto al enlace
+	// confirmado por SNMP y al inferido por conteo de MAC. Cuelga de la red
+	// porque lo declarado vive en la base de ESA red.
+	mux.Handle("GET /api/redes/{clave}/topologia-manual", a.conRed(a.verTopologiaManual))
+	mux.Handle("POST /api/redes/{clave}/equipos", a.conRed(a.crearEquipoManual))
+	mux.Handle("PUT /api/redes/{clave}/equipos/{equipo}", a.conRed(a.guardarFicha))
+	mux.Handle("DELETE /api/redes/{clave}/equipos/{equipo}", a.conRed(a.borrarEquipoManual))
+	mux.Handle("POST /api/redes/{clave}/equipos/{equipo}/puertos", a.conRed(a.agregarPuertoFisico))
+	mux.Handle("PUT /api/redes/{clave}/puertos/{puerto}", a.conRed(a.editarPuertoFisico))
+	mux.Handle("DELETE /api/redes/{clave}/puertos/{puerto}", a.conRed(a.borrarPuertoFisico))
+	mux.Handle("POST /api/redes/{clave}/enlaces", a.conRed(a.crearEnlaceManual))
+	mux.Handle("DELETE /api/redes/{clave}/enlaces/{enlace}", a.conRed(a.borrarEnlaceManual))
+
 	// Alertas: lo que convierte el inventario en algo que avisa.
 	mux.Handle("GET /api/redes/{clave}/alertas", a.conRed(a.listarAlertas))
 	mux.Handle("POST /api/redes/{clave}/alertas/vistas", a.conRed(a.marcarAlertasVistas))

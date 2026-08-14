@@ -151,7 +151,7 @@ pedir "$API/api/versiones" | grep -q '"versionessistema"\|"sistema"' \
     && paso "el historial de versiones se sembro" \
     || falla "el historial de versiones esta vacio"
 
-pedir "$API/api/versiones" | grep -q '"revision":12' \
+pedir "$API/api/versiones" | grep -q '"revision":18' \
     && paso "y trae la revision de esta entrega" \
     || falla "el historial no llega hasta la revision de hoy"
 
@@ -193,6 +193,63 @@ pedir "$API/api/redes/$CLAVE/mapa-puertos" | grep -q '"capacidad"' \
 
 pedir "$API/api/redes/$CLAVE/alertas" | grep -q '"abiertas"' \
     && paso "las alertas responden" || falla "las alertas fallaron"
+
+# ---------------------------------------------------- topologia declarada --
+#
+# Lo que ningun escaneo puede ver: un switch no administrable no tiene
+# direccion, no contesta a nada y no existe para ningun barrido.
+
+pedir "$API/api/redes/$CLAVE/topologia-manual" | grep -q '"contradicciones"' \
+    && paso "la topologia declarada a mano responde" \
+    || falla "la topologia declarada a mano no responde"
+
+MANUAL=$(pedir -X POST "$API/api/redes/$CLAVE/equipos" \
+         -d '{"nombre":"Switch del rack","tipo":"switch","modelo":"TP-Link SG108","puertos":8}' \
+         | sed -n 's/.*"id":\([0-9]*\).*/\1/p')
+[[ -n "$MANUAL" ]] \
+    && paso "da de alta un switch que ningun escaneo veria (id $MANUAL)" \
+    || falla "no se pudo dar de alta un equipo a mano"
+
+pedir -X POST "$API/api/redes/$CLAVE/equipos" -d '{"nombre":"Switch del rack"}' \
+    | grep -q '"ok":false' \
+    && paso "no deja repetir el nombre de un equipo" \
+    || falla "permitio repetir el nombre de un equipo"
+
+pedir "$API/api/redes/$CLAVE/topologia-manual" | grep -q '"numero":8' \
+    && paso "y le quedaron declaradas sus ocho bocas" \
+    || falla "las bocas del switch no se declararon"
+
+# Y ahora se vuelve a escanear CON el equipo declarado ya dado de alta: no tiene
+# direccion y ningun barrido lo va a ver nunca, asi que si se marcara ausente
+# generaria un evento de presencia y una alerta en cada corrida.
+pedir -X POST "$API/api/redes/$CLAVE/escaneos" -d '{"soloPresencia":true}' >/dev/null
+for _ in $(seq 1 30); do
+    sleep 2
+    pedir "$API/api/redes/$CLAVE/escaneos" | grep -q '"enCurso":false' && break
+done
+
+pedir "$API/api/redes/$CLAVE/equipos" \
+    | grep -q "\"id\":$MANUAL,[^}]*\"presente\":true" \
+    && paso "el equipo declarado sigue presente tras un escaneo posterior" \
+    || falla "el escaneo marco ausente un equipo que nunca va a contestar"
+
+BOCA=$(pedir "$API/api/redes/$CLAVE/topologia-manual" \
+       | sed -n 's/.*"puertos":\[{"id":\([0-9]*\).*/\1/p')
+pedir -X POST "$API/api/redes/$CLAVE/enlaces" \
+     -d "{\"puertoOrigenId\":$BOCA,\"equipoDestinoId\":$MANUAL}" \
+    | grep -q '"ok":false' \
+    && paso "no deja conectar un equipo consigo mismo" \
+    || falla "permitio conectar un equipo consigo mismo"
+
+pedir -X PUT "$API/api/redes/$CLAVE/equipos/$MANUAL" \
+     -d '{"modelo":"TP-Link SG108","notas":"En el rack de arriba","conexion":"paloma"}' \
+    | grep -q '"ok":false' \
+    && paso "rechaza una forma de conexion que no existe" \
+    || falla "acepto una conexion que la columna no admite"
+
+pedir -X DELETE "$API/api/redes/$CLAVE/equipos/$MANUAL" | grep -q '"borrado":true' \
+    && paso "borra el equipo declarado a mano" \
+    || falla "no se pudo borrar el equipo declarado"
 
 pedir "$API/api/redes/$CLAVE/consumo" | grep -q '"explicacion"' \
     && paso "el consumo responde y se explica" || falla "el consumo fallo"

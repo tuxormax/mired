@@ -10,6 +10,7 @@ import '../servicios/trayectoria.dart';
 import '../widgets/mensajes.dart';
 import 'alertas.dart';
 import 'mapa.dart';
+import 'topologia_manual.dart';
 
 /// PantallaRed es lo de un sitio: sus equipos y las subredes que se escanean.
 class PantallaRed extends StatefulWidget {
@@ -170,6 +171,63 @@ class _PantallaRedState extends State<PantallaRed> {
 
     try {
       await Api.instancia.ponerAlias(_red.clave, equipo.id, nuevo.trim());
+      _recargar();
+    } catch (problema, pila) {
+      if (mounted) await mostrarProblema(context, problema, pila: pila.toString());
+    }
+  }
+
+  /// _agregarAMano da de alta un aparato que ningun barrido va a encontrar: el
+  /// switch no administrable, el modem que no habla SNMP hacia la LAN.
+  Future<void> _agregarAMano() async {
+    final creado = await showDialog<Equipo>(
+      context: context,
+      builder: (_) => DialogoEquipoManual(clave: _red.clave),
+    );
+    if (creado != null) _recargar();
+  }
+
+  Future<void> _editarFicha(Equipo equipo) async {
+    final cambio = await showDialog<bool>(
+      context: context,
+      builder: (_) => DialogoFicha(clave: _red.clave, equipo: equipo),
+    );
+    if (cambio == true) _recargar();
+  }
+
+  Future<void> _editarBocas(Equipo equipo) async {
+    final cambio = await showDialog<bool>(
+      context: context,
+      builder: (_) => DialogoBocas(clave: _red.clave, equipo: equipo),
+    );
+    if (cambio == true) _recargar();
+  }
+
+  /// _borrarManual solo sirve para lo declarado a mano. Un equipo descubierto se
+  /// marca ausente cuando desaparece, pero no se borra: su historia es lo que
+  /// despues permite avisar de que lleva tres dias sin aparecer.
+  Future<void> _borrarManual(Equipo equipo) async {
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (contextoModal) => AlertDialog(
+        title: Text('Borrar ${equipo.comoSeLlama}'),
+        content: const Text(
+            'Se va tambien con sus bocas declaradas y los cables que salian de ellas. '
+            'Los equipos que colgaban de el vuelven a la zona de los que no estan ubicados.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(contextoModal).pop(false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.of(contextoModal).pop(true),
+              child: const Text('Borrar')),
+        ],
+      ),
+    );
+    if (confirmado != true) return;
+
+    try {
+      await Api.instancia.borrarEquipoManual(_red.clave, equipo.id);
       _recargar();
     } catch (problema, pila) {
       if (mounted) await mostrarProblema(context, problema, pila: pila.toString());
@@ -353,6 +411,14 @@ class _PantallaRedState extends State<PantallaRed> {
                   _recargar();
                 },
               ),
+              const SizedBox(width: 8),
+              // Un switch no administrable no tiene direccion y no sale en
+              // ningun escaneo. Sin esta puerta no habria forma de meterlo.
+              OutlinedButton.icon(
+                icon: const Icon(Icons.add),
+                label: const Text('A mano'),
+                onPressed: _agregarAMano,
+              ),
             ],
           ),
         ),
@@ -385,6 +451,9 @@ class _PantallaRedState extends State<PantallaRed> {
                   equipo: equipos[indice],
                   clave: _red.clave,
                   alRenombrar: () => _renombrar(equipos[indice]),
+                  alEditarFicha: () => _editarFicha(equipos[indice]),
+                  alEditarBocas: () => _editarBocas(equipos[indice]),
+                  alBorrar: () => _borrarManual(equipos[indice]),
                 ),
               );
             },
@@ -760,11 +829,17 @@ class _TarjetaEquipo extends StatelessWidget {
     required this.equipo,
     required this.clave,
     required this.alRenombrar,
+    required this.alEditarFicha,
+    required this.alEditarBocas,
+    required this.alBorrar,
   });
 
   final Equipo equipo;
   final String clave;
   final VoidCallback alRenombrar;
+  final VoidCallback alEditarFicha;
+  final VoidCallback alEditarBocas;
+  final VoidCallback alBorrar;
 
   @override
   Widget build(BuildContext contexto) {
@@ -793,9 +868,13 @@ class _TarjetaEquipo extends StatelessWidget {
         ),
         subtitle: Text([
           if (equipo.tipo.isNotEmpty) equipo.tipo,
+          if (equipo.modelo.isNotEmpty) equipo.modelo,
           if (equipo.fabricante.isNotEmpty) equipo.fabricante,
           if (equipo.mac.isNotEmpty) equipo.mac,
           if (equipo.puertos.isNotEmpty) '${equipo.puertos.length} puertos abiertos',
+          // Se dice con todas sus letras: este renglon no lo encontro ningun
+          // barrido, lo tecleo alguien.
+          if (equipo.esManual) 'declarado a mano',
         ].join(' · ')),
         trailing: IconButton(
           tooltip: 'Ponerle nombre',
@@ -826,10 +905,26 @@ class _TarjetaEquipo extends StatelessWidget {
                   const SizedBox(height: 12),
                 ],
                 _Renglon(etiqueta: 'Reconocido como', valor: equipo.tipo),
+                _Renglon(etiqueta: 'Modelo', valor: equipo.modelo),
                 _Renglon(etiqueta: 'Nombre descubierto', valor: equipo.nombre),
                 _Renglon(etiqueta: 'MAC', valor: equipo.mac),
                 _Renglon(etiqueta: 'Fabricante', valor: equipo.fabricante),
                 _Renglon(etiqueta: 'Subred', valor: equipo.subred),
+                _Renglon(
+                    etiqueta: 'Como se conecta',
+                    valor: switch (equipo.conexion) {
+                      'cable' => 'Por cable',
+                      'wifi' => 'Por WiFi',
+                      _ => '',
+                    }),
+                _Renglon(etiqueta: 'Notas', valor: equipo.notas),
+                // De donde salio este renglon. Un equipo declarado no se midio, y
+                // el que lo lea tiene que poder saberlo sin preguntar.
+                _Renglon(
+                    etiqueta: 'De donde salio',
+                    valor: equipo.esManual
+                        ? 'Lo declaro una persona; ningun escaneo lo vio'
+                        : 'Lo encontro un barrido'),
                 // Se dice como se vio: no es lo mismo "esta" que "algo contesto
                 // en esa direccion", y ocultarlo seria mentir sobre la certeza.
                 _Renglon(etiqueta: 'Certeza', valor: equipo.certeza),
@@ -847,6 +942,19 @@ class _TarjetaEquipo extends StatelessWidget {
                         builder: (_) => _DialogoPresencia(clave: clave, equipo: equipo),
                       ),
                     ),
+                    TextButton.icon(
+                      icon: const Icon(Icons.badge_outlined),
+                      label: const Text('Ficha'),
+                      onPressed: alEditarFicha,
+                    ),
+                    // Las bocas se declaran en CUALQUIER equipo, no solo en un
+                    // switch tonto: un modem administrable que no habla SNMP
+                    // hacia la LAN es el caso mas comun de todos.
+                    TextButton.icon(
+                      icon: const Icon(Icons.settings_input_hdmi),
+                      label: const Text('Bocas'),
+                      onPressed: alEditarBocas,
+                    ),
                     // Solo se ofrece cuando nadie lo reconocio: es exactamente
                     // ahi donde el catalogo necesita crecer.
                     if (equipo.tipo.isEmpty)
@@ -857,6 +965,14 @@ class _TarjetaEquipo extends StatelessWidget {
                           context: contexto,
                           builder: (_) => _DialogoPropuesta(clave: clave, equipo: equipo),
                         ),
+                      ),
+                    // Borrar solo lo declarado. Lo descubierto se marca ausente
+                    // y conserva su historia, que es de donde salen las alertas.
+                    if (equipo.esManual)
+                      TextButton.icon(
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('Borrar'),
+                        onPressed: alBorrar,
                       ),
                   ],
                 ),

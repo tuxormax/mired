@@ -14,21 +14,58 @@ import '../modelos/modelos.dart';
 
 /// DatosMapa junta lo que hace falta para armar el plano.
 class DatosMapa {
-  const DatosMapa({required this.mapa, required this.equipos});
+  const DatosMapa({
+    required this.mapa,
+    required this.equipos,
+    this.topologia = const TopologiaManual(),
+  });
 
   final MapaPuertos mapa;
   final List<Equipo> equipos;
 
-  /// Los equipos que ningun switch reporto en ninguna boca. Se muestran aparte:
-  /// esconderlos daria un plano incompleto sin avisar.
+  /// Lo declarado a mano: las bocas que alguien conto mirando el aparato y los
+  /// cables que declaro. Es la tercera fuente del mapa, junto al enlace
+  /// confirmado por SNMP y al inferido por conteo de MAC.
+  final TopologiaManual topologia;
+
+  Equipo? equipoPorId(int? id) {
+    if (id == null) return null;
+    for (final equipo in equipos) {
+      if (equipo.id == id) return equipo;
+    }
+    return null;
+  }
+
+  /// Los equipos que tienen bocas declaradas: se dibujan como cabecera de su
+  /// propio bloque, igual que un switch administrable.
+  List<Equipo> get conBocasDeclaradas {
+    final ids = topologia.puertos.map((puerto) => puerto.equipoId).toSet();
+    final lista = equipos.where((equipo) => ids.contains(equipo.id)).toList();
+    lista.sort((uno, otro) => uno.comoSeLlama.compareTo(otro.comoSeLlama));
+    return lista;
+  }
+
+  /// Los equipos que ningun switch reporto en ninguna boca y que tampoco
+  /// aparecen en lo declarado a mano. Se muestran aparte: esconderlos daria un
+  /// plano incompleto sin avisar.
   List<Equipo> get sinUbicar {
     final ubicados = mapa.puertos
         .where((puerto) => puerto.equipoId != null)
         .map((puerto) => puerto.equipoId)
         .toSet();
     final switches = mapa.puertos.map((puerto) => puerto.switchId).toSet();
+    // Lo declarado tambien ubica: un equipo colgado a mano de la boca 3 del
+    // modem ya no esta "sin ubicar", aunque ningun switch lo haya reportado.
+    final declarados = topologia.puertos.map((puerto) => puerto.equipoId).toSet();
+    for (final enlace in topologia.enlaces) {
+      if (enlace.equipoDestinoId != null) declarados.add(enlace.equipoDestinoId!);
+    }
+
     return equipos
-        .where((equipo) => !ubicados.contains(equipo.id) && !switches.contains(equipo.id))
+        .where((equipo) =>
+            !ubicados.contains(equipo.id) &&
+            !switches.contains(equipo.id) &&
+            !declarados.contains(equipo.id))
         .toList();
   }
 }
@@ -40,6 +77,11 @@ class CajaPlano {
     required this.subtitulo,
     required this.color,
     required this.icono,
+    this.equipoId,
+    this.puertoFisicoId,
+    this.enlaceId,
+    this.bocaLibre = false,
+    this.declarada = false,
   });
 
   final Rect rectangulo;
@@ -47,6 +89,24 @@ class CajaPlano {
   final String subtitulo;
   final Color color;
   final IconData icono;
+
+  /// A que equipo corresponde la caja, cuando se sabe. Lo usa el modo edicion
+  /// para saber en que se hizo clic; el plano exportado lo ignora.
+  final int? equipoId;
+
+  /// La boca declarada que representa esta caja, si es una boca.
+  final int? puertoFisicoId;
+
+  /// El cable declarado que la ocupa, si hay alguno.
+  final int? enlaceId;
+
+  /// Una boca declarada sin nada conectado. Es donde el modo edicion ofrece
+  /// conectar algo.
+  final bool bocaLibre;
+
+  /// La caja sale de lo que tecleo una persona, no de lo que se midio. Se dibuja
+  /// con borde punteado para que no se confunda con lo confirmado.
+  final bool declarada;
 }
 
 class LineaPlano {
@@ -55,12 +115,18 @@ class LineaPlano {
     required this.hasta,
     required this.confirmada,
     required this.etiqueta,
+    this.declarada = false,
   });
 
   final Offset desde;
   final Offset hasta;
   final bool confirmada;
   final String etiqueta;
+
+  /// El cable lo declaro una persona. Se dibuja distinto del confirmado y del
+  /// inferido: son tres cosas distintas y presentarlas igual seria hacer pasar
+  /// lo tecleado por medido.
+  final bool declarada;
 }
 
 /// EnlacePlano es un cable de switch a switch, dibujado como arco por encima de
@@ -177,6 +243,7 @@ Plano armarPlano(DatosMapa datos, ColorScheme colores) {
       subtitulo: ejemplo.switchIp,
       color: colores.primaryContainer,
       icono: Icons.router,
+      equipoId: switchId,
     ));
 
     double xBoca = x;
@@ -193,6 +260,7 @@ Plano armarPlano(DatosMapa datos, ColorScheme colores) {
           subtitulo: unico.equipoIp.isNotEmpty ? unico.equipoIp : unico.mac,
           color: colores.surfaceContainerHighest,
           icono: Icons.devices,
+          equipoId: unico.equipoId,
         ));
       } else {
         // El grupo se dibuja como UNA caja que dice cuantos hay: es exactamente
@@ -251,6 +319,94 @@ Plano armarPlano(DatosMapa datos, ColorScheme colores) {
     ));
   }
 
+  // ------------------------------------------- lo que se declaro a mano ---
+  //
+  // Va en su propia franja, debajo de lo que dijeron los switches, y con el
+  // mismo reparto: el aparato arriba y sus bocas debajo. Se dibuja punteado de
+  // punta a punta —caja y cable— porque es lo que alguien TECLEO, y presentarlo
+  // igual que lo confirmado seria hacer pasar una declaracion por una medicion.
+  final conBocas = datos.conBocasDeclaradas;
+  if (conBocas.isNotEmpty) {
+    if (altoMaximo == 0) altoMaximo = arriba + separacionY / 2;
+    double xManual = separacionX;
+    final yCabecera = altoMaximo + separacionY / 2;
+
+    for (final equipo in conBocas) {
+      final bocas = datos.topologia.puertosDe(equipo.id);
+      final anchoBloque = matematicas.max(
+          bocas.length * (anchoCaja + separacionX), anchoCaja + separacionX);
+      final centroEquipo = Offset(xManual + anchoBloque / 2, yCabecera);
+
+      cajas.add(CajaPlano(
+        rectangulo: Rect.fromCenter(
+            center: centroEquipo, width: anchoCaja, height: altoCaja),
+        titulo: equipo.comoSeLlama,
+        subtitulo: equipo.modelo.isNotEmpty
+            ? equipo.modelo
+            : (equipo.ip.isNotEmpty ? equipo.ip : 'declarado a mano'),
+        color: colores.secondaryContainer,
+        icono: Icons.settings_ethernet,
+        equipoId: equipo.id,
+        declarada: equipo.esManual,
+      ));
+
+      double xBoca = xManual;
+      for (final boca in bocas) {
+        final centroBoca = Offset(xBoca + anchoCaja / 2, yCabecera + separacionY);
+        final cable = datos.topologia.enlaceDe(boca.id);
+
+        if (cable == null) {
+          // Una boca libre NO se esconde: es justo donde el modo edicion
+          // ofrece conectar algo, y verla vacia dice cuanto falta por declarar.
+          cajas.add(CajaPlano(
+            rectangulo:
+                Rect.fromCenter(center: centroBoca, width: anchoCaja, height: altoCaja),
+            titulo: 'Boca ${boca.etiqueta} libre',
+            subtitulo: boca.velocidadMbps != null ? '${boca.velocidadMbps} Mbps' : 'sin conectar',
+            color: colores.surfaceContainerLow,
+            icono: Icons.add_circle_outline,
+            equipoId: equipo.id,
+            puertoFisicoId: boca.id,
+            bocaLibre: true,
+            declarada: true,
+          ));
+        } else {
+          // El nombre del otro extremo, mirado desde ESTA boca: un cable
+          // declarado desde la otra punta apunta hacia aca.
+          final soyOrigen = cable.puertoOrigenId == boca.id;
+          final otroLado = soyOrigen ? cable.destinoNombre : cable.origenNombre;
+          cajas.add(CajaPlano(
+            rectangulo:
+                Rect.fromCenter(center: centroBoca, width: anchoCaja, height: altoCaja),
+            titulo: otroLado.isEmpty ? 'Conectado' : otroLado,
+            subtitulo: 'declarado a mano',
+            color: colores.surfaceContainerHighest,
+            icono: Icons.devices,
+            equipoId: soyOrigen ? cable.equipoDestinoId : cable.equipoOrigenId,
+            puertoFisicoId: boca.id,
+            enlaceId: cable.id,
+            declarada: true,
+          ));
+        }
+
+        lineas.add(LineaPlano(
+          desde: centroEquipo + const Offset(0, altoCaja / 2),
+          hasta: centroBoca - const Offset(0, altoCaja / 2),
+          confirmada: false,
+          declarada: true,
+          etiqueta: boca.tipo == 'wan' ? 'WAN' : 'boca ${boca.numero}',
+        ));
+
+        xBoca += anchoCaja + separacionX;
+      }
+
+      xManual += anchoBloque + separacionX * 2;
+      anchoMaximo = matematicas.max(anchoMaximo, xManual);
+    }
+
+    altoMaximo = matematicas.max(altoMaximo, yCabecera + separacionY + altoCaja);
+  }
+
   // Los que no cuelgan de ningun switch conocido: en su propia zona, abajo.
   final sinUbicar = datos.sinUbicar;
   if (sinUbicar.isNotEmpty) {
@@ -272,6 +428,7 @@ Plano armarPlano(DatosMapa datos, ColorScheme colores) {
         subtitulo: equipo.ip,
         color: colores.surfaceContainerLow,
         icono: equipo.presente ? Icons.help_outline : Icons.power_off,
+        equipoId: equipo.id,
       ));
       xSuelto += anchoCaja + separacionX;
       altoMaximo = matematicas.max(altoMaximo, filaY + altoCaja + separacionY / 2);
@@ -334,6 +491,11 @@ class PintorMapa extends CustomPainter {
     for (final linea in plano.lineas) {
       if (linea.confirmada) {
         lienzo.drawLine(linea.desde, linea.hasta, trazo);
+      } else if (linea.declarada) {
+        // Guion largo: se distingue a simple vista del punteado corto del grupo
+        // inferido. Son tres cosas distintas —medido, deducido y tecleado— y el
+        // plano tiene que dejar ver cual es cual sin leer la leyenda.
+        _lineaPunteada(lienzo, linea.desde, linea.hasta, trazo, largo: 12, hueco: 5);
       } else {
         _lineaPunteada(lienzo, linea.desde, linea.hasta, trazo);
       }
@@ -352,7 +514,11 @@ class PintorMapa extends CustomPainter {
       final redondeado = RRect.fromRectAndRadius(caja.rectangulo, const Radius.circular(8));
 
       lienzo.drawRRect(redondeado, fondo);
-      lienzo.drawRRect(redondeado, borde);
+      if (caja.declarada) {
+        _rectanguloPunteado(lienzo, redondeado, borde);
+      } else {
+        lienzo.drawRRect(redondeado, borde);
+      }
 
       _icono(lienzo, caja.icono, caja.rectangulo.topLeft + const Offset(10, 12), plano.colorTexto);
       _texto(lienzo, caja.titulo, caja.rectangulo.topLeft + const Offset(34, 8), 13,
@@ -364,10 +530,28 @@ class PintorMapa extends CustomPainter {
     }
   }
 
-  void _lineaPunteada(Canvas lienzo, Offset desde, Offset hasta, Paint trazo) {
-    const largo = 6.0;
-    const hueco = 5.0;
+  /// _rectanguloPunteado marca una caja que sale de lo que alguien tecleo.
+  ///
+  /// El borde punteado hace lo mismo que la linea punteada en los cables: dice
+  /// de un vistazo que ese dato no se midio. Un plano donde lo declarado se ve
+  /// igual que lo confirmado acaba usandose como si todo estuviera comprobado.
+  void _rectanguloPunteado(Canvas lienzo, RRect caja, Paint trazo) {
+    final esquinas = [
+      caja.outerRect.topLeft,
+      caja.outerRect.topRight,
+      caja.outerRect.bottomRight,
+      caja.outerRect.bottomLeft,
+    ];
+    for (var i = 0; i < esquinas.length; i++) {
+      _lineaPunteada(lienzo, esquinas[i], esquinas[(i + 1) % esquinas.length], trazo,
+          largo: 5, hueco: 4);
+    }
+  }
+
+  void _lineaPunteada(Canvas lienzo, Offset desde, Offset hasta, Paint trazo,
+      {double largo = 6, double hueco = 5}) {
     final total = (hasta - desde).distance;
+    if (total == 0) return;
     final paso = (hasta - desde) / total;
 
     var recorrido = 0.0;

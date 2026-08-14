@@ -54,4 +54,4 @@ los sustituye por "(guardado)". Mismo criterio que las comunidades SNMP.
 marcarlas vistas. Si solo se actualizara al escanear, el panel seguiria mostrando
 alertas ya atendidas hasta el barrido siguiente.
 
-**Ver tambien:** [[modulo-escaneo]], [[gotchas]], [[historial-bugs]], [[contrato-api]]
+**Ver tambien:** [[modulo-escaneo]], [[modulo-topologia-manual]], [[gotchas]], [[historial-bugs]], [[contrato-api]]

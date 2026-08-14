@@ -144,8 +144,11 @@ String svgDelPlano(Plano plano, EncabezadoMapa encabezado) {
 
   for (final linea in plano.lineas) {
     // El punteado del SVG lo hace el propio formato con stroke-dasharray, con
-    // los mismos 6 y 5 que usa el pintor de la pantalla.
-    final punteado = linea.confirmada ? '' : ' stroke-dasharray="6 5"';
+    // los mismos valores que usa el pintor de la pantalla: guion corto para el
+    // grupo inferido, guion largo para lo declarado a mano.
+    final punteado = linea.confirmada
+        ? ''
+        : (linea.declarada ? ' stroke-dasharray="12 5"' : ' stroke-dasharray="6 5"');
     salida.writeln('<line x1="${_n(linea.desde.dx)}" y1="${_n(linea.desde.dy)}" '
         'x2="${_n(linea.hasta.dx)}" y2="${_n(linea.hasta.dy)}" '
         'stroke="${_color(plano.colorLinea)}" stroke-width="2"$punteado/>');
@@ -156,9 +159,13 @@ String svgDelPlano(Plano plano, EncabezadoMapa encabezado) {
 
   for (final caja in plano.cajas) {
     final r = caja.rectangulo;
+    // La caja de lo declarado tambien va punteada: si el archivo exportado
+    // dibujara igual lo tecleado y lo medido, quien lo reciba lo leeria todo
+    // como comprobado.
+    final bordePunteado = caja.declarada ? ' stroke-dasharray="5 4"' : '';
     salida.writeln('<rect x="${_n(r.left)}" y="${_n(r.top)}" width="${_n(r.width)}" '
         'height="${_n(r.height)}" rx="8" ry="8" fill="${_color(caja.color)}" '
-        'stroke="${_color(plano.colorLinea)}" stroke-width="1"/>');
+        'stroke="${_color(plano.colorLinea)}" stroke-width="1"$bordePunteado/>');
     salida.writeln('<text x="${_n(r.left + 10)}" y="${_n(r.top + 21)}" font-size="13" '
         'font-weight="600" fill="${_color(plano.colorTexto)}">'
         '${_xml(_recortar(caja.titulo, anchoCaja - 20, 13, true))}</text>');
@@ -236,7 +243,11 @@ Uint8List pdfDelPlano(Plano plano, EncabezadoMapa encabezado) {
   for (final linea in plano.lineas) {
     contenido
       ..writeln('2 w')
-      ..writeln(linea.confirmada ? '[] 0 d' : '[6 5] 0 d')
+      // Guion corto para el grupo inferido, guion largo para lo declarado a
+      // mano, continuo para lo confirmado. Los mismos tres trazos de pantalla.
+      ..writeln(linea.confirmada
+          ? '[] 0 d'
+          : (linea.declarada ? '[12 5] 0 d' : '[6 5] 0 d'))
       ..writeln('${_n(linea.desde.dx)} ${_n(linea.desde.dy + desplazamiento)} m '
           '${_n(linea.hasta.dx)} ${_n(linea.hasta.dy + desplazamiento)} l S');
     _textoPdf(
@@ -256,6 +267,10 @@ Uint8List pdfDelPlano(Plano plano, EncabezadoMapa encabezado) {
       ..writeln('${_colorPdf(caja.color)} rg')
       ..writeln('${_colorPdf(plano.colorLinea)} RG')
       ..writeln('1 w')
+      // Borde punteado en lo declarado, por la misma razon que en pantalla: un
+      // plano impreso donde lo tecleado se ve igual que lo medido se usa como si
+      // todo estuviera comprobado.
+      ..writeln(caja.declarada ? '[5 4] 0 d' : '[] 0 d')
       ..writeln(_cajaRedondeadaPdf(r, 8))
       // B rellena y contornea de una pasada; dos operaciones dibujarian el borde
       // dos veces sobre el mismo trazo.
@@ -420,7 +435,7 @@ String csvDelMapa(DatosMapa datos, [EncabezadoMapa? encabezado]) {
       _paraCsv('${encabezado.titulo} — ${encabezado.subtitulo}'),
       '',
     ],
-    'switch,ip_switch,puerto,equipo,ip_equipo,mac,certeza,equipos_en_la_boca',
+    'switch,ip_switch,puerto,equipo,ip_equipo,mac,certeza,equipos_en_la_boca,origen_del_dato',
   ];
   for (final puerto in datos.mapa.puertos) {
     renglones.add([
@@ -432,11 +447,39 @@ String csvDelMapa(DatosMapa datos, [EncabezadoMapa? encabezado]) {
       puerto.mac,
       puerto.confirmado ? 'confirmado' : 'grupo',
       '${puerto.cuantosEnBoca}',
+      'snmp',
     ].map(_paraCsv).join(','));
   }
+
+  // Lo declarado a mano va con su propia columna de origen. Mezclarlo con lo
+  // medido sin decir cual es cual convertiria la hoja en un inventario que
+  // parece comprobado y no lo esta.
+  for (final boca in datos.topologia.puertos) {
+    final equipo = datos.equipoPorId(boca.equipoId);
+    final cable = datos.topologia.enlaceDe(boca.id);
+    final soyOrigen = cable != null && cable.puertoOrigenId == boca.id;
+    final otroLado = cable == null
+        ? ''
+        : (soyOrigen ? cable.destinoNombre : cable.origenNombre);
+    final destino = datos.equipoPorId(
+        cable == null ? null : (soyOrigen ? cable.equipoDestinoId : cable.equipoOrigenId));
+
+    renglones.add([
+      equipo?.comoSeLlama ?? '',
+      equipo?.ip ?? '',
+      boca.tipo == 'wan' ? 'WAN' : 'boca ${boca.numero}',
+      otroLado,
+      destino?.ip ?? '',
+      destino?.mac ?? '',
+      cable == null ? 'boca libre' : 'declarado a mano',
+      '',
+      cable?.origenDato ?? 'manual',
+    ].map(_paraCsv).join(','));
+  }
+
   for (final equipo in datos.sinUbicar) {
     renglones.add([
-      '', '', '', equipo.comoSeLlama, equipo.ip, equipo.mac, 'sin ubicar', '',
+      '', '', '', equipo.comoSeLlama, equipo.ip, equipo.mac, 'sin ubicar', '', '',
     ].map(_paraCsv).join(','));
   }
   return renglones.join('\n');

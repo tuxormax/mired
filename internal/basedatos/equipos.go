@@ -27,6 +27,17 @@ type Equipo struct {
 	PrimeraVez string   `json:"primeraVez"`
 	UltimaVez  string   `json:"ultimaVez"`
 	Puertos    []Puerto `json:"puertos"`
+	// Modelo y Notas los escribe una persona. No salen de ningun barrido: son lo
+	// que sabe quien tiene el aparato delante.
+	Modelo string `json:"modelo"`
+	Notas  string `json:"notas"`
+	// Origen es "descubierto" o "manual". Un switch no administrable NUNCA va a
+	// salir en un escaneo —no tiene direccion—, y sin esto no habria forma de
+	// distinguir "no contesto" de "no existe".
+	Origen string `json:"origen"`
+	// Conexion es "cable" o "wifi", y solo aplica a equipos terminales. Vacio en
+	// un switch o un router, donde no significaria nada.
+	Conexion string `json:"conexion"`
 }
 
 // ComoSeLlama devuelve el nombre que conviene mostrar: manda el que puso una
@@ -290,9 +301,14 @@ func guardarPuertos(ctx context.Context, tx *sql.Tx, escaneoID, equipoID int64, 
 func marcarAusentes(ctx context.Context, tx *sql.Tx, escaneoID int64, momento string) (int, error) {
 	// Primero se ve QUIENES se van a marcar ausentes, porque despues del UPDATE
 	// ya no hay forma de saber cuales cambiaron, y cada uno necesita su evento.
+	// Los equipos DECLARADOS a mano quedan fuera: un switch no administrable no
+	// tiene direccion, no contesta a nada y ningun barrido lo va a ver nunca.
+	// Sin esta linea se marcaria ausente en cada escaneo, generaria un evento de
+	// presencia cada vez y la alerta de "lleva dias sin aparecer" avisaria de un
+	// aparato que esta ahi, atornillado a la pared.
 	filas, err := tx.QueryContext(ctx, `
 		SELECT id, ip FROM equipos
-		 WHERE estatus = 1 AND presente = 1
+		 WHERE estatus = 1 AND presente = 1 AND origen <> 'manual'
 		   AND id NOT IN (SELECT equipo_id FROM escaneo_equipos WHERE escaneo_id = ?)`,
 		escaneoID)
 	if err != nil {
@@ -390,7 +406,8 @@ func (b *Base) ListarEquipos(ctx context.Context, soloPresentes bool) ([]Equipo,
 		SELECT id, identidad, ip, COALESCE(mac, ''), COALESCE(fabricante, ''),
 		       COALESCE(nombre, ''), COALESCE(alias, ''), COALESCE(tipo, ''),
 		       COALESCE(subred, ''), COALESCE(metodo, ''), presente,
-		       primera_vez, ultima_vez
+		       primera_vez, ultima_vez, COALESCE(modelo, ''), COALESCE(notas, ''),
+		       origen, COALESCE(conexion, '')
 		  FROM equipos
 		 WHERE estatus = 1`
 	if soloPresentes {
@@ -411,7 +428,8 @@ func (b *Base) ListarEquipos(ctx context.Context, soloPresentes bool) ([]Equipo,
 		var presente int
 		if err := filas.Scan(&e.ID, &e.Identidad, &e.IP, &e.MAC, &e.Fabricante,
 			&e.Nombre, &e.Alias, &e.Tipo, &e.Subred, &e.Metodo, &presente,
-			&e.PrimeraVez, &e.UltimaVez); err != nil {
+			&e.PrimeraVez, &e.UltimaVez, &e.Modelo, &e.Notas, &e.Origen,
+			&e.Conexion); err != nil {
 			return nil, err
 		}
 		e.Presente = presente == 1

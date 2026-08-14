@@ -93,6 +93,25 @@ void main() {
     await dibujar(probador, PantallaMapa(red: _red));
 
     expect(find.textContaining('Linea llena'), findsOneWidget);
+    // La tercera fuente del mapa se anuncia en la leyenda: sin eso, lo tecleado
+    // se leeria igual que lo medido.
+    expect(find.textContaining('declarado a mano'), findsOneWidget);
+    expect(tomaDeErrores(), isNull);
+  });
+
+  testWidgets('el modo edicion no esta encendido de entrada', (probador) async {
+    // Un clic de navegacion no puede reescribir la topologia por accidente: el
+    // mapa es justo lo que se consulta cuando algo no funciona.
+    await dibujar(probador, PantallaMapa(red: _red));
+
+    expect(find.textContaining('Modo edicion'), findsNothing);
+    expect(find.text('Agregar aparato'), findsNothing);
+
+    await probador.tap(find.byTooltip('Editar el cableado a mano'));
+    await probador.pump();
+
+    expect(find.textContaining('Modo edicion'), findsOneWidget);
+    expect(find.text('Agregar aparato'), findsOneWidget);
     expect(tomaDeErrores(), isNull);
   });
 }
@@ -145,6 +164,15 @@ dynamic _respuestaDe(String ruta) {
         'presente': false, 'primeraVez': '2026-08-10T09:00:00-06:00',
         'ultimaVez': '2026-08-11T09:00:00-06:00', 'puertos': [],
       },
+      // El switch tonto: sin IP, sin MAC y sin fabricante, porque no contesta a
+      // nada. Existe solo porque alguien lo tecleo.
+      {
+        'id': 4, 'ip': '', 'mac': '', 'fabricante': '', 'nombre': '',
+        'alias': 'Switch del rack', 'tipo': 'switch', 'subred': '', 'metodo': 'manual',
+        'presente': true, 'primeraVez': '2026-08-14T09:00:00-06:00',
+        'ultimaVez': '2026-08-14T09:00:00-06:00', 'puertos': [],
+        'modelo': 'TP-Link SG108', 'notas': '', 'origen': 'manual', 'conexion': '',
+      },
     ];
   }
   if (ruta.endsWith('/subredes')) {
@@ -168,6 +196,28 @@ dynamic _respuestaDe(String ruta) {
          'velocidadMbps': 100, 'mac': 'cc:cc:cc:00:00:20', 'equipoId': null,
          'equipoNombre': '', 'equipoIp': '', 'confirmado': false, 'cuantosEnBoca': 4},
       ],
+    };
+  }
+  // Lo declarado a mano: un switch tonto (id 4) de dos bocas, con la primera
+  // conectada a un equipo ya descubierto y la segunda libre. Es el caso que
+  // ningun escaneo puede ver y que hace falta que el mapa sepa dibujar.
+  if (ruta.endsWith('/topologia-manual')) {
+    return {
+      'puertos': [
+        {'id': 11, 'equipoId': 4, 'numero': 1, 'tipo': 'lan', 'velocidadMbps': 1000,
+         'notas': '', 'creadoEn': '2026-08-14T09:00:00-06:00'},
+        {'id': 12, 'equipoId': 4, 'numero': 2, 'tipo': 'lan', 'velocidadMbps': null,
+         'notas': '', 'creadoEn': '2026-08-14T09:00:00-06:00'},
+      ],
+      'enlaces': [
+        {'id': 21, 'puertoOrigenId': 11, 'equipoOrigenId': 4, 'numeroOrigen': 1,
+         'origenNombre': 'Switch del rack', 'puertoDestinoId': null,
+         'equipoDestinoId': 1, 'numeroDestino': 0,
+         'destinoNombre': 'Impresora de contabilidad', 'origenDato': 'manual',
+         'notas': '', 'creadoEn': '2026-08-14T09:00:00-06:00'},
+      ],
+      'contradicciones': [],
+      'momento': '2026-08-14T09:00:00-06:00',
     };
   }
   if (ruta.endsWith('/consumo')) {

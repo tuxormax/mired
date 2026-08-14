@@ -17,7 +17,7 @@ a heredar la AGPL de otro.
 
 ## Estado del desarrollo
 
-Actualizado el **2026-08-13**, en **v1.14 Rev 15**.
+Actualizado el **2026-08-14**, en **v1.15 Rev 18**.
 
 | Fase | Estado | Nota |
 |---|---|---|
@@ -25,7 +25,7 @@ Actualizado el **2026-08-13**, en **v1.14 Rev 15**.
 | 2 — Descubrimiento | ✅ terminada | ARP, ICMP y TCP; puertos, DNS inverso y fabricante por OUI |
 | 3 — Presencia en vivo | ✅ terminada | Barrido rapido, historial de conexiones y agenda por red |
 | 4 — SNMP y capa 2 | ⚠️ hecha, sin probar en equipo real | LLDP, CDP, enlaces entre switches dibujados y controladora UniFi. **Falta probarla contra equipo de verdad** |
-| 5 — El mapa | ✅ terminada | Mapa visual y exportacion a PNG, SVG, PDF y CSV |
+| 5 — El mapa | ✅ terminada | Mapa visual, exportacion a PNG, SVG, PDF y CSV, y **edicion manual del cableado** (modulo 15, v1.15): equipos que ningun escaneo ve, bocas declaradas y contradicciones avisadas |
 | 6 — Catalogo `.toml` | ✅ terminada | Formato, motor de reconocimiento, 15 definiciones semilla y "proponer definicion" |
 | 7 — Alertas | ✅ terminada | Las 6 reglas detectan y los 4 destinos de aviso funcionan |
 | 8 — Ancho de banda | ✅ terminada | Contadores SNMP por puerto y receptor de flujos: NetFlow v5, NetFlow v9, IPFIX y sFlow |
@@ -41,8 +41,10 @@ receptor de flujos, y el `.deb` desempaquetado corriendo desde su propio árbol.
 **NO probado todavía:** que los servicios mueran al cerrar la ventana; un escaneo
 completo lanzado desde el programa; SNMP y CDP contra un switch administrable real; la controladora UniFi
 contra una de verdad (sólo contra un servidor de mentira que imita las dos
-generaciones); y la inspección profunda contra un puerto espejo real. El switch
-administrable sigue siendo el riesgo abierto más grande del proyecto.
+generaciones); la inspección profunda contra un puerto espejo real; y **la
+edición manual del mapa a mano en la ventana** (la API entera y el dibujo del
+plano sí están cubiertos por pruebas). El switch administrable sigue siendo el
+riesgo abierto más grande del proyecto.
 
 ### Todo dato dice de cuándo es
 
@@ -442,6 +444,30 @@ el archivo y lo baja a la carpeta de descargas. El PNG lo dibuja Flutter; el SVG
 y el PDF se escriben a mano en la propia interfaz, sin biblioteca de terceros,
 así que ni siquiera pasan por el servidor. Quien quiera mandarlo a alguien lo
 adjunta él, como cualquier otro archivo suyo.
+
+**Edición manual del cableado (módulo 15, decidido y hecho el 2026-08-14).** El
+mapa tiene un **modo edición** explícito, aparte de solo mirarlo. Ahí se dan de
+alta aparatos que ningún escaneo puede ver —un switch no administrable no tiene
+dirección, no contesta a nada y no existe para ningún barrido—, se declaran las
+bocas de **cualquier** equipo y se conectan a mano tocando una boca libre.
+
+- La interacción es **clic-clic, no arrastre libre**: tocar la boca y elegir del
+  menú («agregar un aparato nuevo» o «conectar uno que ya se descubrió»).
+  Arrastrar sobre el lienzo exigiría detección de colisiones en el pintor para un
+  beneficio marginal sobre lo mismo.
+- No es cosa solo de switches tontos: un **módem administrable sin SNMP hacia la
+  LAN** —Telmex y casi todo ISP— necesita exactamente lo mismo.
+- Lo declarado se dibuja **punteado**, en pantalla y en los cuatro formatos
+  exportados, con su columna `origen_del_dato` en el CSV. Son tres cosas
+  distintas —medido, deducido y tecleado— y el plano deja ver cuál es cuál.
+- Cuando el switch acaba contestando algo distinto de lo que se tecleó, se
+  **avisa de la contradicción con las dos versiones a la vista**. No se pisa
+  ninguna: pisar lo tecleado borraría trabajo de una persona, y pisar lo medido
+  dejaría el mapa mintiendo sobre lo que el switch acaba de decir. La prioridad
+  al reconciliar es `snmp`/`lldp`/`cdp` > `manual` > `inferido`, pero la decisión
+  la toma quien mira, no el programa.
+- **Un enlace declarado NO dispara la alerta de cambio de topología**: lo movió
+  el usuario a propósito, y avisarle de su propio cambio entrena a ignorar avisos.
 
 ### Fase 6 — Catálogo abierto de dispositivos (1-2 semanas)
 

@@ -10,6 +10,7 @@ import '../servicios/exportar_mapa.dart';
 import '../servicios/frescura.dart';
 import '../widgets/mensajes.dart';
 import 'mapa_plano.dart';
+import 'topologia_manual.dart';
 
 /// PantallaMapa dibuja la red: los switches arriba y lo que cuelga de cada boca
 /// debajo.
@@ -39,6 +40,13 @@ class _PantallaMapaState extends State<PantallaMapa> {
   late Future<DatosMapa> _datos;
   bool _exportando = false;
 
+  /// El modo edicion es explicito a proposito.
+  ///
+  /// Sin el, un clic para mirar un equipo reescribiria la topologia por
+  /// accidente, y el mapa es justo lo que se consulta cuando algo no funciona:
+  /// el peor momento para cambiarlo sin querer.
+  bool _editando = false;
+
   @override
   void initState() {
     super.initState();
@@ -48,7 +56,130 @@ class _PantallaMapaState extends State<PantallaMapa> {
   Future<DatosMapa> _cargar() async {
     final mapa = await Api.instancia.mapaDePuertos(widget.red.clave);
     final equipos = await Api.instancia.listarEquipos(widget.red.clave);
-    return DatosMapa(mapa: mapa, equipos: equipos);
+    final topologia = await Api.instancia.topologiaManual(widget.red.clave);
+    return DatosMapa(mapa: mapa, equipos: equipos, topologia: topologia);
+  }
+
+  void _recargar() => setState(() => _datos = _cargar());
+
+  /// _alTocar resuelve un clic sobre el plano en modo edicion.
+  ///
+  /// Se eligio clic-clic y no arrastre libre: arrastrar equipos sobre un lienzo
+  /// exige deteccion de colisiones en el pintor para un beneficio marginal.
+  /// Tocar una boca y elegir del menu resuelve lo mismo y se entiende solo.
+  Future<void> _alTocar(Offset donde, Plano plano, DatosMapa datos) async {
+    // De la ultima a la primera: las cajas se pintan en orden, asi que la de
+    // encima es la ultima que se dibujo.
+    for (final caja in plano.cajas.reversed) {
+      if (!caja.rectangulo.contains(donde)) continue;
+
+      if (caja.bocaLibre && caja.puertoFisicoId != null) {
+        await _conectarBoca(caja.puertoFisicoId!, datos);
+        return;
+      }
+      if (caja.enlaceId != null) {
+        await _menuDeCable(caja.enlaceId!);
+        return;
+      }
+      if (caja.equipoId != null) {
+        final equipo = datos.equipoPorId(caja.equipoId);
+        if (equipo != null) await _menuDeEquipo(equipo, datos);
+        return;
+      }
+      return;
+    }
+  }
+
+  Future<void> _conectarBoca(int puertoId, DatosMapa datos) async {
+    final eleccion = await showModalBottomSheet<String>(
+      context: context,
+      builder: (contextoHoja) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.add_box_outlined),
+              title: const Text('Agregar un aparato nuevo'),
+              subtitle: const Text('Un switch, un modem, algo que no sale en el escaneo'),
+              onTap: () => Navigator.of(contextoHoja).pop('nuevo'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.link),
+              title: const Text('Conectar uno que ya se descubrio'),
+              subtitle: const Text('De los que todavia no estan en ninguna boca'),
+              onTap: () => Navigator.of(contextoHoja).pop('existente'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (eleccion == null || !mounted) return;
+
+    Equipo? destino;
+    if (eleccion == 'nuevo') {
+      destino = await showDialog<Equipo>(
+        context: context,
+        builder: (_) => DialogoEquipoManual(clave: widget.red.clave),
+      );
+    } else {
+      destino = await showDialog<Equipo>(
+        context: context,
+        builder: (_) => DialogoElegirEquipo(candidatos: datos.sinUbicar),
+      );
+    }
+    if (destino == null) return;
+
+    try {
+      await Api.instancia
+          .conectar(widget.red.clave, puertoOrigenId: puertoId, equipoDestinoId: destino.id);
+      _recargar();
+    } catch (problema, pila) {
+      if (mounted) await mostrarProblema(context, problema, pila: pila.toString());
+    }
+  }
+
+  Future<void> _menuDeCable(int enlaceId) async {
+    final quitar = await showDialog<bool>(
+      context: context,
+      builder: (contextoModal) => AlertDialog(
+        title: const Text('Quitar el cable'),
+        content: const Text(
+            'Se borra solo lo que se declaro a mano. La boca queda libre y el equipo '
+            'vuelve a la zona de los que no cuelgan de ningun sitio conocido.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(contextoModal).pop(false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.of(contextoModal).pop(true),
+              child: const Text('Quitar')),
+        ],
+      ),
+    );
+    if (quitar != true) return;
+
+    try {
+      await Api.instancia.desconectar(widget.red.clave, enlaceId);
+      _recargar();
+    } catch (problema, pila) {
+      if (mounted) await mostrarProblema(context, problema, pila: pila.toString());
+    }
+  }
+
+  Future<void> _menuDeEquipo(Equipo equipo, DatosMapa datos) async {
+    final cambio = await showDialog<bool>(
+      context: context,
+      builder: (_) => DialogoBocas(clave: widget.red.clave, equipo: equipo),
+    );
+    if (cambio == true) _recargar();
+  }
+
+  Future<void> _agregarAparato() async {
+    final creado = await showDialog<Equipo>(
+      context: context,
+      builder: (_) => DialogoEquipoManual(clave: widget.red.clave),
+    );
+    if (creado != null) _recargar();
   }
 
   /// _exportar arma el archivo y se lo entrega al navegador.
@@ -193,15 +324,28 @@ class _PantallaMapaState extends State<PantallaMapa> {
               ],
             ),
           ),
+          // El modo edicion se enciende a proposito: un clic de navegacion no
+          // debe poder reescribir la topologia.
+          IconButton(
+            tooltip: _editando ? 'Terminar de editar' : 'Editar el cableado a mano',
+            isSelected: _editando,
+            icon: Icon(_editando ? Icons.done : Icons.edit_outlined),
+            onPressed: () => setState(() => _editando = !_editando),
+          ),
           IconButton(
             tooltip: 'Actualizar',
             icon: const Icon(Icons.refresh),
-            onPressed: () => setState(() {
-              _datos = _cargar();
-            }),
+            onPressed: _recargar,
           ),
         ],
       ),
+      floatingActionButton: _editando
+          ? FloatingActionButton.extended(
+              onPressed: _agregarAparato,
+              icon: const Icon(Icons.add),
+              label: const Text('Agregar aparato'),
+            )
+          : null,
       body: FutureBuilder<DatosMapa>(
         future: _datos,
         builder: (_, resultado) {
@@ -230,19 +374,34 @@ class _PantallaMapaState extends State<PantallaMapa> {
 
           final plano = armarPlano(datos, Theme.of(contexto).colorScheme);
 
+          // El lienzo va dentro del InteractiveViewer, asi que el gesto llega
+          // con las coordenadas ya convertidas al espacio del plano: no hay que
+          // deshacer el zoom ni el desplazamiento a mano.
+          Widget lienzo = CustomPaint(
+            size: plano.tamano,
+            painter: PintorMapa(plano: plano),
+          );
+          if (_editando) {
+            lienzo = GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTapUp: (detalle) => _alTocar(detalle.localPosition, plano, datos),
+              child: lienzo,
+            );
+          }
+
           return Column(
             children: [
-              _Leyenda(mapa: datos.mapa),
+              _Leyenda(mapa: datos.mapa, topologia: datos.topologia),
+              if (datos.topologia.contradicciones.isNotEmpty)
+                _AvisoContradicciones(contradicciones: datos.topologia.contradicciones),
+              if (_editando) const _BarraEdicion(),
               Expanded(
                 child: InteractiveViewer(
                   constrained: false,
                   minScale: 0.2,
                   maxScale: 3,
                   boundaryMargin: const EdgeInsets.all(200),
-                  child: CustomPaint(
-                    size: plano.tamano,
-                    painter: PintorMapa(plano: plano),
-                  ),
+                  child: lienzo,
                 ),
               ),
             ],
@@ -253,10 +412,102 @@ class _PantallaMapaState extends State<PantallaMapa> {
   }
 }
 
+/// _BarraEdicion explica que hace cada clic mientras se edita.
+///
+/// Sin esto el modo edicion es un lienzo mudo donde no se sabe donde hay que
+/// tocar, y la gente prueba a lo tonto sobre el mapa de su propia red.
+class _BarraEdicion extends StatelessWidget {
+  const _BarraEdicion();
+
+  @override
+  Widget build(BuildContext contexto) {
+    final colores = Theme.of(contexto).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: colores.tertiaryContainer,
+      child: Row(
+        children: [
+          Icon(Icons.edit_outlined, size: 18, color: colores.onTertiaryContainer),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Modo edicion: toque una boca libre para conectarle algo, un equipo '
+              'para declarar sus bocas, o un cable declarado para quitarlo.',
+              style: Theme.of(contexto)
+                  .textTheme
+                  .labelMedium
+                  ?.copyWith(color: colores.onTertiaryContainer),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// _AvisoContradicciones muestra donde lo declarado a mano y lo que reporta el
+/// equipo dicen cosas distintas.
+///
+/// No se pisa ninguno de los dos: pisar en silencio lo tecleado borraria trabajo
+/// de una persona, y pisar lo medido dejaria el mapa mintiendo sobre lo que el
+/// switch acaba de decir.
+class _AvisoContradicciones extends StatelessWidget {
+  const _AvisoContradicciones({required this.contradicciones});
+
+  final List<Contradiccion> contradicciones;
+
+  @override
+  Widget build(BuildContext contexto) {
+    final colores = Theme.of(contexto).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      color: colores.errorContainer,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.warning_amber, size: 18, color: colores.onErrorContainer),
+              const SizedBox(width: 8),
+              Text(
+                contradicciones.length == 1
+                    ? 'Un tramo declarado a mano ya no coincide con lo que reporta el equipo'
+                    : '${contradicciones.length} tramos declarados a mano ya no coinciden '
+                        'con lo que reportan los equipos',
+                style: Theme.of(contexto)
+                    .textTheme
+                    .labelLarge
+                    ?.copyWith(color: colores.onErrorContainer),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          for (final choque in contradicciones.take(5))
+            Padding(
+              padding: const EdgeInsets.only(left: 26, top: 2),
+              child: Text(
+                '${choque.equipoNombre}, boca ${choque.numero}: usted declaro '
+                '"${choque.declarado}" y ${choque.fuente.toUpperCase()} dice '
+                '"${choque.medido}".',
+                style: Theme.of(contexto)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: colores.onErrorContainer),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _Leyenda extends StatelessWidget {
-  const _Leyenda({required this.mapa});
+  const _Leyenda({required this.mapa, this.topologia = const TopologiaManual()});
 
   final MapaPuertos mapa;
+  final TopologiaManual topologia;
 
   @override
   Widget build(BuildContext contexto) {
@@ -275,6 +526,15 @@ class _Leyenda extends StatelessWidget {
           _DeCuandoEs(momento: mapa.momento),
           const _Marca(texto: 'Linea llena: puerto confirmado', punteada: false),
           const _Marca(texto: 'Linea punteada: grupo tras algo no administrable', punteada: true),
+          // La tercera fuente del mapa. Va en la leyenda por la misma razon que
+          // las otras dos: un plano donde no se distingue lo medido de lo
+          // tecleado acaba usandose como si todo estuviera comprobado.
+          if (topologia.hayAlgo)
+            _Marca(
+              texto: 'Punteado largo y caja punteada: declarado a mano',
+              punteada: true,
+              color: colores.secondary,
+            ),
           if (mapa.enlacesUnicos.isNotEmpty)
             _Marca(
               texto: 'Arco: cable entre switches, anunciado por '

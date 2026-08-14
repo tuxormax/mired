@@ -136,6 +136,18 @@ class Equipo {
   final String ultimaVez;
   final List<PuertoEquipo> puertos;
 
+  /// Lo que escribe una persona. No sale de ningun barrido.
+  final String modelo;
+  final String notas;
+
+  /// `descubierto` o `manual`. Un switch no administrable NUNCA va a salir en un
+  /// escaneo —no tiene direccion—, asi que hay que poder distinguir "no
+  /// contesto" de "no existe".
+  final String origen;
+
+  /// `cable` o `wifi`. Solo aplica a equipos terminales; vacio en un switch.
+  final String conexion;
+
   const Equipo({
     required this.id,
     required this.ip,
@@ -150,6 +162,10 @@ class Equipo {
     required this.primeraVez,
     required this.ultimaVez,
     required this.puertos,
+    this.modelo = '',
+    this.notas = '',
+    this.origen = 'descubierto',
+    this.conexion = '',
   });
 
   factory Equipo.desdeJson(Map<String, dynamic> json) => Equipo(
@@ -168,6 +184,10 @@ class Equipo {
         puertos: ((json['puertos'] as List<dynamic>?) ?? [])
             .map((fila) => PuertoEquipo.desdeJson(fila as Map<String, dynamic>))
             .toList(),
+        modelo: json['modelo'] as String? ?? '',
+        notas: json['notas'] as String? ?? '',
+        origen: json['origen'] as String? ?? 'descubierto',
+        conexion: json['conexion'] as String? ?? '',
       );
 
   /// El nombre que conviene mostrar: manda el que puso una persona sobre el
@@ -175,8 +195,14 @@ class Equipo {
   String get comoSeLlama {
     if (alias.isNotEmpty) return alias;
     if (nombre.isNotEmpty) return nombre;
-    return ip;
+    if (ip.isNotEmpty) return ip;
+    // Un equipo declarado a mano puede no tener direccion ninguna: un switch
+    // tonto no la tiene. Sin esto se veria un renglon en blanco.
+    return 'Equipo $id';
   }
+
+  /// Lo declaro una persona, no lo encontro ningun barrido.
+  bool get esManual => origen == 'manual';
 
   /// Que tan seguro es que este equipo exista tal como se ve.
   String get certeza {
@@ -472,6 +498,177 @@ class MapaPuertos {
       }
     }
     return porCable.values.toList();
+  }
+}
+
+/// Una boca fisica de un equipo, contada mirando el aparato.
+///
+/// No es lo mismo que las interfaces que anuncia un switch por SNMP: aquellas
+/// solo existen si el equipo habla. Un switch de ocho bocas de cien pesos no
+/// habla, no tiene direccion, y aun asi tiene ocho bocas.
+class PuertoFisico {
+  final int id;
+  final int equipoId;
+  final int numero;
+
+  /// `lan` o `wan`.
+  final String tipo;
+
+  /// Nulo cuando no se sabe. Mejor vacio que un 100 inventado que despues
+  /// alguien lea como medido.
+  final int? velocidadMbps;
+  final String notas;
+
+  const PuertoFisico({
+    required this.id,
+    required this.equipoId,
+    required this.numero,
+    required this.tipo,
+    this.velocidadMbps,
+    this.notas = '',
+  });
+
+  factory PuertoFisico.desdeJson(Map<String, dynamic> json) => PuertoFisico(
+        id: json['id'] as int,
+        equipoId: json['equipoId'] as int,
+        numero: json['numero'] as int,
+        tipo: json['tipo'] as String? ?? 'lan',
+        velocidadMbps: json['velocidadMbps'] as int?,
+        notas: json['notas'] as String? ?? '',
+      );
+
+  String get etiqueta => tipo == 'wan' ? 'WAN' : '$numero';
+}
+
+/// Un cable con las dos puntas ya resueltas, venga de donde venga el dato.
+class EnlaceFisico {
+  final int id;
+  final int puertoOrigenId;
+  final int equipoOrigenId;
+  final int numeroOrigen;
+  final String origenNombre;
+  final int? puertoDestinoId;
+  final int? equipoDestinoId;
+  final int numeroDestino;
+  final String destinoNombre;
+
+  /// `manual`, `snmp`, `lldp`, `cdp` o `inferido`. Es lo que permite dibujar
+  /// distinto lo tecleado de lo medido en vez de mezclarlo y presentarlo todo
+  /// como verdad sin procedencia.
+  final String origenDato;
+  final String notas;
+
+  const EnlaceFisico({
+    required this.id,
+    required this.puertoOrigenId,
+    required this.equipoOrigenId,
+    required this.numeroOrigen,
+    required this.origenNombre,
+    this.puertoDestinoId,
+    this.equipoDestinoId,
+    this.numeroDestino = 0,
+    required this.destinoNombre,
+    required this.origenDato,
+    this.notas = '',
+  });
+
+  factory EnlaceFisico.desdeJson(Map<String, dynamic> json) => EnlaceFisico(
+        id: json['id'] as int,
+        puertoOrigenId: json['puertoOrigenId'] as int,
+        equipoOrigenId: json['equipoOrigenId'] as int? ?? 0,
+        numeroOrigen: json['numeroOrigen'] as int? ?? 0,
+        origenNombre: json['origenNombre'] as String? ?? '',
+        puertoDestinoId: json['puertoDestinoId'] as int?,
+        equipoDestinoId: json['equipoDestinoId'] as int?,
+        numeroDestino: json['numeroDestino'] as int? ?? 0,
+        destinoNombre: json['destinoNombre'] as String? ?? '',
+        origenDato: json['origenDato'] as String? ?? 'manual',
+        notas: json['notas'] as String? ?? '',
+      );
+
+  bool get esManual => origenDato == 'manual';
+}
+
+/// Un tramo donde lo declarado a mano y lo que reporta el equipo no coinciden.
+///
+/// No se pisa ninguno de los dos: se muestran las dos versiones y se pregunta.
+class Contradiccion {
+  final int enlaceId;
+  final int equipoId;
+  final String equipoNombre;
+  final int numero;
+  final String declarado;
+  final String medido;
+  final String fuente;
+  final String momento;
+
+  const Contradiccion({
+    required this.enlaceId,
+    required this.equipoId,
+    required this.equipoNombre,
+    required this.numero,
+    required this.declarado,
+    required this.medido,
+    required this.fuente,
+    required this.momento,
+  });
+
+  factory Contradiccion.desdeJson(Map<String, dynamic> json) => Contradiccion(
+        enlaceId: json['enlaceId'] as int,
+        equipoId: json['equipoId'] as int,
+        equipoNombre: json['equipoNombre'] as String? ?? '',
+        numero: json['numero'] as int? ?? 0,
+        declarado: json['declarado'] as String? ?? '',
+        medido: json['medido'] as String? ?? '',
+        fuente: json['fuente'] as String? ?? '',
+        momento: json['momento'] as String? ?? '',
+      );
+}
+
+/// Todo lo que se declaro a mano en una red, mas donde eso ya no cuadra con lo
+/// que reportan los equipos.
+class TopologiaManual {
+  final List<PuertoFisico> puertos;
+  final List<EnlaceFisico> enlaces;
+  final List<Contradiccion> contradicciones;
+
+  /// De cuando es lo mas reciente que se declaro.
+  final String momento;
+
+  const TopologiaManual({
+    this.puertos = const [],
+    this.enlaces = const [],
+    this.contradicciones = const [],
+    this.momento = '',
+  });
+
+  factory TopologiaManual.desdeJson(Map<String, dynamic> json) => TopologiaManual(
+        puertos: ((json['puertos'] as List<dynamic>?) ?? [])
+            .map((fila) => PuertoFisico.desdeJson(fila as Map<String, dynamic>))
+            .toList(),
+        enlaces: ((json['enlaces'] as List<dynamic>?) ?? [])
+            .map((fila) => EnlaceFisico.desdeJson(fila as Map<String, dynamic>))
+            .toList(),
+        contradicciones: ((json['contradicciones'] as List<dynamic>?) ?? [])
+            .map((fila) => Contradiccion.desdeJson(fila as Map<String, dynamic>))
+            .toList(),
+        momento: json['momento'] as String? ?? '',
+      );
+
+  bool get hayAlgo => puertos.isNotEmpty || enlaces.isNotEmpty;
+
+  /// Las bocas de un equipo, ordenadas como se ven en el aparato.
+  List<PuertoFisico> puertosDe(int equipoId) =>
+      puertos.where((puerto) => puerto.equipoId == equipoId).toList();
+
+  /// El cable que sale de una boca, si hay alguno.
+  EnlaceFisico? enlaceDe(int puertoId) {
+    for (final enlace in enlaces) {
+      if (enlace.puertoOrigenId == puertoId || enlace.puertoDestinoId == puertoId) {
+        return enlace;
+      }
+    }
+    return null;
   }
 }
 

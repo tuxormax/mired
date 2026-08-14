@@ -2,6 +2,7 @@
 
 Proyecto en `/home/tuxor/www/mired`. Descubre los equipos de una red, dibuja el
 mapa y dice en que puerto de que switch esta cada aparato.
+En **v1.15 Rev 18** (2026-08-14).
 **PROGRAMA DE ESCRITORIO en Flutter + tres binarios en Go + SQLite, una base por
 red, entregado en un `.deb`.** No hay interfaz web: el programa arranca sus
 servicios al abrirse y los mata al cerrarse.
@@ -17,6 +18,8 @@ Arrancado el 2026-08-12.
    [mired-arquitectura](mired-arquitectura.md).
 4. Si el tema es que hace la herramienta (mapa, presencia, alertas, trafico) →
    [mired-capacidades](mired-capacidades.md).
+   Si es del mapa, del cableado o de dar de alta algo que no sale en el escaneo →
+   [modulo-topologia-manual](modulo-topologia-manual.md).
    Si es del paquete opcional de inspeccion profunda →
    [modulo-inspeccion](modulo-inspeccion.md).
 5. Si hace falta ver **como lo resolvio otro**, y solo para leer →
@@ -25,7 +28,7 @@ Arrancado el 2026-08-12.
 
 ## Antes de dar algo por terminado
 Correr **`./herramientas/probar.sh`**: construye el `.deb`, lo desempaqueta
-aparte, levanta los servicios desde ahi y recorre el flujo completo (32
+aparte, levanta los servicios desde ahi y recorre el flujo completo (42
 comprobaciones). Correr los binarios del arbol de compilacion NO prueba lo mismo:
 no valida que el paquete lleve el programa, el catalogo ni la configuracion.
 
@@ -53,6 +56,9 @@ Para probar una instalacion **en limpio**: `sudo ./herramientas/desinstalar.sh`.
   ritmos de barrido, identidad del equipo y la agenda.
 - [modulo-topologia](modulo-topologia.md) — SNMP, mapa de puertos, confirmado
   contra grupo, y el perfil de capacidades por red.
+- [modulo-topologia-manual](modulo-topologia-manual.md) — el modulo 15: declarar
+  a mano equipos, bocas y cables que ningun escaneo ve, sin que se confundan con
+  lo medido. **Leer antes de tocar el mapa o el escaneo de presencia.**
 - [modulo-alertas](modulo-alertas.md) — que se vigila, la huella que evita
   repetir avisos, y los cuatro destinos de aviso.
 - [modulo-trafico](modulo-trafico.md) — ancho de banda por contadores del switch

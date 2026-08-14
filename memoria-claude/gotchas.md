@@ -194,6 +194,21 @@ Regla del proyecto (2026-08-13, la pidio el usuario):
   la misma tabla, ya no hay forma de volver a separarlas.
 - **Nunca contar renglones para saber cuantos hay**: usar la cuenta que manda el
   servidor. En el mapa, una boca con 9 MAC decia "1 equipos".
+- **Un equipo con `origen = 'manual'` NUNCA entra en un barrido.** Todo lo que
+  recorra `equipos` para marcar ausencias, calcular presencia o disparar alertas
+  tiene que filtrarlo: un switch no administrable no tiene direccion y no va a
+  contestar jamas. Ya esta hecho en `marcarAusentes`; el proximo sitio que
+  compare "lo visto" contra "lo que hay" tiene que acordarse.
+- **Hay TRES origenes de un enlace, no dos**: medido (SNMP/LLDP/CDP), deducido
+  (varias MAC en una boca) y **tecleado** (`origen_dato = 'manual'`). Todo lo que
+  dibuje, exporte o resuma el mapa tiene que dejar ver cual es cual — pantalla,
+  PNG, SVG, PDF y CSV. Presentarlos igual hace pasar una declaracion por una
+  medicion. Ver [[modulo-topologia-manual]].
+- **`enlaces` y `enlaces_fisicos` NO son la misma tabla.** `enlaces` (migracion
+  0004) guarda lo que un switch **anuncia** de su vecino por LLDP/CDP: nombre,
+  chasis y puerto remoto como texto suelto. `enlaces_fisicos` (0011) guarda el
+  cable **ya resuelto**, con las dos puntas apuntando a filas de la base.
+  Confundirlas al escribir una consulta da un mapa plausible y falso.
 
 ## Procesos
 - **Un solo escritor**: `mired-servidor`. La sonda escanea y entrega por socket,
