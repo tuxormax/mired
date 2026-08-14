@@ -151,7 +151,7 @@ pedir "$API/api/versiones" | grep -q '"versionessistema"\|"sistema"' \
     && paso "el historial de versiones se sembro" \
     || falla "el historial de versiones esta vacio"
 
-pedir "$API/api/versiones" | grep -q '"revision":18' \
+pedir "$API/api/versiones" | grep -q '"revision":19' \
     && paso "y trae la revision de esta entrega" \
     || falla "el historial no llega hasta la revision de hoy"
 

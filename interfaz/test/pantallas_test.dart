@@ -99,6 +99,54 @@ void main() {
     expect(tomaDeErrores(), isNull);
   });
 
+  testWidgets('la campanita de la red se relee, no se queda con la foto vieja',
+      (probador) async {
+    // La pantalla se abre con la red que le pasaron —2 alertas abiertas— y el
+    // servidor contesta 7 al releerla. Que se vea el 7 es lo unico que demuestra
+    // que la pantalla volvio a preguntar.
+    //
+    // Antes el numero se quedaba clavado en el que traia al abrirse: se
+    // despachaban las alertas y la campanita seguia mostrando las viejas hasta
+    // salir al panel de inicio y volver a entrar.
+    await dibujar(probador, PantallaRed(red: _red));
+    await dejarLlegarLoPedido(probador);
+
+    expect(find.text('7'), findsOneWidget);
+    expect(find.text('2'), findsNothing);
+    expect(tomaDeErrores(), isNull);
+  });
+
+  testWidgets('el cableado se edita desde la pestana de Puertos', (probador) async {
+    // Aqui es donde va la mano de quien quiere tocar el cableado. Estaba solo
+    // como un lapiz suelto en la pantalla del mapa y no lo encontro nadie.
+    await dibujar(probador, PantallaRed(red: _red));
+    await cambiarDePestana(probador, 'Puertos');
+    expect(find.text('Editar el cableado'), findsOneWidget);
+    expect(tomaDeErrores(), isNull);
+  });
+
+  testWidgets('el mapa puede abrirse ya en modo edicion', (probador) async {
+    // Quien pulso "Editar el cableado" ya dijo a que viene: pedirle que lo diga
+    // otra vez al llegar seria hacerle buscar un boton mas.
+    await dibujar(probador, PantallaMapa(red: _red, editarAlAbrir: true));
+
+    expect(find.textContaining('Modo edicion'), findsOneWidget);
+    expect(find.text('Terminar'), findsOneWidget);
+    expect(tomaDeErrores(), isNull);
+  });
+
+  testWidgets('cada alerta se puede despachar por separado', (probador) async {
+    // El cartelito "Nueva" solo repetia lo que ya decia la negrita del titulo, y
+    // no dejaba hacer nada: para quitar una habia que despacharlas todas.
+    await dibujar(probador, PantallaAlertas(red: _red));
+
+    expect(find.text('Nueva'), findsNothing);
+    expect(find.text('Marcar leida'), findsOneWidget);
+    // Y cuantas quedan sin ver, a la vista, con la cuenta que manda el servidor.
+    expect(find.text('2 sin ver'), findsOneWidget);
+    expect(tomaDeErrores(), isNull);
+  });
+
   testWidgets('el modo edicion no esta encendido de entrada', (probador) async {
     // Un clic de navegacion no puede reescribir la topologia por accidente: el
     // mapa es justo lo que se consulta cuando algo no funciona.
@@ -107,7 +155,10 @@ void main() {
     expect(find.textContaining('Modo edicion'), findsNothing);
     expect(find.text('Agregar aparato'), findsNothing);
 
-    await probador.tap(find.byTooltip('Editar el cableado a mano'));
+    // El boton va CON SU NOMBRE, no como un lapiz suelto: un icono solo se
+    // reconoce cuando ya sabes que estas buscando, y la primera persona que uso
+    // el programa no lo encontro.
+    await probador.tap(find.text('Editar el cableado'));
     await probador.pump();
 
     expect(find.textContaining('Modo edicion'), findsOneWidget);
@@ -121,6 +172,36 @@ void main() {
 /// pumpAndSettle solo por si mismo NO sirve aqui: adelanta el reloj falso, y la
 /// respuesta del servidor llega por el reloj de verdad. runAsync es lo que deja
 /// correr esa espera.
+/// cambiarDePestana toca una pestana y espera a que su contenido llegue.
+///
+/// Son DOS esperas distintas y hacen falta las dos, en este orden:
+///   1. `pump` en el reloj falso, para que termine la animacion de la pestana.
+///   2. el reloj de verdad, para que llegue la respuesta del servidor.
+/// Con solo la primera se ve la pestana vacia con su rueda girando; con solo la
+/// segunda no se ha cambiado de pestana todavia.
+Future<void> cambiarDePestana(WidgetTester probador, String nombre) async {
+  await probador.tap(find.text(nombre));
+  await probador.pump();
+  await probador.pump(const Duration(seconds: 1));
+  await dejarLlegarLoPedido(probador);
+}
+
+/// dejarLlegarLoPedido deja correr el reloj DE VERDAD un momento.
+///
+/// Hace falta cada vez que la prueba destapa una parte de la pantalla que pide
+/// datos —cambiar de pestana, abrir una ficha—, y es el mismo motivo que explica
+/// `dibujar`: la respuesta del servidor de mentira viaja por el reloj real,
+/// mientras que `pump` solo adelanta el falso. Sin esto, el `FutureBuilder`
+/// recien construido se queda esperando para siempre y la prueba ve una pestana
+/// **vacia** en vez de la que se quiere comprobar.
+Future<void> dejarLlegarLoPedido(WidgetTester probador) async {
+  await probador.runAsync(() async {
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+  });
+  await probador.pump();
+  await probador.pump(const Duration(seconds: 1));
+}
+
 Future<void> dibujar(WidgetTester probador, Widget pantalla) async {
   await probador.runAsync(() async {
     await probador.pumpWidget(MaterialApp(home: pantalla));
@@ -258,6 +339,19 @@ dynamic _respuestaDe(String ruta) {
        'alertasAbiertas': 2, 'programado': true, 'presenciaCadaSegundos': 60,
        'profundoCadaMinutos': 360},
     ];
+  }
+  // Releer UNA red. Es lo que deja que la campanita de la pantalla del sitio
+  // baje sin tener que salir al panel de inicio y volver a entrar.
+  if (ruta == '/api/redes/matriz-a1b2') {
+    return {
+      'red': {
+        'id': 1, 'clave': 'matriz-a1b2', 'nombre': 'Matriz', 'descripcion': 'Oficina central',
+        'equipos': 12, 'equiposPresentes': 9, 'ultimoEscaneo': '2026-08-12T10:00:00-06:00',
+        'alertasAbiertas': 7, 'programado': true, 'presenciaCadaSegundos': 60,
+        'profundoCadaMinutos': 360,
+      },
+      'nivel': 'escritura',
+    };
   }
   return {};
 }

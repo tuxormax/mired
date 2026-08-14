@@ -223,6 +223,18 @@ Regla del proyecto (2026-08-13, la pidio el usuario):
 - `internal/` es palabra reservada del compilador de Go y por eso es la unica
   carpeta en ingles. Adentro, todo en espanol.
 
+## Interfaz
+- **Una pantalla que recibe un objeto por parametro se queda con esa foto.**
+  `PantallaRed` mostraba el contador de alertas de `_red`, que llegaba del panel
+  de inicio y nunca se releia: se despachaban las alertas y la campanita seguia
+  con el numero viejo hasta salir y volver a entrar. Cualquier contador que se
+  pinte desde un objeto recibido tiene que **volver a pedirlo** al recargar.
+- **Un icono suelto no se encuentra.** El boton de editar el cableado era un
+  lapiz entre otros dos iconos y la primera persona que uso el programa no lo
+  vio. Un icono solo se reconoce cuando ya sabes que estas buscando: si la accion
+  es nueva, va **con su nombre** y **donde va la mano**, no donde encaja mejor en
+  el codigo.
+
 ## Pruebas
 - **Las bases de prueba van en `/dev/shm`, no en `t.TempDir()`** (helper
   `carpetaDePrueba`). Cada prueba crea dos bases con dos docenas de migraciones;
@@ -234,6 +246,19 @@ Regla del proyecto (2026-08-13, la pidio el usuario):
   Ver [[historial-bugs]].
 - Las pruebas de exportacion del mapa a PNG necesitan `probador.runAsync` o se
   cuelgan 10 minutos (ver seccion de Flutter).
+- **Cambiar de pestana en una prueba necesita DOS esperas distintas**, en este
+  orden: `pump` en el reloj falso para que termine la animacion, y luego el
+  reloj **de verdad** (`runAsync`) para que llegue la respuesta del servidor de
+  mentira. Con solo la primera se ve la pestana vacia con su rueda girando y la
+  prueba falla sin que haya nada roto; con solo la segunda no se ha cambiado de
+  pestana todavia. Helper: `cambiarDePestana` en `pantallas_test.dart`.
+- **`pumpAndSettle` no sirve en estas pantallas**: espera a que NO quede ninguna
+  animacion, y siempre queda alguna rueda de carga girando, asi que se agota el
+  tiempo sin que falle nada de verdad.
+- **Cuidado con la prueba que pasa porque no cargo nada.** `expect(find.text('2'),
+  findsNothing)` se cumple igual si la pantalla esta vacia. Para comprobar que
+  algo se releyo, que el servidor de mentira conteste un valor **distinto y
+  reconocible** y buscar ESE.
 
 **Ver tambien:** [[mired-arquitectura]], [[contrato-api]], [[mired]],
 [[modulo-inspeccion]]

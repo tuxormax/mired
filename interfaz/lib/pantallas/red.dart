@@ -59,6 +59,27 @@ class _PantallaRedState extends State<PantallaRed> {
       _consumo = Api.instancia.consumo(_red.clave);
       _aplicaciones = Api.instancia.consumoPorAplicacion(_red.clave);
     });
+    _releerRed();
+  }
+
+  /// _releerRed vuelve a pedir la ficha del sitio.
+  ///
+  /// Sin esto, `_red` se quedaba con la foto del momento en que se abrio la
+  /// pantalla, y **la campanita seguia mostrando el numero viejo** aunque las
+  /// alertas ya estuvieran despachadas: habia que salir al panel de inicio y
+  /// volver a entrar para verlo bien. Lo mismo valia para cuando fue el ultimo
+  /// escaneo, que se lee en el titulo.
+  ///
+  /// Va aparte del setState de arriba porque es una peticion mas, y que falle no
+  /// debe tumbar el resto de la pantalla: si no se puede releer, se conserva lo
+  /// que ya se tenia.
+  Future<void> _releerRed() async {
+    try {
+      final fresca = await Api.instancia.verRed(_red.clave);
+      if (mounted) setState(() => _red = fresca);
+    } catch (_) {
+      // Se conserva lo que ya se sabia de la red.
+    }
   }
 
   /// Si al abrir la pantalla ya hay un escaneo corriendo (lo lanzo otra persona,
@@ -528,6 +549,39 @@ class _PantallaRedState extends State<PantallaRed> {
                   ],
                 ),
               ),
+            ),
+            const SizedBox(height: 12),
+            // El cableado se edita DESDE AQUI.
+            //
+            // El boton vive en esta pestana porque es donde va la mano de quien
+            // quiere tocar el cableado. Estaba solo como un lapiz suelto dentro
+            // de la pantalla del mapa, y ahi no lo encontraba nadie: la primera
+            // persona que lo uso no lo vio.
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    mapa.hayMapa
+                        ? 'Lo que sus switches no puedan decir, declarelo usted.'
+                        : 'Sus switches no pueden decir que hay en cada boca, pero usted si: '
+                            'declare sus aparatos y su cableado a mano.',
+                    style: Theme.of(contexto).textTheme.bodySmall,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                FilledButton.tonalIcon(
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('Editar el cableado'),
+                  onPressed: () async {
+                    await Navigator.of(contexto).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => PantallaMapa(red: _red, editarAlAbrir: true),
+                      ),
+                    );
+                    _recargar();
+                  },
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             // Sin mapa NO se repite el mensaje de arriba: la explicacion de la

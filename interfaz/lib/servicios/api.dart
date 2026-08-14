@@ -236,6 +236,16 @@ class Api {
   Future<void> borrarRed(String clave, {bool tambienLosDatos = false}) =>
       borrar('/api/redes/$clave${tambienLosDatos ? '?datos=si' : ''}');
 
+  /// verRed vuelve a leer UNA red.
+  ///
+  /// Hace falta para que la pantalla de un sitio refresque sus propios
+  /// contadores —las alertas abiertas, sobre todo— sin tener que salir al panel
+  /// de inicio y volver a entrar.
+  Future<Red> verRed(String clave) async {
+    final datos = await obtener('/api/redes/$clave') as Map<String, dynamic>;
+    return Red.desdeJson(datos['red'] as Map<String, dynamic>);
+  }
+
   Future<List<Subred>> listarSubredes(String clave) async {
     final datos = await obtener('/api/redes/$clave/subredes') as List<dynamic>;
     return datos.map((fila) => Subred.desdeJson(fila as Map<String, dynamic>)).toList();

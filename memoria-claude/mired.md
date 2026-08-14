@@ -76,7 +76,7 @@ NUMERO DE MODULOS.** Se habia subido a v1.1 "porque el cambio era grande", que e
 el criterio de medio mundo pero no el de la casa. MiRed tenia **14 modulos**
 (confirmados con el usuario), asi que era **v1.14**; con la topologia manual
 (2026-08-14) son **15**, y por eso **v1.15**. La revision sigue su cuenta sin
-reiniciarse al cambiar de version: va en **18**.
+reiniciarse al cambiar de version: va en **19**.
 
 Lo que faltaba y ya esta:
 - **Tablas `versionessistema` y `versiondb`** en el catalogo (migracion 0004),
@@ -91,7 +91,7 @@ Tres pruebas lo vigilan: que el binario y el historial digan la misma version,
 que la revision **no tenga huecos ni repetidos**, y que sembrar mil veces no
 duplique filas.
 
-## Estado real (2026-08-14, v1.15 Rev 18)
+## Estado real (2026-08-14, v1.15 Rev 19)
 **Las 10 fases cerradas**, salvo publicar los paquetes. Lo hecho:
 1. Cimientos: servidor + sonda, una base SQLite por red, autenticacion con
    permisos por red, API con el estandar de errores de la casa, programa de
@@ -112,8 +112,8 @@ duplique filas.
    lecturas) y receptor de flujos **NetFlow v5, NetFlow v9, IPFIX y sFlow** del
    router, que es lo que mide consumo donde no hay switches administrables. El
    formato se reconoce solo.
-9. Publicacion: **AGPL-3.0**, repo publico, documentacion ES/EN y la **primera
-   release** publicada el 2026-08-14: `v1.15-18` con el `.deb` de amd64.
+9. Publicacion: **AGPL-3.0**, repo publico, documentacion ES/EN y las **releases**
+   publicadas desde el 2026-08-14, con el `.deb` de amd64.
    **Falta FIRMAR los paquetes**; por ahora las notas de la release solo llevan
    la huella SHA-256, que es lo unico con que comprobar el archivo.
    `arm64` no se publica: se construye a mano y va sin programa de escritorio,
@@ -136,12 +136,12 @@ detectada.
 **NO probado:** que los servicios mueran al cerrar la ventana; un escaneo
 completo desde el programa; SNMP y CDP contra un switch administrable real; la
 controladora UniFi contra una de verdad; la inspeccion profunda contra un
-puerto espejo; y **la edicion del mapa a mano en la ventana** (la API entera y el
-dibujo del plano si estan cubiertos por pruebas). El switch administrable sigue
+puerto espejo; y **conectar bocas tocandolas con el raton en la ventana** (la
+API entera y el dibujo del plano si estan cubiertos por pruebas). El switch administrable sigue
 siendo el riesgo abierto mas grande.
 
 ## Cobertura (2026-08-14)
-**120 pruebas en Go y 38 en Flutter**, sobre ~18 000 lineas de Go y ~9 500 de
+**120 pruebas en Go y 42 en Flutter**, sobre ~18 000 lineas de Go y ~9 500 de
 Dart, en 14 paquetes. Mas `herramientas/probar.sh` con **42 comprobaciones**:
 construye el `.deb`, lo desempaqueta y recorre el flujo completo. Es la unica que
 prueba lo que de verdad se entrega.

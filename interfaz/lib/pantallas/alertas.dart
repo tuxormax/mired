@@ -48,6 +48,21 @@ class _PantallaAlertasState extends State<PantallaAlertas> {
     }
   }
 
+  /// _marcarUna despacha una sola alerta.
+  ///
+  /// Marcarlas TODAS de golpe es comodo cuando ya se revisaron, pero obliga a
+  /// elegir entre despachar el monton entero o no despachar nada. Lo normal es
+  /// atender una, dejar las demas para despues, y que el contador refleje eso.
+  Future<void> _marcarUna(Alerta alerta) async {
+    try {
+      Trayectoria.instancia.anotar('Marcar leida la alerta ${alerta.id}');
+      await Api.instancia.marcarAlertasVistas(widget.red.clave, ids: [alerta.id]);
+      _recargar();
+    } catch (problema, pila) {
+      if (mounted) await mostrarProblema(context, problema, pila: pila.toString());
+    }
+  }
+
   Future<void> _cambiarRegla(Regla regla, {bool? activa, int? umbral}) async {
     final nueva = Regla(
       tipo: regla.tipo,
@@ -125,6 +140,32 @@ class _PantallaAlertasState extends State<PantallaAlertas> {
                   _recargar();
                 },
               ),
+              const SizedBox(width: 12),
+              // Cuantas quedan sin ver, siempre a la vista.
+              //
+              // Es la cuenta que manda el servidor, NO los renglones de esta
+              // lista: con "solo sin ver" apagado la lista trae tambien las ya
+              // despachadas, y contar renglones diria que hay veinte nuevas
+              // cuando no queda ninguna.
+              FutureBuilder<({List<Alerta> alertas, int abiertas})>(
+                future: _alertas,
+                builder: (_, resultado) {
+                  final sinVer = resultado.data?.abiertas ?? 0;
+                  if (!resultado.hasData) return const SizedBox.shrink();
+                  return Chip(
+                    avatar: Icon(
+                      sinVer == 0 ? Icons.check_circle_outline : Icons.notifications_active_outlined,
+                      size: 18,
+                    ),
+                    label: Text(switch (sinVer) {
+                      0 => 'Ninguna sin ver',
+                      1 => '1 sin ver',
+                      _ => '$sinVer sin ver',
+                    }),
+                    visualDensity: VisualDensity.compact,
+                  );
+                },
+              ),
               const Spacer(),
               TextButton.icon(
                 icon: const Icon(Icons.done_all),
@@ -173,10 +214,17 @@ class _PantallaAlertasState extends State<PantallaAlertas> {
                         style: TextStyle(
                             fontWeight: alerta.vista ? FontWeight.normal : FontWeight.w600)),
                     subtitle: Text([alerta.detalle, alerta.momento].join(' · ')),
+                    // Antes aqui habia un cartelito que solo decia "Nueva".
+                    // Repetia lo que ya se veia en la negrita del titulo y no
+                    // dejaba hacer nada con la alerta: para quitarla habia que
+                    // despacharlas todas de golpe.
                     trailing: alerta.vista
                         ? null
-                        : const Chip(
-                            label: Text('Nueva'), visualDensity: VisualDensity.compact),
+                        : TextButton.icon(
+                            icon: const Icon(Icons.done, size: 18),
+                            label: const Text('Marcar leida'),
+                            onPressed: () => _marcarUna(alerta),
+                          ),
                   );
                 },
               );

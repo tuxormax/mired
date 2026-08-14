@@ -5,7 +5,7 @@ metadata:
   type: project
 ---
 
-# Modulo 15 — Topologia manual (v1.15 Rev 18, 2026-08-14)
+# Modulo 15 — Topologia manual (v1.15 Rev 19, 2026-08-14)
 
 ## Que hace
 
@@ -29,8 +29,17 @@ Solo el programa de escritorio (no hay web — ver [modulo-programa](modulo-prog
 Dos entradas a lo mismo:
 1. **Ficha del equipo** (pestana Equipos): botones «Ficha» y «Bocas», y «Borrar»
    solo en lo declarado.
-2. **Modo edicion del mapa**: boton de lapiz en la barra. Toca una boca libre →
-   menu; toca un equipo → sus bocas; toca un cable declarado → quitarlo.
+2. **Boton «Editar el cableado» en la pestana Puertos** → abre el mapa YA en
+   modo edicion. Es la entrada principal.
+3. **Modo edicion del mapa**: boton «Editar el cableado» en la barra. Toca una
+   boca libre → menu; toca un equipo → sus bocas; toca un cable declarado →
+   quitarlo.
+
+> **El boton va CON SU NOMBRE, y en la pestana de Puertos.** Empezo siendo un
+> lapiz suelto entre otros dos iconos, solo en la pantalla del mapa, y la primera
+> persona que uso el programa no lo encontro (Rev 19). Un icono solo se reconoce
+> cuando ya sabes que estas buscando; y la mano de quien quiere tocar el cableado
+> va a «Puertos», no al mapa.
 
 ## Reglas de negocio
 

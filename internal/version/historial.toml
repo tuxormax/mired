@@ -173,6 +173,14 @@ tipo = "feature"
 modulo = "Topologia manual"
 notas = "El modulo 15: lo que el usuario declara porque tiene el cable delante. Se pueden dar de alta aparatos que ningun escaneo ve —un switch no administrable no tiene direccion—, declarar las bocas de cualquier equipo y conectarlas a mano desde el mapa, con un modo edicion aparte de solo mirarlo. Lo declarado se dibuja punteado en pantalla y en los cuatro formatos exportados, y cuando el switch acaba contestando algo distinto se avisa de la contradiccion en vez de pisar en silencio ninguna de las dos versiones."
 
+[[sistema]]
+version = "1.15"
+revision = 19
+fecha = "2026-08-14"
+tipo = "fix"
+modulo = "Mapa visual y Alertas"
+notas = "Salio de usar el programa en un equipo de verdad. El boton de editar el cableado era un lapiz suelto entre otros dos iconos y no lo encontro nadie: ahora va con su nombre y, sobre todo, esta en la pestana de Puertos, que es donde va la mano de quien quiere tocar el cableado. En las alertas, el cartelito 'Nueva' solo repetia lo que ya decia la negrita del titulo y no dejaba hacer nada: ahora es un boton para despachar esa alerta sola, con la cuenta de las que quedan sin ver siempre a la vista. Y la campanita de la red se quedaba con el numero del momento en que se abrio la pantalla: habia que salir al panel de inicio y volver a entrar para verla bien."
+
 # ----------------------------------------------------------------- la base --
 #
 # Cada entrada apunta al numero de migracion que la trae. El esquema de las bases

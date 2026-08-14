@@ -184,3 +184,48 @@ son la misma version, y contarlo reiniciaria el servidor en cada arranque.
 **Tripwire.** Si el pie muestra una version que no coincide con la instalada,
 mira `readlink /proc/<pid>/exe` del servidor: si dice `(deleted)`, esta corriendo
 un binario que ya no existe.
+
+## 2026-08-14 — Rev 19: el lapiz que nadie encontro y la campanita clavada
+
+Los dos salieron de la **primera sesion de uso real del modulo 15**, en una
+laptop, y ninguno lo habria cazado una prueba: los dos dejan la pantalla
+funcionando y sin un solo error.
+
+### El boton de editar el cableado no se encontraba
+**Que paso:** «no me aparece el lapiz». El boton estaba donde tenia que estar y
+el `.deb` lo llevaba —se comprobo desempaquetando el paquete y buscando los
+textos nuevos dentro del binario de la interfaz—, pero era un **icono suelto
+entre otros dos** y ademas vivia **solo en la pantalla del mapa**.
+
+**Por que:** un icono solo se reconoce cuando ya sabes que estas buscando. Y la
+mano de quien quiere tocar el cableado va a la pestana **«Puertos»**, no al mapa:
+el mapa se abre para MIRAR.
+
+**Como se corrigio:** boton **«Editar el cableado» con su nombre** en la pestana
+de Puertos, que abre el mapa ya en modo edicion (`PantallaMapa.editarAlAbrir`), y
+el del mapa pasa de icono a boton con texto.
+
+### La campanita de alertas se quedaba con el numero viejo
+**Que paso:** se despachaban las alertas y el contador de la pantalla de la red
+no bajaba. Habia que salir al panel de inicio y volver a entrar.
+
+**Por que:** el servidor SI actualizaba la cuenta al momento. Lo que fallaba era
+la pantalla: `_recargar()` refrescaba equipos, mapa y consumo, pero **no volvia a
+leer la red**, y la campanita se pinta desde el objeto `Red` que llego por
+parametro al abrir la pantalla.
+
+**Como se corrigio:** `GET /api/redes/{clave}` desde la interfaz (`Api.verRed`) y
+`_releerRed()` en cada recarga. Ademas, a peticion del usuario, el cartelito
+«Nueva» de cada alerta —que solo repetia lo que ya decia la negrita del titulo—
+pasa a ser un boton **«Marcar leida»** que despacha esa alerta sola, con la
+cuenta de las que quedan sin ver siempre a la vista.
+
+### Lo que enseño sobre las pruebas
+Al escribir la prueba de la campanita salio una **prueba que pasaba por no cargar
+nada**: `expect(find.text('2'), findsNothing)` se cumple igual con la pantalla
+vacia. Se cambio para que el servidor de mentira conteste un numero **distinto y
+reconocible** (7) y se busque ESE.
+
+Y cambiar de pestana en una prueba resulto necesitar **dos esperas distintas**:
+la del reloj falso para la animacion y la del reloj de verdad para la respuesta.
+Las dos cosas quedaron en [[gotchas]].

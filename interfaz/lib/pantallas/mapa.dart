@@ -26,9 +26,14 @@ import 'topologia_manual.dart';
 /// El calculo de posiciones y el pintor viven en mapa_plano.dart, porque los
 /// comparte con la exportacion.
 class PantallaMapa extends StatefulWidget {
-  const PantallaMapa({super.key, required this.red});
+  const PantallaMapa({super.key, required this.red, this.editarAlAbrir = false});
 
   final Red red;
+
+  /// Abre ya en modo edicion. Lo usa el boton «Editar el cableado» de la pestana
+  /// de puertos: quien lo pulsa ya dijo a que viene, y obligarle a buscar otro
+  /// boton al llegar seria pedirle que lo diga dos veces.
+  final bool editarAlAbrir;
 
   @override
   State<PantallaMapa> createState() => _PantallaMapaState();
@@ -50,6 +55,7 @@ class _PantallaMapaState extends State<PantallaMapa> {
   @override
   void initState() {
     super.initState();
+    _editando = widget.editarAlAbrir;
     _datos = _cargar();
   }
 
@@ -326,11 +332,17 @@ class _PantallaMapaState extends State<PantallaMapa> {
           ),
           // El modo edicion se enciende a proposito: un clic de navegacion no
           // debe poder reescribir la topologia.
-          IconButton(
-            tooltip: _editando ? 'Terminar de editar' : 'Editar el cableado a mano',
-            isSelected: _editando,
-            icon: Icon(_editando ? Icons.done : Icons.edit_outlined),
-            onPressed: () => setState(() => _editando = !_editando),
+          //
+          // Va CON SU NOMBRE, no como un lapiz suelto. Era un icono mas entre
+          // otros dos y la primera persona que uso el programa no lo encontro:
+          // un icono solo se reconoce cuando ya sabes que estas buscando.
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: FilledButton.tonalIcon(
+              icon: Icon(_editando ? Icons.done : Icons.edit_outlined, size: 18),
+              label: Text(_editando ? 'Terminar' : 'Editar el cableado'),
+              onPressed: () => setState(() => _editando = !_editando),
+            ),
           ),
           IconButton(
             tooltip: 'Actualizar',

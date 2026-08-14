@@ -17,7 +17,7 @@ a heredar la AGPL de otro.
 
 ## Estado del desarrollo
 
-Actualizado el **2026-08-14**, en **v1.15 Rev 18**.
+Actualizado el **2026-08-14**, en **v1.15 Rev 19**.
 
 | Fase | Estado | Nota |
 |---|---|---|
@@ -29,7 +29,7 @@ Actualizado el **2026-08-14**, en **v1.15 Rev 18**.
 | 6 — Catalogo `.toml` | ✅ terminada | Formato, motor de reconocimiento, 15 definiciones semilla y "proponer definicion" |
 | 7 — Alertas | ✅ terminada | Las 6 reglas detectan y los 4 destinos de aviso funcionan |
 | 8 — Ancho de banda | ✅ terminada | Contadores SNMP por puerto y receptor de flujos: NetFlow v5, NetFlow v9, IPFIX y sFlow |
-| 9 — Publicacion | ⚠️ parcial | AGPL-3.0, repo publico, documentacion (ES y EN) y **primera release publicada** (`v1.15-18`, amd64, 2026-08-14). **Falta firmar los paquetes**: por ahora solo llevan huella SHA-256 |
+| 9 — Publicacion | ⚠️ parcial | AGPL-3.0, repo publico, documentacion (ES y EN) y **paquetes publicados como release** (2026-08-14). **Falta firmar los paquetes**: por ahora solo llevan huella SHA-256 |
 | 10 — Inspeccion profunda | ✅ terminada | `mired-dpi` en el mismo paquete pero APAGADO: nombre del servidor por TLS, HTTP y DNS. Falta probarlo con un puerto espejo real |
 
 **Probado de verdad:** el `dpkg -i` en un equipo y **el programa abriéndose desde
@@ -41,9 +41,9 @@ receptor de flujos, y el `.deb` desempaquetado corriendo desde su propio árbol.
 **NO probado todavía:** que los servicios mueran al cerrar la ventana; un escaneo
 completo lanzado desde el programa; SNMP y CDP contra un switch administrable real; la controladora UniFi
 contra una de verdad (sólo contra un servidor de mentira que imita las dos
-generaciones); la inspección profunda contra un puerto espejo real; y **la
-edición manual del mapa a mano en la ventana** (la API entera y el dibujo del
-plano sí están cubiertos por pruebas). El switch administrable sigue siendo el
+generaciones); la inspección profunda contra un puerto espejo real; y **conectar bocas
+tocándolas con el ratón en la ventana** (la API entera y el dibujo del plano sí
+están cubiertos por pruebas). El switch administrable sigue siendo el
 riesgo abierto más grande del proyecto.
 
 ### Todo dato dice de cuándo es
@@ -78,11 +78,11 @@ de darla por buena** no es opcional en este proyecto.
 nunca se reinicia. No es versionado semántico: X no sube porque un cambio sea
 grande, sube cuando hay un módulo más.
 
-Hoy son **14 módulos** → **v1.14**, y la revisión va por la **12**.
+Hoy son **15 módulos** → **v1.15**, y la revisión va por la **19**.
 
 > Redes · Subredes · Equipos · Escaneo y agenda · Presencia · Mapa de puertos ·
 > Mapa visual · Alertas · Consumo · Inspección profunda · Usuarios · Credenciales
-> SNMP · Controladoras WiFi · Catálogo de dispositivos
+> SNMP · Controladoras WiFi · Catálogo de dispositivos · Topología manual
 
 El historial vive en **`internal/version/historial.toml`**, y en un solo sitio:
 de ahí salen la versión y la revisión con que compila `construir.sh` —ya no se
@@ -108,7 +108,7 @@ Raspberry Pi, que era el requisito.
 
 ### Cobertura de pruebas
 
-**113 pruebas en Go y 31 en Flutter**, sobre ~16 500 líneas de Go y ~7 900 de
+**120 pruebas en Go y 42 en Flutter**, sobre ~18 000 líneas de Go y ~9 500 de
 Dart, en 14 paquetes.
 
 En Go: almacenamiento, agenda, alertas, topologia, catalogo, la lectura de SNMP,
@@ -126,7 +126,7 @@ escape acentos y parentesis, que el SVG salga bien formado, que el PNG lleve su
 firma, que el CSV entrecomille lo que debe y que un cable visto por LLDP y por
 CDP se dibuje una sola vez—.
 
-Más la prueba de humo `herramientas/probar.sh`, con **32 comprobaciones**:
+Más la prueba de humo `herramientas/probar.sh`, con **42 comprobaciones**:
 construye el `.deb`, lo desempaqueta y recorre el flujo completo. Es la única que
 comprueba lo que de verdad se entrega.
 
