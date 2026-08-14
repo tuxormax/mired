@@ -112,8 +112,12 @@ duplique filas.
    lecturas) y receptor de flujos **NetFlow v5, NetFlow v9, IPFIX y sFlow** del
    router, que es lo que mide consumo donde no hay switches administrables. El
    formato se reconoce solo.
-9. Publicacion: **AGPL-3.0**, repo publico, documentacion ES/EN. **Falta subir
-   los paquetes a una release y firmarlos.**
+9. Publicacion: **AGPL-3.0**, repo publico, documentacion ES/EN y la **primera
+   release** publicada el 2026-08-14: `v1.15-18` con el `.deb` de amd64.
+   **Falta FIRMAR los paquetes**; por ahora las notas de la release solo llevan
+   la huella SHA-256, que es lo unico con que comprobar el archivo.
+   `arm64` no se publica: se construye a mano y va sin programa de escritorio,
+   porque Flutter solo compila la interfaz para amd64.
 10. **Inspeccion profunda** (`mired-dpi`): que aplicacion consume, sin descifrar
    nada. Va en el mismo `.deb` pero apagada. Ver [[modulo-inspeccion]].
 7. Motor de alertas completo: las 6 reglas detectan (equipo nuevo, ausente,

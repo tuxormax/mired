@@ -29,7 +29,7 @@ Actualizado el **2026-08-14**, en **v1.15 Rev 18**.
 | 6 — Catalogo `.toml` | ✅ terminada | Formato, motor de reconocimiento, 15 definiciones semilla y "proponer definicion" |
 | 7 — Alertas | ✅ terminada | Las 6 reglas detectan y los 4 destinos de aviso funcionan |
 | 8 — Ancho de banda | ✅ terminada | Contadores SNMP por puerto y receptor de flujos: NetFlow v5, NetFlow v9, IPFIX y sFlow |
-| 9 — Publicacion | ⚠️ parcial | AGPL-3.0, repo publico y documentacion (ES y EN). **Falta subir los paquetes a una release y firmarlos** |
+| 9 — Publicacion | ⚠️ parcial | AGPL-3.0, repo publico, documentacion (ES y EN) y **primera release publicada** (`v1.15-18`, amd64, 2026-08-14). **Falta firmar los paquetes**: por ahora solo llevan huella SHA-256 |
 | 10 — Inspeccion profunda | ✅ terminada | `mired-dpi` en el mismo paquete pero APAGADO: nombre del servidor por TLS, HTTP y DNS. Falta probarlo con un puerto espejo real |
 
 **Probado de verdad:** el `dpkg -i` en un equipo y **el programa abriéndose desde

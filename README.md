@@ -16,9 +16,18 @@ base de datos ni Docker: se instala el `.deb` y aparece en el menú.
 
 ## Instalar
 
+Baje el `.deb` de la [última release](https://github.com/tuxormax/mired/releases/latest)
+y:
+
 ```
-sudo dpkg -i instaladores/mired_1.1-8_amd64.deb
+sudo dpkg -i mired_1.15-18_amd64.deb
+sudo apt-get -f install     # sólo si faltara alguna dependencia
 ```
+
+Las notas de cada release traen la huella SHA-256 del archivo. **Los paquetes
+todavía no van firmados**: es lo que queda pendiente de la fase 9.
+
+Quien compile desde el código encuentra el suyo en `instaladores/`.
 
 Al terminar, **ábralo desde el menú de aplicaciones** buscando «MiRed», o
 escribiendo `mired` en una terminal.
