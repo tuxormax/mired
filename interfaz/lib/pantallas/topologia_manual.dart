@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../modelos/categorias.dart';
 import '../modelos/modelos.dart';
 import '../servicios/api.dart';
 import '../widgets/mensajes.dart';
@@ -11,20 +12,6 @@ import '../widgets/mensajes.dart';
 /// la otra acabaria con una copia que se desincroniza.
 ///
 /// Todos devuelven `true` cuando algo cambio, para que quien los abrio recargue.
-
-/// Las categorias que se pueden dar de alta a mano, con lo que cada una necesita.
-///
-/// Reusan los mismos nombres que el catalogo `.toml` reconoce, para que un
-/// equipo declarado y uno descubierto se filtren igual en la lista.
-const List<({String tipo, String titulo, IconData icono, bool bocas, bool conexion})>
-    categoriasManuales = [
-  (tipo: 'switch', titulo: 'Switch', icono: Icons.settings_ethernet, bocas: true, conexion: false),
-  (tipo: 'router', titulo: 'Router o modem', icono: Icons.router, bocas: true, conexion: false),
-  (tipo: 'ap', titulo: 'Punto de acceso', icono: Icons.wifi, bocas: false, conexion: false),
-  (tipo: 'nvr', titulo: 'DVR o NVR', icono: Icons.videocam, bocas: true, conexion: false),
-  (tipo: 'pc', titulo: 'PC o laptop', icono: Icons.computer, bocas: false, conexion: true),
-  (tipo: 'otro', titulo: 'Otro aparato', icono: Icons.devices_other, bocas: false, conexion: true),
-];
 
 /// DialogoEquipoManual da de alta un aparato que ningun barrido va a encontrar.
 ///
@@ -47,7 +34,9 @@ class _DialogoEquipoManualState extends State<DialogoEquipoManual> {
   final _notas = TextEditingController();
   final _ip = TextEditingController();
 
-  String _tipo = 'switch';
+  /// Arranca en el switch no administrable: es la razon numero uno por la que
+  /// alguien abre este formulario, porque es lo unico que ningun escaneo ve.
+  String _clave = 'switch_simple';
   int _bocas = 8;
   String _conexion = '';
   bool _guardando = false;
@@ -61,8 +50,8 @@ class _DialogoEquipoManualState extends State<DialogoEquipoManual> {
     super.dispose();
   }
 
-  ({String tipo, String titulo, IconData icono, bool bocas, bool conexion}) get _categoria =>
-      categoriasManuales.firstWhere((fila) => fila.tipo == _tipo);
+  CategoriaEquipo get _categoria =>
+      buscarCategoria(_clave) ?? categoriasParaDeclarar.first;
 
   Future<void> _guardar() async {
     if (_nombre.text.trim().isEmpty) {
@@ -73,12 +62,16 @@ class _DialogoEquipoManualState extends State<DialogoEquipoManual> {
     try {
       final creado = await Api.instancia.crearEquipoManual(widget.clave, {
         'nombre': _nombre.text.trim(),
-        'tipo': _tipo,
+        // La clave para contar y el nombre para leer, los dos de la MISMA
+        // lista: es lo que hace que un aparato declarado y uno descubierto
+        // cuenten juntos en vez de sacar dos cubos para la misma cosa.
+        'categoria': _categoria.clave,
+        'tipo': _categoria.singular,
         'modelo': _modelo.text.trim(),
         'notas': _notas.text.trim(),
         'ip': _ip.text.trim(),
-        'conexion': _categoria.conexion ? _conexion : '',
-        'puertos': _categoria.bocas ? _bocas : 0,
+        'conexion': _categoria.preguntaConexion ? _conexion : '',
+        'puertos': _categoria.declaraBocas ? _bocas : 0,
       });
       if (mounted) Navigator.of(context).pop(creado);
     } catch (problema, pila) {
@@ -106,22 +99,38 @@ class _DialogoEquipoManualState extends State<DialogoEquipoManual> {
                   style: Theme.of(contexto).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 16),
+                // Sale de la lista unica de MiRed, **nunca es texto libre**: es
+                // la misma con la que el catalogo clasifica lo que descubre.
                 DropdownButtonFormField<String>(
-                  initialValue: _tipo,
+                  initialValue: _clave,
+                  isExpanded: true,
                   decoration: const InputDecoration(
                       labelText: 'Que es', border: OutlineInputBorder(), isDense: true),
                   items: [
-                    for (final categoria in categoriasManuales)
+                    for (final categoria in categoriasParaDeclarar)
                       DropdownMenuItem(
-                        value: categoria.tipo,
+                        value: categoria.clave,
                         child: Row(children: [
                           Icon(categoria.icono, size: 18),
                           const SizedBox(width: 8),
-                          Text(categoria.titulo),
+                          Flexible(
+                              child: Text(categoria.singular,
+                                  overflow: TextOverflow.ellipsis)),
+                          // Lo que ningun escaneo puede ver se dice aqui: es
+                          // exactamente para eso que existe este formulario.
+                          if (!categoria.automatica) ...[
+                            const SizedBox(width: 6),
+                            const Icon(Icons.edit_outlined, size: 14),
+                          ],
                         ]),
                       ),
                   ],
-                  onChanged: (valor) => setState(() => _tipo = valor ?? 'switch'),
+                  onChanged: (valor) => setState(() => _clave = valor ?? 'switch_simple'),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(_categoria.explicacion,
+                      style: Theme.of(contexto).textTheme.bodySmall),
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -160,7 +169,7 @@ class _DialogoEquipoManualState extends State<DialogoEquipoManual> {
                     counterText: '',
                   ),
                 ),
-                if (_categoria.bocas) ...[
+                if (_categoria.declaraBocas) ...[
                   const SizedBox(height: 12),
                   Row(
                     children: [
@@ -180,7 +189,7 @@ class _DialogoEquipoManualState extends State<DialogoEquipoManual> {
                     ],
                   ),
                 ],
-                if (_categoria.conexion) ...[
+                if (_categoria.preguntaConexion) ...[
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     initialValue: _conexion,

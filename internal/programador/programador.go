@@ -553,7 +553,7 @@ func (s *Servicio) reconocer(ctx context.Context, clave string) {
 			return err
 		}
 
-		tipos := make(map[int64]string, len(equipos))
+		tipos := make(map[int64]basedatos.Reconocido, len(equipos))
 		for _, equipo := range equipos {
 			definicion := s.Catalogo.Reconocer(catalogo.Equipo{
 				IP:         equipo.IP,
@@ -567,18 +567,34 @@ func (s *Servicio) reconocer(ctx context.Context, clave string) {
 			if definicion == nil {
 				// Sin coincidencia se deja vacio a proposito: la interfaz lo usa
 				// para ofrecer "proponer definicion", que es como crece el catalogo.
-				tipos[equipo.ID] = ""
+				tipos[equipo.ID] = basedatos.Reconocido{}
 				continue
 			}
-			tipos[equipo.ID] = definicion.Nombre
+			// El nombre es para leerlo y la categoria para contarlo. Se guardan
+			// los dos: agrupando por nombre saldrian cubos distintos para
+			// "Impresora HP" y "Impresora de red".
+			tipos[equipo.ID] = basedatos.Reconocido{
+				Tipo:      definicion.Nombre,
+				Categoria: definicion.Categoria,
+			}
 		}
 
 		cambiados, err := base.PonerTipos(ctx, tipos)
 		if err != nil {
 			return err
 		}
-		if cambiados > 0 {
-			s.Bitacora.Info("equipos reconocidos", "red", clave, "cambiados", cambiados)
+
+		// Y despues, lo que dijo el propio aparato. Un switch que contesto por
+		// SNMP que es un switch manda sobre lo que el catalogo dedujo mirandole
+		// los puertos abiertos.
+		porSNMP, err := base.MarcarSwitchesAdministrables(ctx, catalogo.SwitchAdministrable)
+		if err != nil {
+			return err
+		}
+
+		if cambiados+porSNMP > 0 {
+			s.Bitacora.Info("equipos reconocidos", "red", clave,
+				"cambiados", cambiados, "switches_por_snmp", porSNMP)
 		}
 		return nil
 	})

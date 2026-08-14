@@ -181,6 +181,14 @@ tipo = "fix"
 modulo = "Mapa visual y Alertas"
 notas = "Salio de usar el programa en un equipo de verdad. El boton de editar el cableado era un lapiz suelto entre otros dos iconos y no lo encontro nadie: ahora va con su nombre y, sobre todo, esta en la pestana de Puertos, que es donde va la mano de quien quiere tocar el cableado. En las alertas, el cartelito 'Nueva' solo repetia lo que ya decia la negrita del titulo y no dejaba hacer nada: ahora es un boton para despachar esa alerta sola, con la cuenta de las que quedan sin ver siempre a la vista. Y la campanita de la red se quedaba con el numero del momento en que se abrio la pantalla: habia que salir al panel de inicio y volver a entrar para verla bien."
 
+[[sistema]]
+version = "1.15"
+revision = 20
+fecha = "2026-08-14"
+tipo = "feature"
+modulo = "Equipos y catalogo"
+notas = "La lista de equipos dice ahora de que esta hecha la red: cuantos aparatos hay en total, cuantos estan prendidos y cuantos de cada tipo. Detras hay una LISTA UNICA de categorias que usan los dos lados: el catalogo clasifica con ella lo que descubre y el formulario de alta manual la ofrece en un desplegable, nunca como texto libre. Antes el catalogo decia 'punto_de_acceso' y el alta manual decia 'ap': el contador habria sacado dos cubos para la misma cosa. Una prueba compara las dos listas y falla si se separan. El switch declarado a mano cuenta desde el momento en que se declara, porque el contador y el mapa leen la misma tabla."
+
 # ----------------------------------------------------------------- la base --
 #
 # Cada entrada apunta al numero de migracion que la trae. El esquema de las bases
@@ -225,6 +233,14 @@ fecha = "2026-08-13"
 tipo = "feature"
 modulo = "Historial de versiones"
 notas = "Catalogo 0004: tablas versionessistema y versiondb, que el servidor siembra al arrancar desde el historial que viaja dentro del binario."
+
+[[base]]
+version = "1.15"
+revision = 7
+fecha = "2026-08-14"
+tipo = "feature"
+modulo = "Equipos y catalogo"
+notas = "Red 0012: columna categoria en equipos, la clave con la que se cuenta. `tipo` guarda el nombre para leer ('Impresora HP') y `categoria` la clave para contar ('impresora'): agrupando por nombre salian cubos separados para 'Impresora HP' e 'Impresora de red'. La migracion traduce al vocabulario nuevo lo que ya estaba declarado a mano, que usaba sus propias palabras."
 
 [[base]]
 version = "1.15"

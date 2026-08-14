@@ -99,6 +99,25 @@ void main() {
     expect(tomaDeErrores(), isNull);
   });
 
+  testWidgets('la lista de equipos dice de que esta hecha la red', (probador) async {
+    await dibujar(probador, PantallaRed(red: _red));
+
+    // El total y cuantos estan prendidos: un equipo apagado sigue siendo parte
+    // de la red, asi que el total no baila con cada barrido.
+    expect(find.textContaining('4 aparatos'), findsOneWidget);
+    expect(find.textContaining('3 prendidos'), findsOneWidget);
+
+    // Y el desglose, con el plural bien dicho: "switches", no "switchs".
+    expect(find.text('2 PC y laptops'), findsOneWidget);
+    expect(find.text('1 Switch no administrable'), findsOneWidget);
+    expect(find.text('1 Impresora'), findsOneWidget);
+
+    // Lo declarado a mano cuenta, y se dice que se declaro: ningun escaneo lo
+    // vio, y esa diferencia no se puede perder.
+    expect(find.text('1 a mano'), findsOneWidget);
+    expect(tomaDeErrores(), isNull);
+  });
+
   testWidgets('la campanita de la red se relee, no se queda con la foto vieja',
       (probador) async {
     // La pantalla se abre con la red que le pasaron —2 alertas abiertas— y el
@@ -282,6 +301,20 @@ dynamic _respuestaDe(String ruta) {
   // Lo declarado a mano: un switch tonto (id 4) de dos bocas, con la primera
   // conectada a un equipo ya descubierto y la segunda libre. Es el caso que
   // ningun escaneo puede ver y que hace falta que el mapa sepa dibujar.
+  // De que esta hecha la red. Lo cuenta el SERVIDOR sobre toda la red, no la
+  // pantalla sobre lo que tenga a la vista.
+  if (ruta.endsWith('/composicion')) {
+    return {
+      'total': 4,
+      'presentes': 3,
+      'declarados': 1,
+      'categorias': [
+        {'categoria': 'computadora', 'cuantos': 2, 'presentes': 2, 'declarados': 0},
+        {'categoria': 'switch_simple', 'cuantos': 1, 'presentes': 1, 'declarados': 1},
+        {'categoria': 'impresora', 'cuantos': 1, 'presentes': 0, 'declarados': 0},
+      ],
+    };
+  }
   if (ruta.endsWith('/topologia-manual')) {
     return {
       'puertos': [

@@ -151,7 +151,7 @@ pedir "$API/api/versiones" | grep -q '"versionessistema"\|"sistema"' \
     && paso "el historial de versiones se sembro" \
     || falla "el historial de versiones esta vacio"
 
-pedir "$API/api/versiones" | grep -q '"revision":19' \
+pedir "$API/api/versiones" | grep -q '"revision":20' \
     && paso "y trae la revision de esta entrega" \
     || falla "el historial no llega hasta la revision de hoy"
 
@@ -203,8 +203,20 @@ pedir "$API/api/redes/$CLAVE/topologia-manual" | grep -q '"contradicciones"' \
     && paso "la topologia declarada a mano responde" \
     || falla "la topologia declarada a mano no responde"
 
+# De que esta hecha la red: el total y cuantos de cada tipo.
+pedir "$API/api/redes/$CLAVE/composicion" | grep -q '"categorias"' \
+    && paso "la composicion de la red responde" \
+    || falla "la composicion de la red no responde"
+
+# La categoria sale de una lista cerrada. Texto libre aqui significa que el
+# contador saca dos cubos para la misma cosa, y nadie se entera.
+pedir -X POST "$API/api/redes/$CLAVE/equipos" \
+     -d '{"nombre":"Invento","categoria":"ap","puertos":0}' | grep -q '"ok":false' \
+    && paso "rechaza una categoria que no esta en la lista" \
+    || falla "acepto una categoria inventada"
+
 MANUAL=$(pedir -X POST "$API/api/redes/$CLAVE/equipos" \
-         -d '{"nombre":"Switch del rack","tipo":"switch","modelo":"TP-Link SG108","puertos":8}' \
+         -d '{"nombre":"Switch del rack","categoria":"switch_simple","tipo":"Switch no administrable","modelo":"TP-Link SG108","puertos":8}' \
          | sed -n 's/.*"id":\([0-9]*\).*/\1/p')
 [[ -n "$MANUAL" ]] \
     && paso "da de alta un switch que ningun escaneo veria (id $MANUAL)" \
@@ -218,6 +230,16 @@ pedir -X POST "$API/api/redes/$CLAVE/equipos" -d '{"nombre":"Switch del rack"}' 
 pedir "$API/api/redes/$CLAVE/topologia-manual" | grep -q '"numero":8' \
     && paso "y le quedaron declaradas sus ocho bocas" \
     || falla "las bocas del switch no se declararon"
+
+# El contador y el mapa leen la MISMA tabla: un switch declarado a mano cuenta
+# desde el momento en que se declara, sin nada que sincronizar.
+pedir "$API/api/redes/$CLAVE/composicion" | grep -q '"switch_simple"' \
+    && paso "el switch declarado a mano ya cuenta en la composicion" \
+    || falla "el contador no vio el switch declarado a mano"
+
+pedir "$API/api/redes/$CLAVE/composicion" | grep -q '"declarados":1' \
+    && paso "y se dice que es declarado, no medido" \
+    || falla "el contador no distingue lo declarado de lo medido"
 
 # Y ahora se vuelve a escanear CON el equipo declarado ya dado de alta: no tiene
 # direccion y ningun barrido lo va a ver nunca, asi que si se marcara ausente

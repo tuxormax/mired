@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../modelos/categorias.dart';
 import '../modelos/modelos.dart';
 import '../servicios/api.dart';
 import '../servicios/frescura.dart';
@@ -28,6 +29,7 @@ class _PantallaRedState extends State<PantallaRed> {
   late Future<MapaPuertos> _mapa;
   late Future<Consumo> _consumo;
   late Future<List<ConsumoPorAplicacion>> _aplicaciones;
+  late Future<ComposicionDeRed> _composicion;
   late Red _red;
 
   final _busqueda = TextEditingController();
@@ -58,6 +60,7 @@ class _PantallaRedState extends State<PantallaRed> {
       _mapa = Api.instancia.mapaDePuertos(_red.clave);
       _consumo = Api.instancia.consumo(_red.clave);
       _aplicaciones = Api.instancia.consumoPorAplicacion(_red.clave);
+      _composicion = Api.instancia.composicion(_red.clave);
     });
     _releerRed();
   }
@@ -443,6 +446,7 @@ class _PantallaRedState extends State<PantallaRed> {
             ],
           ),
         ),
+        _Composicion(composicion: _composicion),
         Expanded(
           child: FutureBuilder<List<Equipo>>(
             future: _equipos,
@@ -959,6 +963,14 @@ class _TarjetaEquipo extends StatelessWidget {
                   const SizedBox(height: 12),
                 ],
                 _Renglon(etiqueta: 'Reconocido como', valor: equipo.tipo),
+                // La categoria es con la que cuenta el contador de arriba. Se
+                // muestra para que se pueda ver POR QUE un aparato cae en un
+                // cubo y no en otro, en vez de tener que adivinarlo.
+                _Renglon(
+                    etiqueta: 'Cuenta como',
+                    valor: equipo.categoria.isEmpty
+                        ? 'Sin reconocer'
+                        : nombreDeCategoria(equipo.categoria)),
                 _Renglon(etiqueta: 'Modelo', valor: equipo.modelo),
                 _Renglon(etiqueta: 'Nombre descubierto', valor: equipo.nombre),
                 _Renglon(etiqueta: 'MAC', valor: equipo.mac),
@@ -1035,6 +1047,103 @@ class _TarjetaEquipo extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// _Composicion dice de que esta hecha la red: cuantos aparatos hay y cuantos de
+/// cada tipo.
+///
+/// La cuenta la hace el SERVIDOR sobre toda la red, no esta pantalla sobre lo
+/// que tenga a la vista: con un filtro escrito o con «solo presentes» marcado,
+/// contar aqui diria «3 equipos» en una red de treinta.
+///
+/// Sale de la misma tabla que la lista y que el mapa, asi que los tres no pueden
+/// discrepar: un switch declarado a mano cuenta en cuanto se declara.
+class _Composicion extends StatelessWidget {
+  const _Composicion({required this.composicion});
+
+  final Future<ComposicionDeRed> composicion;
+
+  @override
+  Widget build(BuildContext contexto) {
+    return FutureBuilder<ComposicionDeRed>(
+      future: composicion,
+      builder: (_, resultado) {
+        // Mientras no se sepa, no se pone nada: un cero parpadeando dice algo
+        // que no es cierto.
+        if (!resultado.hasData) return const SizedBox.shrink();
+
+        final datos = resultado.data!;
+        if (datos.total == 0) return const SizedBox.shrink();
+
+        final colores = Theme.of(contexto).colorScheme;
+        // El orden de la lista unica, no el que devuelva el servidor: asi lo que
+        // arma la red va primero y lo que cuelga de ella despues, siempre igual.
+        final cuentas = <String, CuentaPorCategoria>{
+          for (final fila in datos.categorias) fila.categoria: fila,
+        };
+        final ordenadas = [
+          for (final categoria in categoriasDeEquipo)
+            if (cuentas.containsKey(categoria.clave)) cuentas[categoria.clave]!,
+          // Lo que el servidor devuelva y no este en la lista tambien se
+          // muestra: esconderlo daria un total que no cuadra con la suma.
+          for (final fila in datos.categorias)
+            if (buscarCategoria(fila.categoria) == null) fila,
+        ];
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              // El total de la red, y aparte cuantos estan prendidos ahora. Un
+              // equipo apagado sigue siendo parte de la red; contar solo los
+              // prendidos haria bailar el numero todo el dia.
+              Chip(
+                avatar: Icon(Icons.lan_outlined, size: 18, color: colores.onPrimaryContainer),
+                backgroundColor: colores.primaryContainer,
+                label: Text(
+                  datos.total == 1
+                      ? '1 aparato · ${datos.presentes} prendido'
+                      : '${datos.total} aparatos · ${datos.presentes} prendidos ahora',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600, color: colores.onPrimaryContainer),
+                ),
+              ),
+              if (datos.declarados > 0)
+                Tooltip(
+                  message: 'Los declaro una persona; ningun escaneo los vio.\n'
+                      'Un switch no administrable no tiene direccion y no puede verse de otro modo.',
+                  child: Chip(
+                    avatar: const Icon(Icons.edit_outlined, size: 16),
+                    label: Text('${datos.declarados} a mano'),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              for (final fila in ordenadas)
+                Tooltip(
+                  message: [
+                    buscarCategoria(fila.categoria)?.explicacion ?? '',
+                    '${fila.presentes} de ${fila.cuantos} prendidos ahora',
+                    if (fila.declarados > 0) '${fila.declarados} declarados a mano',
+                  ].where((linea) => linea.isNotEmpty).join('\n'),
+                  child: Chip(
+                    avatar: Icon(iconoDeCategoria(fila.categoria), size: 16),
+                    label: Text(
+                      '${fila.cuantos} '
+                      '${buscarCategoria(fila.categoria)?.cuantos(fila.cuantos) ?? fila.categoria}',
+                    ),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

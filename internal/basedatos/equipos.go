@@ -38,6 +38,12 @@ type Equipo struct {
 	// Conexion es "cable" o "wifi", y solo aplica a equipos terminales. Vacio en
 	// un switch o un router, donde no significaria nada.
 	Conexion string `json:"conexion"`
+	// Categoria es la clave de la lista unica de MiRed (ver internal/catalogo).
+	//
+	// No es lo mismo que Tipo: Tipo es el nombre para leer ("Impresora HP") y
+	// Categoria es para CONTAR ("impresora"). Agrupando por Tipo salen cubos
+	// separados para "Impresora HP" y "Impresora de red".
+	Categoria string `json:"categoria"`
 }
 
 // ComoSeLlama devuelve el nombre que conviene mostrar: manda el que puso una
@@ -407,7 +413,7 @@ func (b *Base) ListarEquipos(ctx context.Context, soloPresentes bool) ([]Equipo,
 		       COALESCE(nombre, ''), COALESCE(alias, ''), COALESCE(tipo, ''),
 		       COALESCE(subred, ''), COALESCE(metodo, ''), presente,
 		       primera_vez, ultima_vez, COALESCE(modelo, ''), COALESCE(notas, ''),
-		       origen, COALESCE(conexion, '')
+		       origen, COALESCE(conexion, ''), COALESCE(categoria, '')
 		  FROM equipos
 		 WHERE estatus = 1`
 	if soloPresentes {
@@ -429,7 +435,7 @@ func (b *Base) ListarEquipos(ctx context.Context, soloPresentes bool) ([]Equipo,
 		if err := filas.Scan(&e.ID, &e.Identidad, &e.IP, &e.MAC, &e.Fabricante,
 			&e.Nombre, &e.Alias, &e.Tipo, &e.Subred, &e.Metodo, &presente,
 			&e.PrimeraVez, &e.UltimaVez, &e.Modelo, &e.Notas, &e.Origen,
-			&e.Conexion); err != nil {
+			&e.Conexion, &e.Categoria); err != nil {
 			return nil, err
 		}
 		e.Presente = presente == 1
@@ -598,11 +604,26 @@ func (b *Base) ParaReconocer(ctx context.Context) ([]DatosParaReconocer, error) 
 	return equipos, puertos.Err()
 }
 
+// Reconocido es lo que el catalogo averiguo de un equipo.
+//
+// Son dos datos distintos y hacen falta los dos: Tipo es el nombre para LEER
+// ("Impresora HP") y Categoria es la clave para CONTAR ("impresora"). Con solo
+// el nombre, el contador saca cubos separados para "Impresora HP" y "Impresora
+// de red"; con solo la categoria, la ficha del equipo pierde el detalle.
+type Reconocido struct {
+	Tipo      string
+	Categoria string
+}
+
 // PonerTipos guarda lo que el catalogo reconocio.
 //
-// Solo se escribe cuando el tipo CAMBIA: reescribir la misma fila en cada
-// escaneo ensucia la columna de modificado y no aporta nada.
-func (b *Base) PonerTipos(ctx context.Context, tipos map[int64]string) (int, error) {
+// Solo se escribe cuando algo CAMBIA: reescribir la misma fila en cada escaneo
+// ensucia la columna de modificado y no aporta nada.
+//
+// **Nunca toca lo declarado a mano.** Si una persona dijo que ese aparato es un
+// switch no administrable, el catalogo no tiene nada que corregirle: el catalogo
+// deduce por puertos abiertos, y quien lo declaro lo tenia delante.
+func (b *Base) PonerTipos(ctx context.Context, tipos map[int64]Reconocido) (int, error) {
 	if len(tipos) == 0 {
 		return 0, nil
 	}
@@ -610,11 +631,13 @@ func (b *Base) PonerTipos(ctx context.Context, tipos map[int64]string) (int, err
 	cambiados := 0
 	momento := Ahora()
 	err := b.EnTransaccion(ctx, func(tx *sql.Tx) error {
-		for id, tipo := range tipos {
+		for id, reconocido := range tipos {
 			resultado, err := tx.ExecContext(ctx,
-				`UPDATE equipos SET tipo = ?, modificado = ?
-				  WHERE id = ? AND COALESCE(tipo, '') <> ?`,
-				nuloSiVacio(tipo), momento, id, tipo)
+				`UPDATE equipos SET tipo = ?, categoria = ?, modificado = ?
+				  WHERE id = ? AND origen <> 'manual'
+				    AND (COALESCE(tipo, '') <> ? OR COALESCE(categoria, '') <> ?)`,
+				nuloSiVacio(reconocido.Tipo), nuloSiVacio(reconocido.Categoria), momento,
+				id, reconocido.Tipo, reconocido.Categoria)
 			if err != nil {
 				return fmt.Errorf("no se pudo guardar el tipo del equipo %d: %w", id, err)
 			}
@@ -625,4 +648,72 @@ func (b *Base) PonerTipos(ctx context.Context, tipos map[int64]string) (int, err
 		return nil
 	})
 	return cambiados, err
+}
+
+// MarcarSwitchesAdministrables pone la categoria de los equipos que contestaron
+// por SNMP que son switches.
+//
+// Esto NO lo puede hacer el catalogo: el catalogo deduce por puertos abiertos y
+// fabricante, y un switch administrable **lo dijo el mismo**. Un dato que da el
+// aparato manda sobre uno deducido, asi que se aplica despues del catalogo y lo
+// pisa.
+func (b *Base) MarcarSwitchesAdministrables(ctx context.Context, categoria string) (int, error) {
+	resultado, err := b.ExecContext(ctx, `
+		UPDATE equipos SET categoria = ?, modificado = ?
+		 WHERE estatus = 1 AND origen <> 'manual'
+		   AND COALESCE(categoria, '') <> ?
+		   AND id IN (SELECT equipo_id FROM equipos_snmp WHERE es_switch = 1)`,
+		categoria, Ahora(), categoria)
+	if err != nil {
+		return 0, fmt.Errorf("no se pudieron marcar los switches administrables: %w", err)
+	}
+	cambiados, _ := resultado.RowsAffected()
+	return int(cambiados), nil
+}
+
+// CuentaPorCategoria es cuantos aparatos de un tipo hay en la red.
+type CuentaPorCategoria struct {
+	Categoria string `json:"categoria"`
+	Cuantos   int    `json:"cuantos"`
+	Presentes int    `json:"presentes"`
+	// Declarados son los que puso una persona a mano. Se dice aparte porque no
+	// los vio ningun escaneo: la cuenta es igual de real, pero no viene de una
+	// medicion.
+	Declarados int `json:"declarados"`
+}
+
+// ResumenDeCategorias cuenta de que esta hecha la red.
+//
+// Sale de la MISMA tabla que la lista de equipos y que el mapa, asi que los tres
+// no pueden discrepar: un switch declarado a mano cuenta aqui en cuanto se
+// declara, sin nada que sincronizar.
+//
+// Los equipos sin categoria se devuelven agrupados bajo la clave que se le pase
+// —"sin reconocer"—, **nunca se omiten**: un inventario que calla lo que no supo
+// clasificar se lee como si estuviera completo.
+func (b *Base) ResumenDeCategorias(ctx context.Context, claveSinReconocer string) ([]CuentaPorCategoria, error) {
+	filas, err := b.QueryContext(ctx, `
+		SELECT CASE WHEN COALESCE(categoria, '') = '' THEN ? ELSE categoria END AS grupo,
+		       COUNT(*),
+		       COALESCE(SUM(presente), 0),
+		       COALESCE(SUM(CASE WHEN origen = 'manual' THEN 1 ELSE 0 END), 0)
+		  FROM equipos
+		 WHERE estatus = 1
+		 GROUP BY grupo
+		 ORDER BY COUNT(*) DESC, grupo`, claveSinReconocer)
+	if err != nil {
+		return nil, fmt.Errorf("no se pudo contar de que esta hecha la red: %w", err)
+	}
+	defer filas.Close()
+
+	resumen := []CuentaPorCategoria{}
+	for filas.Next() {
+		var cuenta CuentaPorCategoria
+		if err := filas.Scan(&cuenta.Categoria, &cuenta.Cuantos, &cuenta.Presentes,
+			&cuenta.Declarados); err != nil {
+			return nil, err
+		}
+		resumen = append(resumen, cuenta)
+	}
+	return resumen, filas.Err()
 }

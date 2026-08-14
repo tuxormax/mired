@@ -50,6 +50,7 @@ valida renueva el vencimiento.
 | Metodo y ruta | Quien puede | Que hace |
 |---|---|---|
 | `GET /api/redes/{clave}/topologia-manual` | lectura | bocas, cables y **contradicciones** contra lo medido |
+| `GET /api/redes/{clave}/composicion` | lectura | de que esta hecha la red: `{total, presentes, declarados, categorias[]}` |
 | `POST /api/redes/{clave}/equipos` | escritura | dar de alta un aparato que ningun escaneo ve |
 | `PUT /api/redes/{clave}/equipos/{equipo}` | escritura | ficha: `modelo`, `notas`, `conexion` |
 | `DELETE /api/redes/{clave}/equipos/{equipo}` | escritura | **solo si `origen = 'manual'`** |
@@ -66,6 +67,9 @@ Dos cosas del diseno de estas rutas:
   archivo escribir.
 - `PATCH /equipos/{equipo}` sigue siendo **solo el alias**; el `PUT` es la ficha.
   Son dos operaciones distintas y se dejaron separadas a proposito.
+- Al crear un equipo a mano, `categoria` **se valida contra la lista unica** y no
+  puede ser `sin_reconocer`, que es un resultado y no una opcion. Ver
+  [[ref-categorias]].
 - La API **nunca** deja crear un enlace con origen `snmp`: eso solo lo escribe el
   propio escaneo. Ver [[modulo-topologia-manual]].
 

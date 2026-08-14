@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/tuxormax/mired/internal/catalogo"
 )
 
 // Aqui vive la tercera fuente del mapa: lo que una persona DECLARA.
@@ -101,9 +103,16 @@ type Contradiccion struct {
 // EquipoManual es lo que hace falta para dar de alta un aparato que ningun
 // barrido va a encontrar nunca.
 type EquipoManual struct {
-	Nombre   string `json:"nombre"`
-	Tipo     string `json:"tipo"`
-	Modelo   string `json:"modelo"`
+	Nombre string `json:"nombre"`
+	// Categoria es una clave de la lista unica de MiRed, elegida de un
+	// desplegable. **Nunca texto libre**: si el que se declara a mano y el que se
+	// descubre no hablan el mismo idioma, el contador saca dos cubos para la
+	// misma cosa.
+	Categoria string `json:"categoria"`
+	// Tipo es como se lee. Lo manda la interfaz junto con la categoria, sacado de
+	// la misma lista, para que la ficha no muestre la clave cruda.
+	Tipo   string `json:"tipo"`
+	Modelo string `json:"modelo"`
 	Notas    string `json:"notas"`
 	IP       string `json:"ip"`
 	MAC      string `json:"mac"`
@@ -143,6 +152,18 @@ func (b *Base) CrearEquipoManual(ctx context.Context, datos EquipoManual) (Equip
 	if err := validarConexion(datos.Conexion); err != nil {
 		return Equipo{}, err
 	}
+	// El servidor comprueba la categoria aunque el formulario ya la ofrezca en un
+	// desplegable: un cliente viejo, o una peticion hecha fuera del formulario,
+	// se saltan la interfaz. Y una categoria inventada rompe el contador en
+	// silencio, que es la peor forma de romperse.
+	if !catalogo.EsCategoriaValida(datos.Categoria) {
+		return Equipo{}, fmt.Errorf(
+			"«%s» no es una categoria de MiRed: elija una de la lista", datos.Categoria)
+	}
+	if datos.Categoria == catalogo.SinReconocer {
+		return Equipo{}, errors.New(
+			"«sin reconocer» es donde caen los que nadie identifico, no algo que se pueda elegir")
+	}
 
 	momento := Ahora()
 	var creado Equipo
@@ -165,11 +186,13 @@ func (b *Base) CrearEquipoManual(ctx context.Context, datos EquipoManual) (Equip
 		// razon que "ip:": para que se vea de un vistazo que ese equipo no se
 		// identifica por nada que se haya medido.
 		resultado, err := tx.ExecContext(ctx, `
-			INSERT INTO equipos (identidad, ip, mac, nombre, alias, tipo, modelo, notas,
-			                     origen, conexion, metodo, presente, primera_vez, ultima_vez, estatus)
-			VALUES ('', ?, ?, NULL, ?, ?, ?, ?, 'manual', ?, 'manual', 1, ?, ?, 1)`,
+			INSERT INTO equipos (identidad, ip, mac, nombre, alias, tipo, categoria, modelo,
+			                     notas, origen, conexion, metodo, presente, primera_vez,
+			                     ultima_vez, estatus)
+			VALUES ('', ?, ?, NULL, ?, ?, ?, ?, ?, 'manual', ?, 'manual', 1, ?, ?, 1)`,
 			strings.TrimSpace(datos.IP), nuloSiVacio(normalizarMAC(datos.MAC)), nombre,
-			nuloSiVacio(strings.TrimSpace(datos.Tipo)), nuloSiVacio(strings.TrimSpace(datos.Modelo)),
+			nuloSiVacio(strings.TrimSpace(datos.Tipo)), nuloSiVacio(strings.TrimSpace(datos.Categoria)),
+			nuloSiVacio(strings.TrimSpace(datos.Modelo)),
 			nuloSiVacio(strings.TrimSpace(datos.Notas)), nuloSiVacio(datos.Conexion),
 			momento, momento)
 		if err != nil {
@@ -251,11 +274,11 @@ func leerEquipo(ctx context.Context, tx *sql.Tx, equipoID int64) (Equipo, error)
 		       COALESCE(nombre, ''), COALESCE(alias, ''), COALESCE(tipo, ''),
 		       COALESCE(subred, ''), COALESCE(metodo, ''), presente,
 		       primera_vez, ultima_vez, COALESCE(modelo, ''), COALESCE(notas, ''),
-		       origen, COALESCE(conexion, '')
+		       origen, COALESCE(conexion, ''), COALESCE(categoria, '')
 		  FROM equipos WHERE id = ?`, equipoID).
 		Scan(&e.ID, &e.Identidad, &e.IP, &e.MAC, &e.Fabricante, &e.Nombre, &e.Alias,
 			&e.Tipo, &e.Subred, &e.Metodo, &presente, &e.PrimeraVez, &e.UltimaVez,
-			&e.Modelo, &e.Notas, &e.Origen, &e.Conexion)
+			&e.Modelo, &e.Notas, &e.Origen, &e.Conexion, &e.Categoria)
 	if err != nil {
 		return Equipo{}, fmt.Errorf("no se pudo releer el equipo: %w", err)
 	}

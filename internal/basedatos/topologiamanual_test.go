@@ -16,7 +16,8 @@ func TestUnSwitchTontoSeDeclaraConSusBocas(t *testing.T) {
 	ctx := context.Background()
 
 	creado, err := base.CrearEquipoManual(ctx, EquipoManual{
-		Nombre: "Switch del rack", Tipo: "switch", Modelo: "TP-Link SG108", Puertos: 8,
+		Nombre: "Switch del rack", Categoria: "switch_simple", Tipo: "Switch no administrable",
+		Modelo: "TP-Link SG108", Puertos: 8,
 	})
 	if err != nil {
 		t.Fatalf("no se pudo declarar el switch: %v", err)
@@ -38,7 +39,7 @@ func TestUnSwitchTontoSeDeclaraConSusBocas(t *testing.T) {
 
 	// Repetir el nombre en la misma red se rechaza con un mensaje de negocio, no
 	// con un choque de indice.
-	if _, err := base.CrearEquipoManual(ctx, EquipoManual{Nombre: "switch del rack"}); !errors.Is(err, ErrEquipoRepetido) {
+	if _, err := base.CrearEquipoManual(ctx, EquipoManual{Nombre: "switch del rack", Categoria: "switch_simple"}); !errors.Is(err, ErrEquipoRepetido) {
 		t.Fatalf("se esperaba ErrEquipoRepetido y llego: %v", err)
 	}
 }
@@ -51,7 +52,7 @@ func TestUnEquipoDeclaradoNoSeMarcaAusenteAlEscanear(t *testing.T) {
 	defer devolver()
 	ctx := context.Background()
 
-	declarado, err := base.CrearEquipoManual(ctx, EquipoManual{Nombre: "Switch tonto", Puertos: 5})
+	declarado, err := base.CrearEquipoManual(ctx, EquipoManual{Nombre: "Switch tonto", Categoria: "switch_simple", Puertos: 5})
 	if err != nil {
 		t.Fatalf("no se pudo declarar el switch: %v", err)
 	}
@@ -77,7 +78,7 @@ func TestUnaBocaLlevaUnSoloCable(t *testing.T) {
 	defer devolver()
 	ctx := context.Background()
 
-	switchTonto, err := base.CrearEquipoManual(ctx, EquipoManual{Nombre: "Switch", Puertos: 4})
+	switchTonto, err := base.CrearEquipoManual(ctx, EquipoManual{Nombre: "Switch", Categoria: "switch_simple", Puertos: 4})
 	if err != nil {
 		t.Fatalf("no se pudo declarar el switch: %v", err)
 	}
@@ -136,7 +137,7 @@ func TestNoSePuedeConectarUnEquipoConsigoMismo(t *testing.T) {
 	defer devolver()
 	ctx := context.Background()
 
-	creado, err := base.CrearEquipoManual(ctx, EquipoManual{Nombre: "Switch", Puertos: 2})
+	creado, err := base.CrearEquipoManual(ctx, EquipoManual{Nombre: "Switch", Categoria: "switch_simple", Puertos: 2})
 	if err != nil {
 		t.Fatalf("no se pudo declarar el switch: %v", err)
 	}
@@ -253,5 +254,115 @@ func TestLaFichaGuardaLoQueNingunEscaneoAveriguaria(t *testing.T) {
 	// Una conexion que no es ni cable ni WiFi se rechaza con mensaje de negocio.
 	if err := base.ActualizarFicha(ctx, equipos[0].ID, FichaEquipo{Conexion: "paloma"}); err == nil {
 		t.Fatal("se acepto una forma de conexion que no existe")
+	}
+}
+
+// El contador tiene que cuadrar con el mapa **por construccion**, no por
+// sincronizarse: los dos leen la misma tabla. Esta prueba lo fija, porque el dia
+// que alguien meta los equipos declarados en otro sitio, el contador seguiria
+// dando un numero plausible y falso.
+func TestElContadorCuentaTambienLoDeclaradoAMano(t *testing.T) {
+	_, base, devolver := conRedDePrueba(t)
+	defer devolver()
+	ctx := context.Background()
+
+	sembrarEquipos(t, base, []EquipoDescubierto{
+		{IP: "192.168.1.1", MAC: "aa:aa:aa:00:00:01", Metodo: "arp"},
+		{IP: "192.168.1.10", MAC: "bb:bb:bb:00:00:10", Metodo: "arp"},
+		{IP: "192.168.1.11", MAC: "bb:bb:bb:00:00:11", Metodo: "arp"},
+	})
+
+	// Lo descubierto todavia no tiene categoria: la pone el catalogo. Mientras
+	// tanto cuenta como "sin reconocer", que es la verdad.
+	resumen, err := base.ResumenDeCategorias(ctx, "sin_reconocer")
+	if err != nil {
+		t.Fatalf("no se pudo contar: %v", err)
+	}
+	if len(resumen) != 1 || resumen[0].Categoria != "sin_reconocer" || resumen[0].Cuantos != 3 {
+		t.Fatalf("los equipos sin reconocer deberian contarse aparte, no esconderse: %+v", resumen)
+	}
+
+	// Ahora el catalogo reconoce dos, y SNMP dice que el tercero es un switch.
+	equipos, _ := base.ListarEquipos(ctx, false)
+	tipos := map[int64]Reconocido{}
+	for _, equipo := range equipos {
+		if equipo.IP != "192.168.1.1" {
+			tipos[equipo.ID] = Reconocido{Tipo: "PC con Windows", Categoria: "computadora"}
+		}
+	}
+	if _, err := base.PonerTipos(ctx, tipos); err != nil {
+		t.Fatalf("no se pudieron poner los tipos: %v", err)
+	}
+	if _, err := base.GuardarSNMP(ctx, []FichaSNMP{{
+		IP: "192.168.1.1", Nombre: "sw-principal", EsSwitch: true,
+	}}); err != nil {
+		t.Fatalf("no se pudo guardar lo de SNMP: %v", err)
+	}
+	if _, err := base.MarcarSwitchesAdministrables(ctx, "switch_administrable"); err != nil {
+		t.Fatalf("no se pudieron marcar los switches: %v", err)
+	}
+
+	// Y se declara a mano un switch tonto, que ningun escaneo vera jamas.
+	if _, err := base.CrearEquipoManual(ctx, EquipoManual{
+		Nombre: "Switch del rack", Categoria: "switch_simple", Puertos: 8,
+	}); err != nil {
+		t.Fatalf("no se pudo declarar el switch: %v", err)
+	}
+
+	resumen, err = base.ResumenDeCategorias(ctx, "sin_reconocer")
+	if err != nil {
+		t.Fatalf("no se pudo contar: %v", err)
+	}
+
+	cuenta := map[string]CuentaPorCategoria{}
+	total := 0
+	for _, fila := range resumen {
+		cuenta[fila.Categoria] = fila
+		total += fila.Cuantos
+	}
+
+	if total != 4 {
+		t.Fatalf("la red tiene 4 aparatos y el contador dice %d: %+v", total, resumen)
+	}
+	if cuenta["computadora"].Cuantos != 2 {
+		t.Fatalf("deberian contarse 2 computadoras: %+v", resumen)
+	}
+	if cuenta["switch_administrable"].Cuantos != 1 {
+		t.Fatalf("el switch que contesto por SNMP deberia contar como administrable: %+v", resumen)
+	}
+	// La razon de ser de todo esto: el switch tonto NO se ve en ningun escaneo y
+	// aun asi forma parte de la red.
+	if cuenta["switch_simple"].Cuantos != 1 || cuenta["switch_simple"].Declarados != 1 {
+		t.Fatalf("el switch declarado a mano tiene que contar, y decirse que es declarado: %+v", resumen)
+	}
+	if _, sobra := cuenta["sin_reconocer"]; sobra {
+		t.Fatalf("ya no deberia quedar nada sin reconocer: %+v", resumen)
+	}
+}
+
+// El catalogo NO le corrige la categoria a quien tenia el aparato delante.
+func TestElCatalogoNoPisaLoQueSeDeclaroAMano(t *testing.T) {
+	_, base, devolver := conRedDePrueba(t)
+	defer devolver()
+	ctx := context.Background()
+
+	creado, err := base.CrearEquipoManual(ctx, EquipoManual{
+		Nombre: "Modem de la sala", Categoria: "gateway", IP: "192.168.1.254",
+	})
+	if err != nil {
+		t.Fatalf("no se pudo declarar el modem: %v", err)
+	}
+
+	if _, err := base.PonerTipos(ctx, map[int64]Reconocido{
+		creado.ID: {Tipo: "Router MikroTik", Categoria: "router"},
+	}); err != nil {
+		t.Fatalf("no se pudieron poner los tipos: %v", err)
+	}
+
+	equipos, _ := base.ListarEquipos(ctx, false)
+	for _, equipo := range equipos {
+		if equipo.ID == creado.ID && equipo.Categoria != "gateway" {
+			t.Fatalf("el catalogo piso lo que declaro una persona: %q", equipo.Categoria)
+		}
 	}
 }

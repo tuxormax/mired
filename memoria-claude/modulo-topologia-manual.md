@@ -5,7 +5,7 @@ metadata:
   type: project
 ---
 
-# Modulo 15 — Topologia manual (v1.15 Rev 19, 2026-08-14)
+# Modulo 15 — Topologia manual (v1.15 Rev 20, 2026-08-14)
 
 ## Que hace
 
@@ -80,6 +80,7 @@ Dos entradas a lo mismo:
 | notas | `maxLength: 2000` |
 | numero de boca | validado 1-512 antes de enviar; el `+` del contador se apaga en 512 |
 | tipo de boca | dropdown LAN/WAN, nunca texto libre |
+| que es el aparato | dropdown de la **lista unica de categorias**, nunca texto libre. Ver [ref-categorias](ref-categorias.md) |
 | velocidad | dropdown 10/100/1000/2500/10000 + «No se sabe» (guarda NULL) |
 | conexion | dropdown cable/wifi/vacio |
 
@@ -115,7 +116,8 @@ El servidor valida **lo mismo** y contesta con mensaje de negocio, no con un 500
 | Formularios | `interfaz/lib/pantallas/topologia_manual.dart` (los usan las DOS pantallas) |
 | Mapa | `interfaz/lib/pantallas/mapa.dart` (modo edicion) y `mapa_plano.dart` (plano) |
 
-**Ver tambien:** [modulo-topologia](modulo-topologia.md) ·
+**Ver tambien:** [ref-categorias](ref-categorias.md) ·
+[modulo-topologia](modulo-topologia.md) ·
 [modulo-escaneo](modulo-escaneo.md) · [modulo-alertas](modulo-alertas.md) ·
 [contrato-api](contrato-api.md) · [red-del-usuario](red-del-usuario.md) ·
 [gotchas](gotchas.md) · [mired-arquitectura](mired-arquitectura.md)

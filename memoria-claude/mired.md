@@ -76,7 +76,7 @@ NUMERO DE MODULOS.** Se habia subido a v1.1 "porque el cambio era grande", que e
 el criterio de medio mundo pero no el de la casa. MiRed tenia **14 modulos**
 (confirmados con el usuario), asi que era **v1.14**; con la topologia manual
 (2026-08-14) son **15**, y por eso **v1.15**. La revision sigue su cuenta sin
-reiniciarse al cambiar de version: va en **19**.
+reiniciarse al cambiar de version: va en **20**.
 
 Lo que faltaba y ya esta:
 - **Tablas `versionessistema` y `versiondb`** en el catalogo (migracion 0004),
@@ -91,7 +91,7 @@ Tres pruebas lo vigilan: que el binario y el historial digan la misma version,
 que la revision **no tenga huecos ni repetidos**, y que sembrar mil veces no
 duplique filas.
 
-## Estado real (2026-08-14, v1.15 Rev 19)
+## Estado real (2026-08-14, v1.15 Rev 20)
 **Las 10 fases cerradas**, salvo publicar los paquetes. Lo hecho:
 1. Cimientos: servidor + sonda, una base SQLite por red, autenticacion con
    permisos por red, API con el estandar de errores de la casa, programa de
@@ -107,7 +107,10 @@ duplique filas.
    alta lo que ningun escaneo ve, declarar bocas y conectarlas tocandolas, con
    modo edicion aparte de solo mirar. Ver [[modulo-topologia-manual]].
 6. Catalogo abierto de dispositivos en `.toml`, con 15 definiciones semilla y el
-   boton "proponer definicion" que genera el archivo ya relleno.
+   boton "proponer definicion" que genera el archivo ya relleno. Desde la Rev 20,
+   una **lista unica de categorias** que comparten el catalogo y el alta manual,
+   y el **contador de de que esta hecha la red** en la pestana de equipos.
+   Ver [[ref-categorias]].
 8. Ancho de banda: contadores SNMP por boca (con tasa calculada entre dos
    lecturas) y receptor de flujos **NetFlow v5, NetFlow v9, IPFIX y sFlow** del
    router, que es lo que mide consumo donde no hay switches administrables. El

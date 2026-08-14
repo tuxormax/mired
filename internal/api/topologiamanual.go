@@ -8,6 +8,7 @@ import (
 
 	"github.com/tuxormax/mired/internal/autenticacion"
 	"github.com/tuxormax/mired/internal/basedatos"
+	"github.com/tuxormax/mired/internal/catalogo"
 )
 
 // La edicion manual de la topologia: lo que el usuario declara porque tiene el
@@ -52,6 +53,46 @@ func (a *API) verTopologiaManual(escritor http.ResponseWriter, peticion *http.Re
 	}
 
 	responderOk(escritor, topologia)
+}
+
+// composicionDeLaRed responde de que esta hecha la red: cuantos equipos hay en
+// total y cuantos de cada tipo.
+//
+// Sale de la MISMA tabla que la lista de equipos y que el mapa, asi que los tres
+// no pueden discrepar. Un switch declarado a mano cuenta aqui en cuanto se
+// declara: no hay nada que sincronizar ni que verificar despues.
+func (a *API) composicionDeLaRed(escritor http.ResponseWriter, peticion *http.Request) {
+	clave, _ := autenticacion.RedActivaDe(peticion.Context())
+
+	var resumen []basedatos.CuentaPorCategoria
+	err := a.Datos.ConRed(peticion.Context(), clave, func(base *basedatos.Base) error {
+		var err error
+		resumen, err = base.ResumenDeCategorias(peticion.Context(), catalogo.SinReconocer)
+		return err
+	})
+	if err != nil {
+		a.responderError(escritor, peticion, contextoError{
+			Modulo: "Equipos", Accion: "Contar", Causa: CausaBaseDatos,
+			Tabla: "equipos", Codigo: http.StatusInternalServerError,
+		}, "No se pudo contar de que esta hecha la red.", err)
+		return
+	}
+
+	total, presentes, declarados := 0, 0, 0
+	for _, cuenta := range resumen {
+		total += cuenta.Cuantos
+		presentes += cuenta.Presentes
+		declarados += cuenta.Declarados
+	}
+
+	responderOk(escritor, map[string]any{
+		"total":     total,
+		"presentes": presentes,
+		// Cuantos los puso una persona. Se dice aparte porque no los vio ningun
+		// escaneo: la cuenta es igual de real, pero no viene de una medicion.
+		"declarados": declarados,
+		"categorias": resumen,
+	})
 }
 
 // crearEquipoManual da de alta un aparato que ningun barrido va a encontrar: el

@@ -1,7 +1,7 @@
 # Si contesta SNMP y reporta tabla de MAC, es un switch: MiRed ya lo sabe por su
 # cuenta, pero esta definicion le pone nombre e icono.
 nombre = "Switch administrable"
-categoria = "switch"
+categoria = "switch_administrable"
 icono = "router"
 descripcion = "Switch que contesta SNMP y reporta en que boca esta cada equipo."
 

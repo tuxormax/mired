@@ -148,6 +148,13 @@ class Equipo {
   /// `cable` o `wifi`. Solo aplica a equipos terminales; vacio en un switch.
   final String conexion;
 
+  /// La clave de la lista unica de categorias (ver `categorias.dart`).
+  ///
+  /// No es lo mismo que [tipo]: `tipo` es el nombre para LEER («Impresora HP») y
+  /// `categoria` es para CONTAR («impresora»). Agrupando por `tipo` salen cubos
+  /// separados para «Impresora HP» y «Impresora de red».
+  final String categoria;
+
   const Equipo({
     required this.id,
     required this.ip,
@@ -166,6 +173,7 @@ class Equipo {
     this.notas = '',
     this.origen = 'descubierto',
     this.conexion = '',
+    this.categoria = '',
   });
 
   factory Equipo.desdeJson(Map<String, dynamic> json) => Equipo(
@@ -188,6 +196,7 @@ class Equipo {
         notas: json['notas'] as String? ?? '',
         origen: json['origen'] as String? ?? 'descubierto',
         conexion: json['conexion'] as String? ?? '',
+        categoria: json['categoria'] as String? ?? '',
       );
 
   /// El nombre que conviene mostrar: manda el que puso una persona sobre el
@@ -499,6 +508,59 @@ class MapaPuertos {
     }
     return porCable.values.toList();
   }
+}
+
+/// De que esta hecha una red: cuantos aparatos hay y cuantos de cada tipo.
+///
+/// Sale de la MISMA tabla que la lista de equipos y que el mapa, asi que los tres
+/// no pueden discrepar. Un switch declarado a mano cuenta aqui en cuanto se
+/// declara: no hay nada que sincronizar ni que verificar despues.
+class ComposicionDeRed {
+  final int total;
+  final int presentes;
+
+  /// Cuantos los puso una persona. Se dice aparte porque no los vio ningun
+  /// escaneo: la cuenta es igual de real, pero no viene de una medicion.
+  final int declarados;
+  final List<CuentaPorCategoria> categorias;
+
+  const ComposicionDeRed({
+    this.total = 0,
+    this.presentes = 0,
+    this.declarados = 0,
+    this.categorias = const [],
+  });
+
+  factory ComposicionDeRed.desdeJson(Map<String, dynamic> json) => ComposicionDeRed(
+        total: json['total'] as int? ?? 0,
+        presentes: json['presentes'] as int? ?? 0,
+        declarados: json['declarados'] as int? ?? 0,
+        categorias: ((json['categorias'] as List<dynamic>?) ?? [])
+            .map((fila) => CuentaPorCategoria.desdeJson(fila as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+/// Cuantos aparatos de un tipo hay en la red.
+class CuentaPorCategoria {
+  final String categoria;
+  final int cuantos;
+  final int presentes;
+  final int declarados;
+
+  const CuentaPorCategoria({
+    required this.categoria,
+    required this.cuantos,
+    this.presentes = 0,
+    this.declarados = 0,
+  });
+
+  factory CuentaPorCategoria.desdeJson(Map<String, dynamic> json) => CuentaPorCategoria(
+        categoria: json['categoria'] as String? ?? '',
+        cuantos: json['cuantos'] as int? ?? 0,
+        presentes: json['presentes'] as int? ?? 0,
+        declarados: json['declarados'] as int? ?? 0,
+      );
 }
 
 /// Una boca fisica de un equipo, contada mirando el aparato.

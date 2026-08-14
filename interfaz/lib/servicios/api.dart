@@ -271,6 +271,16 @@ class Api {
   Future<void> ponerAlias(String clave, int equipoId, String alias) =>
       modificar('/api/redes/$clave/equipos/$equipoId', {'alias': alias});
 
+  /// De que esta hecha la red: el total y cuantos de cada tipo.
+  ///
+  /// Lo cuenta el servidor sobre la misma tabla que alimenta la lista y el mapa,
+  /// no la interfaz sobre lo que tenga en pantalla: con un filtro puesto, contar
+  /// aqui diria "3 equipos" en una red de treinta.
+  Future<ComposicionDeRed> composicion(String clave) async {
+    final datos = await obtener('/api/redes/$clave/composicion');
+    return ComposicionDeRed.desdeJson(datos as Map<String, dynamic>);
+  }
+
   // ------------------------------------------------- topologia declarada --
 
   /// La tercera fuente del mapa: lo que una persona declara porque tiene el

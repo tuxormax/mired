@@ -66,6 +66,19 @@ Regla del proyecto (2026-08-13, la pidio el usuario):
   `MAX(ultima_vez)` de `conexiones_puerto`, que es cuando se le pregunto a los
   switches. Son cosas distintas y se sienten distintas al mirarlas.
 
+## Categorias de equipo
+- **`tipo` es para LEER, `categoria` es para CONTAR.** `tipo` guarda el nombre
+  que puso el catalogo ("Impresora HP"); `categoria` es la clave del vocabulario
+  cerrado. Agrupar por `tipo` saca cubos separados para "Impresora HP" e
+  "Impresora de red". Ver [[ref-categorias]].
+- **La lista de categorias vive en DOS archivos** (`internal/catalogo/
+  categorias.go` y `interfaz/lib/modelos/categorias.dart`) y hay una prueba que
+  los compara. Agregar una en un lado y no en el otro rompe el contador **sin dar
+  error**: salen dos cubos para la misma cosa.
+- **Nada de texto libre en la categoria.** Ni en el catalogo, ni en el
+  formulario, ni en la API: el servidor la valida contra la lista aunque el
+  desplegable ya la limite, porque un cliente viejo se salta la interfaz.
+
 ## Interfaz: no pedir lo que el programa ya sabe
 - **SNMP se prueba SIEMPRE, aunque nadie haya cargado credenciales.** Se agrega
   la comunidad de fabrica `public` (v2c, solo lectura) a la lista en cada escaneo
@@ -223,7 +236,7 @@ Regla del proyecto (2026-08-13, la pidio el usuario):
 - `internal/` es palabra reservada del compilador de Go y por eso es la unica
   carpeta en ingles. Adentro, todo en espanol.
 
-## Interfaz
+## Interfaz: contadores y botones
 - **Una pantalla que recibe un objeto por parametro se queda con esa foto.**
   `PantallaRed` mostraba el contador de alertas de `_red`, que llegaba del panel
   de inicio y nunca se releia: se despachaban las alertas y la campanita seguia

@@ -79,6 +79,8 @@ func (a *API) Rutas() http.Handler {
 	// confirmado por SNMP y al inferido por conteo de MAC. Cuelga de la red
 	// porque lo declarado vive en la base de ESA red.
 	mux.Handle("GET /api/redes/{clave}/topologia-manual", a.conRed(a.verTopologiaManual))
+	// De que esta hecha la red: el total y cuantos de cada tipo.
+	mux.Handle("GET /api/redes/{clave}/composicion", a.conRed(a.composicionDeLaRed))
 	mux.Handle("POST /api/redes/{clave}/equipos", a.conRed(a.crearEquipoManual))
 	mux.Handle("PUT /api/redes/{clave}/equipos/{equipo}", a.conRed(a.guardarFicha))
 	mux.Handle("DELETE /api/redes/{clave}/equipos/{equipo}", a.conRed(a.borrarEquipoManual))
