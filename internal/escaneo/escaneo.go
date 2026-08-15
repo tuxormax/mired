@@ -40,7 +40,12 @@ const (
 	// direcciones y deje el equipo inservible.
 	topeEquipos = 65536
 	// paralelismoPuertos es cuantas conexiones TCP se prueban a la vez en total.
-	paralelismoPuertos = 128
+	//
+	// Bajo a proposito: MiRed corre en el equipo de alguien que lo esta usando
+	// para otra cosa. Con 128 sockets a la vez —mas las huellas, que abren los
+	// suyos— un portatil modesto se nota trabado mientras dura el barrido, y un
+	// inventario que hay que esperar mirando la pantalla no sirve de nada.
+	paralelismoPuertos = 48
 )
 
 // Barrer descubre los equipos de las subredes pedidas.

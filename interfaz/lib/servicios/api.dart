@@ -483,6 +483,19 @@ class Api {
     await borrar('/api/redes/$clave/credenciales/$credencialId');
   }
 
+  /// Para los barridos automaticos de una red mientras alguien la edita.
+  ///
+  /// La pausa vence sola: si el programa se cierra de golpe, la red no se queda
+  /// sin vigilancia para siempre por un aviso que nadie retiro.
+  Future<void> pausarAgenda(String clave, {int minutos = 20}) async {
+    await enviar('/api/redes/$clave/pausa', {'minutos': minutos});
+  }
+
+  /// Vuelve a dejar correr los barridos automaticos.
+  Future<void> reanudarAgenda(String clave) async {
+    await borrar('/api/redes/$clave/pausa');
+  }
+
   /// Escucha que redes inalambricas se oyen desde el equipo donde corre MiRed.
   Future<Map<String, dynamic>> barrerAire(String clave) async {
     final datos = await obtener('/api/redes/$clave/aire');

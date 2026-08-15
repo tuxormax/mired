@@ -334,3 +334,27 @@ poner nombre a los equipos.
   respaldo, que es lo unico de lo que protege.
 - Guardar con la clave en blanco **conserva** la que habia. En un formulario
   donde se muestra oculta, en blanco significa "no la toques".
+
+## El mapa crece hacia la DERECHA
+
+Cada nivel es una columna y los hermanos van en lista hacia abajo. Dibujado de
+arriba abajo, un switch de ocho puertos abria el plano en abanico: las lineas se
+cruzaban y las cajas se salian de la pantalla.
+
+Dos consecuencias al tocar `mapa_plano.dart`:
+- `medir()` mide **alto**, no ancho. Lo que compite por sitio son las filas.
+- El puerto por donde un aparato **sube** al de la izquierda no se dibuja como
+  caja: esa conexion ES la linea que llega. Sigue contando como ocupado.
+
+## Mientras se edita el mapa, la agenda de esa red se para
+
+Editar es DECLARAR cableado, no medir. La interfaz pide la pausa al entrar en
+modo edicion y la renueva cada diez minutos; **siempre lleva vencimiento** (tope
+de 30 minutos) para que un programa que se cierra de golpe no deje una red sin
+vigilancia para siempre.
+
+Un barrido pedido A MANO se lanza igual: eso lo pidio una persona a proposito.
+
+Al escribir pruebas de pantalla que dibujen el mapa, pasar
+`pausarAgendaAlEditar: false`: si no, la peticion queda en vuelo y la prueba
+falla por un reloj pendiente que no es ningun error.

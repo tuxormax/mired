@@ -278,6 +278,30 @@ tipo = "change"
 modulo = "Ficha del equipo"
 notas = "Tocar un aparato —en la lista o en el mapa— abre SU FICHA, no un menu de acciones: en el mapa un clic es para mirar, y quitar un cable por accidente mientras se consulta la red estaba a un toque de distancia. La ficha tiene pestanas: Propiedades, Conexiones y —solo si el aparato se puede administrar— Credenciales. En Conexiones se ve que cuelga de el y POR QUE MEDIO: por cable, puerto por puerto, y por WiFi, en una lista sin numeros a la que se le agregan uno o varios equipos de una vez, porque el aire no tiene puertos. Un switch no administrable no muestra la pestana de credenciales: no tiene direccion, asi que no hay panel al que entrar, y ofrecer ese formulario seria ofrecer algo que no existe."
 
+[[sistema]]
+version = "1.19"
+revision = 32
+fecha = "2026-08-15"
+tipo = "change"
+modulo = "Mapa"
+notas = "El mapa crece hacia la DERECHA: la entrada a la izquierda, en la segunda columna lo que cuelga de ella, en la tercera lo que cuelga de aquello, y los hermanos en lista hacia abajo. Se dibujaba de arriba abajo y en cuanto un switch tenia ocho puertos el plano se abria en abanico: las lineas se cruzaban y las cajas se salian de la pantalla. Una red se lee como se cablea. Ademas, el puerto por donde un aparato sube al de la izquierda ya no se dibuja como una caja aparte —esa conexion ES la linea que llega— y los arcos entre switches salen por la izquierda en vez de por arriba."
+
+[[sistema]]
+version = "1.19"
+revision = 33
+fecha = "2026-08-15"
+tipo = "change"
+modulo = "Mapa"
+notas = "Cada enlace lleva SU color, y su etiqueta va del mismo color, EN MAYUSCULAS y del tamano del nombre del aparato. De un switch salen tantas lineas como puertos tenga, y todas del mismo gris con una etiqueta de once puntos no se pueden seguir con la vista: el dato que dice por donde entra cada cosa apenas se veia. Va igual en pantalla, en el SVG y en el PDF."
+
+[[sistema]]
+version = "1.19"
+revision = 34
+fecha = "2026-08-15"
+tipo = "change"
+modulo = "Escaneo"
+notas = "MiRed corre en el equipo de alguien que lo esta usando para otra cosa, y se notaba. Tres cambios: mientras se EDITA el mapa, la agenda de esa red se para —ahi se declara cableado, no se mide, y un barrido por debajo solo gasta el equipo; la pausa se renueva sola mientras dura la edicion y vence sola si el programa se cierra de golpe—. Las cinco escuchas de red del reconocimiento (mDNS, UPnP, ONVIF, SADP y Tuya) van ahora a la vez y no una tras otra: eran quince segundos en fila esperando. Y se bajaron de 128 a 48 las conexiones simultaneas del barrido de puertos. Un barrido pedido a mano sigue lanzandose siempre: eso lo pidio una persona a proposito."
+
 # ----------------------------------------------------------------- la base --
 #
 # Cada entrada apunta al numero de migracion que la trae. El esquema de las bases

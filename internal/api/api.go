@@ -119,6 +119,11 @@ func (a *API) Rutas() http.Handler {
 	mux.Handle("GET /api/redes/{clave}/consumo/{switch}/{puerto}", a.conRed(a.historialTrafico))
 	mux.Handle("GET /api/redes/{clave}/aplicaciones", a.conRed(a.consumoPorAplicacion))
 
+	// Parar la agenda mientras alguien edita el mapa: ahi se declara cableado,
+	// no se mide la red, y un barrido por debajo solo gasta el equipo.
+	mux.Handle("POST /api/redes/{clave}/pausa", a.conRed(a.pausarAgenda))
+	mux.Handle("DELETE /api/redes/{clave}/pausa", a.conRed(a.reanudarAgenda))
+
 	// Lo que cuelga de una antena por el aire. El WiFi no tiene puertos: a una
 	// antena se le cuelgan uno o VARIOS equipos de una sola vez.
 	mux.Handle("POST /api/redes/{clave}/inalambricos", a.conRed(a.colgarPorWiFi))

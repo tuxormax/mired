@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/netip"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -48,35 +49,56 @@ func PreguntarALaRed(ctx context.Context, espera time.Duration) map[string][]Dat
 		{grupoMDNS, peticionMDNS(), nil},
 	}
 
-	for _, pregunta := range preguntas {
-		respuestas := gritar(ctx, pregunta.grupo, pregunta.carga, espera)
-		for ip, mensajes := range respuestas {
-			huella := juntadas[ip]
-			if huella == nil {
-				huella = &Huella{IP: ip}
-				juntadas[ip] = huella
-			}
-			for _, mensaje := range mensajes {
-				if pregunta.leer != nil {
-					pregunta.leer(huella, string(mensaje))
-					continue
-				}
-				leerMDNS(huella, mensaje)
-			}
-		}
-	}
+	// Las cuatro preguntas y la escucha van A LA VEZ. Una tras otra eran cinco
+	// esperas de tres segundos en fila —quince segundos de barrido en los que el
+	// equipo solo aguarda—, y son independientes: cada una escucha en su propio
+	// puerto.
+	var candado sync.Mutex
+	var grupo sync.WaitGroup
 
-	// Y lo que no se pregunta: los aparatos que avisan solos.
-	for ip, datos := range EscucharTuya(ctx, espera) {
+	anotar := func(ip string, hacer func(*Huella)) {
+		candado.Lock()
+		defer candado.Unlock()
 		huella := juntadas[ip]
 		if huella == nil {
 			huella = &Huella{IP: ip}
 			juntadas[ip] = huella
 		}
-		for _, dato := range datos {
-			huella.Agregar(dato.Fuente, dato.Clave, dato.Valor)
-		}
+		hacer(huella)
 	}
+
+	for _, pregunta := range preguntas {
+		grupo.Add(1)
+		go func(grupoDestino *net.UDPAddr, carga []byte, leer func(*Huella, string)) {
+			defer grupo.Done()
+			for ip, mensajes := range gritar(ctx, grupoDestino, carga, espera) {
+				for _, mensaje := range mensajes {
+					anotar(ip, func(huella *Huella) {
+						if leer != nil {
+							leer(huella, string(mensaje))
+							return
+						}
+						leerMDNS(huella, mensaje)
+					})
+				}
+			}
+		}(pregunta.grupo, pregunta.carga, pregunta.leer)
+	}
+
+	// Y lo que no se pregunta: los aparatos que avisan solos.
+	grupo.Add(1)
+	go func() {
+		defer grupo.Done()
+		for ip, datos := range EscucharTuya(ctx, espera) {
+			for _, dato := range datos {
+				anotar(ip, func(huella *Huella) {
+					huella.Agregar(dato.Fuente, dato.Clave, dato.Valor)
+				})
+			}
+		}
+	}()
+
+	grupo.Wait()
 
 	resultado := map[string][]Dato{}
 	for ip, huella := range juntadas {

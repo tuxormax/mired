@@ -152,6 +152,7 @@ class LineaPlano {
     required this.etiqueta,
     this.declarada = false,
     this.inalambrica = false,
+    this.color,
   });
 
   final Offset desde;
@@ -168,6 +169,11 @@ class LineaPlano {
   /// anteriores, porque tampoco es lo mismo: por el aire no hay puerto que
   /// senalar, y el mapa no puede sugerir que lo haya.
   final bool inalambrica;
+
+  /// Color de ESTE enlace. Cada uno lleva el suyo, y su etiqueta va del mismo
+  /// color: en un switch de ocho puertos, ocho lineas grises que salen del mismo
+  /// sitio son ocho lineas que no se pueden seguir con la vista.
+  final Color? color;
 }
 
 /// EnlacePlano es un cable de switch a switch, dibujado como arco por encima de
@@ -221,12 +227,51 @@ class Plano {
 
 const double anchoCaja = 190;
 const double altoCaja = 54;
-const double separacionX = 30;
-const double separacionY = 130;
 
-/// Espacio que se reserva arriba para los arcos de los enlaces entre switches.
-/// Solo se reserva si hay enlaces que dibujar: si no, seria un hueco en blanco.
-const double altoEnlaces = 90;
+/// El mapa crece hacia la DERECHA: cada nivel es una columna y los hermanos van
+/// en lista hacia abajo.
+///
+/// Se dibujaba de arriba abajo, y en cuanto un switch tenia ocho puertos el
+/// dibujo se abria en abanico: las lineas se cruzaban, las cajas se salian de la
+/// pantalla y habia que buscar el aparato. Una red se lee como se cablea: la
+/// entrada a la izquierda y lo que cuelga, a su derecha.
+
+/// separacionX es el hueco entre una columna y la siguiente.
+const double separacionX = 70;
+
+/// separacionY es el hueco entre dos hermanos de la misma columna.
+const double separacionY = 18;
+
+/// paso de una columna a la siguiente, y de una fila a la siguiente.
+const double anchoColumna = anchoCaja + separacionX;
+const double altoFila = altoCaja + separacionY;
+
+/// margen es el aire que queda alrededor del dibujo.
+const double margen = 24;
+
+/// Los colores con los que se distinguen los enlaces.
+///
+/// Cada enlace lleva el suyo y su etiqueta va igual, porque de un switch salen
+/// tantas lineas como puertos tenga y todas del mismo gris no se pueden seguir
+/// con la vista. Son colores elegidos para verse sobre fondo claro Y sobre fondo
+/// oscuro: el mapa se mira en la pantalla —que puede estar en cualquiera de los
+/// dos temas— y se exporta siempre sobre blanco.
+const List<Color> coloresDeEnlace = [
+  Color(0xFF4FC3F7), // azul cielo
+  Color(0xFF81C784), // verde
+  Color(0xFFFFB74D), // ambar
+  Color(0xFFBA68C8), // morado
+  Color(0xFF4DD0E1), // turquesa
+  Color(0xFFF06292), // rosa
+  Color(0xFFAED581), // lima
+  Color(0xFFFF8A65), // terracota
+  Color(0xFF9575CD), // lavanda
+  Color(0xFFDCE775), // oliva
+];
+
+/// colorDeEnlace reparte la paleta. Se pide por numero de enlace, no al azar:
+/// el mismo mapa tiene que salir igual dos veces seguidas.
+Color colorDeEnlace(int cual) => coloresDeEnlace[cual % coloresDeEnlace.length];
 
 /// coloresParaExportar son los que usa todo archivo exportado, sin importar si
 /// la pantalla esta en claro o en oscuro.
@@ -297,7 +342,7 @@ class _ArbolDeclarado {
   final Set<int> _tienePuertos = {};
   /// Lo que cuelga de cada antena por el aire.
   final Map<int, List<EnlaceInalambrico>> _clientes = {};
-  final Map<int, double> _anchos = {};
+  final Map<int, double> _altos = {};
   late final List<Equipo> raices;
 
   bool _desciendeDe(int posibleHijo, int posibleAncestro) {
@@ -335,33 +380,49 @@ class _ArbolDeclarado {
     return origen;
   }
 
-  /// Cuanto mide en horizontal el bloque de un aparato con todo lo que le
-  /// cuelga. Se mide antes de colocar nada: sin esto los subarboles se pisan.
+  /// Cuanto ALTO ocupa un aparato con todo lo que le cuelga.
+  ///
+  /// Se mide antes de colocar nada: sin esto, dos ramas se pisarian. Ahora se
+  /// mide en vertical porque el arbol crece hacia la derecha, y lo que compite
+  /// por sitio son las filas.
   double medir(Equipo equipo) {
-    final guardado = _anchos[equipo.id];
+    final guardado = _altos[equipo.id];
     if (guardado != null) return guardado;
-    _anchos[equipo.id] = anchoCaja + separacionX; // provisional, corta circulos
+    _altos[equipo.id] = altoFila; // provisional, corta circulos
 
     double total = 0;
     for (final puerto in datos.topologia.puertosDe(equipo.id)) {
+      // El puerto por donde SUBE al aparato de la izquierda no ocupa fila: esa
+      // conexion ya se ve en la linea que llega desde el padre.
+      if (subePorAqui(equipo.id, puerto)) continue;
       final hijo = hijoEn(equipo.id, puerto);
-      total += hijo == null ? anchoCaja + separacionX : medir(hijo);
+      total += hijo == null ? altoFila : medir(hijo);
     }
-    // Y lo que cuelga por el aire, que no ocupa puerto pero si ocupa lugar.
     for (final cliente in _clientes[equipo.id] ?? const <EnlaceInalambrico>[]) {
       final hijo = datos.equipoPorId(cliente.equipoId);
-      total += hijo != null && esCabecera(hijo.id)
-          ? medir(hijo)
-          : anchoCaja + separacionX;
+      total += hijo != null && esCabecera(hijo.id) ? medir(hijo) : altoFila;
     }
 
-    final ancho = matematicas.max(total, anchoCaja + separacionX);
-    _anchos[equipo.id] = ancho;
-    return ancho;
+    final alto = matematicas.max(total, altoFila);
+    _altos[equipo.id] = alto;
+    return alto;
   }
 
-  /// colocar dibuja el aparato, sus puertos y todo lo que cuelga de ellos.
-  /// Devuelve cuanto ocupo de ancho.
+  /// subePorAqui dice si ese puerto es por el que el aparato cuelga del de la
+  /// izquierda. Ese puerto esta ocupado —y hay que contarlo como tal— pero no se
+  /// dibuja como una caja mas: seria repetir la misma conexion dos veces.
+  bool subePorAqui(int equipoId, PuertoFisico puerto) {
+    final padre = _padreDe[equipoId];
+    if (padre == null) return false;
+    final cable = datos.topologia.enlaceDe(puerto.id);
+    if (cable == null) return false;
+    return _otroExtremo(cable, equipoId) == padre;
+  }
+
+  /// colocar dibuja el aparato y, a su DERECHA, todo lo que le cuelga.
+  ///
+  /// `y` es donde empieza su franja; el aparato se centra en ella, y sus hijos
+  /// se apilan hacia abajo en la columna siguiente. Devuelve cuanto alto ocupo.
   double colocar({
     required Equipo equipo,
     required double x,
@@ -369,11 +430,12 @@ class _ArbolDeclarado {
     required ColorScheme colores,
     required List<CajaPlano> cajas,
     required List<LineaPlano> lineas,
-    required void Function(double) alBajar,
+    required void Function(double, double) alCrecer,
+    required Color Function() siguienteColor,
   }) {
-    alBajar(y);
-    final anchoBloque = medir(equipo);
-    final centroEquipo = Offset(x + anchoBloque / 2, y);
+    final altoBloque = medir(equipo);
+    final centroEquipo = Offset(x + anchoCaja / 2, y + altoBloque / 2);
+    alCrecer(x + anchoCaja, y + altoBloque);
 
     cajas.add(CajaPlano(
       rectangulo: Rect.fromCenter(center: centroEquipo, width: anchoCaja, height: altoCaja),
@@ -387,30 +449,48 @@ class _ArbolDeclarado {
       declarada: equipo.esManual,
     ));
 
-    double xPuerto = x;
+    final xHijos = x + anchoColumna;
+    double yHijo = y;
+
+    void tirarLinea(Offset centroHijo, String etiqueta,
+        {bool inalambrica = false, bool declarada = true}) {
+      lineas.add(LineaPlano(
+        desde: centroEquipo + const Offset(anchoCaja / 2, 0),
+        hasta: centroHijo - const Offset(anchoCaja / 2, 0),
+        confirmada: false,
+        declarada: declarada,
+        inalambrica: inalambrica,
+        etiqueta: etiqueta,
+        color: siguienteColor(),
+      ));
+    }
+
     for (final puerto in datos.topologia.puertosDe(equipo.id)) {
+      // Por aqui sube al aparato de la izquierda: no se dibuja otra vez.
+      if (subePorAqui(equipo.id, puerto)) continue;
+
       final hijo = hijoEn(equipo.id, puerto);
       final cable = datos.topologia.enlaceDe(puerto.id);
-      final anchoPuerto = hijo == null ? anchoCaja + separacionX : medir(hijo);
-      final centroPuerto = Offset(xPuerto + anchoPuerto / 2, y + separacionY);
+      final altoHijo = hijo == null ? altoFila : medir(hijo);
+      final centroHijo = Offset(xHijos + anchoCaja / 2, yHijo + altoHijo / 2);
+      final etiqueta = puerto.tipo == 'wan' ? 'WAN' : 'puerto ${puerto.numero}';
 
       if (hijo != null) {
-        // Lo que cuelga de este puerto es otro aparato con puertos propios: se
-        // dibuja aqui mismo, con los suyos debajo. Es la unica vez que sale.
         colocar(
           equipo: hijo,
-          x: xPuerto,
-          y: y + separacionY,
+          x: xHijos,
+          y: yHijo,
           colores: colores,
           cajas: cajas,
           lineas: lineas,
-          alBajar: alBajar,
+          alCrecer: alCrecer,
+          siguienteColor: siguienteColor,
         );
       } else if (cable == null) {
         // Un puerto libre NO se esconde: es justo donde el modo edicion ofrece
         // conectar algo, y verlo vacio dice cuanto falta por declarar.
         cajas.add(CajaPlano(
-          rectangulo: Rect.fromCenter(center: centroPuerto, width: anchoCaja, height: altoCaja),
+          rectangulo: Rect.fromCenter(center: centroHijo, width: anchoCaja, height: altoCaja),
           titulo: 'Puerto ${puerto.etiqueta} libre',
           subtitulo:
               puerto.velocidadMbps != null ? '${puerto.velocidadMbps} Mbps' : 'sin conectar',
@@ -422,20 +502,16 @@ class _ArbolDeclarado {
           declarada: true,
         ));
       } else {
-        // Hay cable, pero el otro extremo no cuelga de aqui: o es una hoja sin
-        // puertos declarados, o es el aparato de arriba y el cable SUBE. En los
-        // dos casos el puerto esta ocupado, y eso es justo lo que hay que ver.
-        final otro = _otroExtremo(cable, equipo.id);
-        final sube = otro != null && _padreDe[equipo.id] == otro;
+        // Hay cable y el otro extremo no tiene bloque propio: es una hoja.
         final soyOrigen = cable.puertoOrigenId == puerto.id;
+        final otro = _otroExtremo(cable, equipo.id);
         final nombreOtro = soyOrigen ? cable.destinoNombre : cable.origenNombre;
-
         cajas.add(CajaPlano(
-          rectangulo: Rect.fromCenter(center: centroPuerto, width: anchoCaja, height: altoCaja),
-          titulo: nombreOtro.isEmpty ? 'Conectado' : (sube ? '↑ $nombreOtro' : nombreOtro),
-          subtitulo: sube ? 'sube al aparato de arriba' : 'declarado a mano',
+          rectangulo: Rect.fromCenter(center: centroHijo, width: anchoCaja, height: altoCaja),
+          titulo: nombreOtro.isEmpty ? 'Conectado' : nombreOtro,
+          subtitulo: 'declarado a mano',
           color: colores.surfaceContainerHighest,
-          icono: sube ? Icons.arrow_upward : Icons.devices,
+          icono: Icons.devices,
           equipoId: otro,
           puertoFisicoId: puerto.id,
           enlaceId: cable.id,
@@ -443,41 +519,36 @@ class _ArbolDeclarado {
         ));
       }
 
-      lineas.add(LineaPlano(
-        desde: centroEquipo + const Offset(0, altoCaja / 2),
-        hasta: centroPuerto - const Offset(0, altoCaja / 2),
-        confirmada: false,
-        declarada: true,
-        etiqueta: puerto.tipo == 'wan' ? 'WAN' : 'puerto ${puerto.numero}',
-      ));
-
-      xPuerto += anchoPuerto;
+      tirarLinea(centroHijo, etiqueta);
+      alCrecer(xHijos + anchoCaja, yHijo + altoHijo);
+      yHijo += altoHijo;
     }
 
     // Y lo que cuelga por el aire. **No ocupa puerto**: el WiFi no tiene, y
-    // dibujarlo como si lo tuviera seria sugerir que hay un cable que no existe.
+    // dibujarlo como si lo tuviera sugeriria un cable que no existe.
     for (final cliente in _clientes[equipo.id] ?? const <EnlaceInalambrico>[]) {
       final hijo = datos.equipoPorId(cliente.equipoId);
       final esBloque = hijo != null && esCabecera(hijo.id);
-      final anchoCliente = esBloque ? medir(hijo) : anchoCaja + separacionX;
-      final centroCliente = Offset(xPuerto + anchoCliente / 2, y + separacionY);
+      final altoHijo = esBloque ? medir(hijo) : altoFila;
+      final centroHijo = Offset(xHijos + anchoCaja / 2, yHijo + altoHijo / 2);
 
       if (esBloque) {
         colocar(
           equipo: hijo,
-          x: xPuerto,
-          y: y + separacionY,
+          x: xHijos,
+          y: yHijo,
           colores: colores,
           cajas: cajas,
           lineas: lineas,
-          alBajar: alBajar,
+          alCrecer: alCrecer,
+          siguienteColor: siguienteColor,
         );
       } else {
         cajas.add(CajaPlano(
-          rectangulo: Rect.fromCenter(center: centroCliente, width: anchoCaja, height: altoCaja),
+          rectangulo: Rect.fromCenter(center: centroHijo, width: anchoCaja, height: altoCaja),
           titulo: hijo?.comoSeLlama ?? cliente.equipoNombre,
-          // De donde salio se dice SIEMPRE: no es lo mismo que lo haya
-          // declarado una persona a que lo haya dicho la propia antena.
+          // De donde salio se dice SIEMPRE: no es lo mismo que lo declarara una
+          // persona a que lo dijera la propia antena.
           subtitulo: [
             if (cliente.red.isNotEmpty) cliente.red,
             if (cliente.senalDbm != null) '${cliente.senalDbm} dBm',
@@ -491,19 +562,13 @@ class _ArbolDeclarado {
         ));
       }
 
-      lineas.add(LineaPlano(
-        desde: centroEquipo + const Offset(0, altoCaja / 2),
-        hasta: centroCliente - const Offset(0, altoCaja / 2),
-        confirmada: false,
-        inalambrica: true,
-        etiqueta: cliente.red.isEmpty ? 'WiFi' : cliente.red,
-      ));
-
-      xPuerto += anchoCliente;
+      tirarLinea(centroHijo, cliente.red.isEmpty ? 'WiFi' : cliente.red,
+          inalambrica: true, declarada: false);
+      alCrecer(xHijos + anchoCaja, yHijo + altoHijo);
+      yHijo += altoHijo;
     }
 
-    alBajar(y + separacionY);
-    return anchoBloque;
+    return altoBloque;
   }
 }
 
@@ -513,8 +578,31 @@ class _ArbolDeclarado {
 Plano armarPlano(DatosMapa datos, ColorScheme colores) {
   final cajas = <CajaPlano>[];
   final lineas = <LineaPlano>[];
+  final enlaces = <EnlacePlano>[];
 
-  // Agrupar por switch y, dentro, por puerto.
+  // Hasta donde llego el dibujo. Se va apuntando segun se coloca, en vez de
+  // calcularlo al final: cada rama sabe cuanto ocupo y nadie mas tiene que
+  // volver a recorrerlo.
+  double anchoMaximo = 0;
+  double altoMaximo = 0;
+  void alCrecer(double x, double y) {
+    anchoMaximo = matematicas.max(anchoMaximo, x);
+    altoMaximo = matematicas.max(altoMaximo, y);
+  }
+
+  double y = margen;
+
+  // Un color por enlace, repartido segun se van colocando. Se lleva la cuenta
+  // aqui —y no en cada rama— para que dos ramas distintas no repitan color
+  // seguido.
+  var cuantosEnlaces = 0;
+  Color siguienteColor() => colorDeEnlace(cuantosEnlaces++);
+
+  // ------------------------------------------ lo que dijeron los switches ---
+  //
+  // Un switch a la izquierda y, a su derecha, lo que cuelga de cada puerto, en
+  // lista hacia abajo. Es el mismo reparto que el resto del mapa: una red se lee
+  // como se cablea.
   final porSwitch = <int, Map<int, List<PuertoDeSwitch>>>{};
   for (final puerto in datos.mapa.puertos) {
     porSwitch
@@ -523,50 +611,34 @@ Plano armarPlano(DatosMapa datos, ColorScheme colores) {
         .add(puerto);
   }
 
-  // Los cables entre switches solo se pueden dibujar si se conocen los dos
-  // extremos. Se calcula antes de colocar nada porque de esto depende cuanto
-  // espacio hay que dejar arriba: reservarlo siempre seria una franja en blanco
-  // en las redes de un solo switch, que son la mayoria.
-  final cables = datos.mapa.enlacesUnicos
-      .where((cable) =>
-          cable.enlace.vecinoId != null &&
-          porSwitch.containsKey(cable.enlace.equipoId) &&
-          porSwitch.containsKey(cable.enlace.vecinoId))
-      .toList();
-  final arriba = cables.isEmpty ? 0.0 : altoEnlaces;
-
-  double x = separacionX;
-  double anchoMaximo = 0;
-  double altoMaximo = 0;
   final centrosDeSwitch = <int, Offset>{};
 
   porSwitch.forEach((switchId, puertos) {
     final ejemplo = puertos.values.first.first;
-    final anchoBloque =
-        matematicas.max(puertos.length * (anchoCaja + separacionX), anchoCaja + separacionX);
-
-    final centroSwitch = Offset(x + anchoBloque / 2, arriba + separacionY / 2);
+    final altoBloque = matematicas.max(puertos.length * altoFila, altoFila);
+    final centroSwitch = Offset(margen + anchoCaja / 2, y + altoBloque / 2);
     centrosDeSwitch[switchId] = centroSwitch;
+
     cajas.add(CajaPlano(
-      rectangulo: Rect.fromCenter(
-          center: centroSwitch, width: anchoCaja, height: altoCaja),
+      rectangulo: Rect.fromCenter(center: centroSwitch, width: anchoCaja, height: altoCaja),
       titulo: ejemplo.switchNombre,
       subtitulo: ejemplo.switchIp,
       color: colores.primaryContainer,
       icono: Icons.router,
       equipoId: switchId,
     ));
+    alCrecer(margen + anchoCaja, y + altoBloque);
 
-    double xPuerto = x;
+    double yPuerto = y;
     puertos.forEach((indice, enElPuerto) {
       final confirmado = enElPuerto.length == 1 && enElPuerto.first.confirmado;
-      final centroPuerto = Offset(xPuerto + anchoCaja / 2, arriba + separacionY / 2 + separacionY);
+      final centroPuerto =
+          Offset(margen + anchoColumna + anchoCaja / 2, yPuerto + altoFila / 2);
 
       if (confirmado) {
         final unico = enElPuerto.first;
         cajas.add(CajaPlano(
-          rectangulo:
-              Rect.fromCenter(center: centroPuerto, width: anchoCaja, height: altoCaja),
+          rectangulo: Rect.fromCenter(center: centroPuerto, width: anchoCaja, height: altoCaja),
           titulo: unico.quienEs,
           subtitulo: unico.equipoIp.isNotEmpty ? unico.equipoIp : unico.mac,
           color: colores.surfaceContainerHighest,
@@ -583,8 +655,7 @@ Plano armarPlano(DatosMapa datos, ColorScheme colores) {
         // diria "1 equipos" donde hay nueve.
         final cuantos = matematicas.max(enElPuerto.length, enElPuerto.first.cuantosEnPuerto);
         cajas.add(CajaPlano(
-          rectangulo:
-              Rect.fromCenter(center: centroPuerto, width: anchoCaja, height: altoCaja),
+          rectangulo: Rect.fromCenter(center: centroPuerto, width: anchoCaja, height: altoCaja),
           titulo: '$cuantos ${cuantos == 1 ? 'equipo' : 'equipos'}',
           subtitulo: 'tras algo no administrable',
           color: colores.tertiaryContainer,
@@ -593,36 +664,37 @@ Plano armarPlano(DatosMapa datos, ColorScheme colores) {
       }
 
       lineas.add(LineaPlano(
-        desde: centroSwitch + const Offset(0, altoCaja / 2),
-        hasta: centroPuerto - const Offset(0, altoCaja / 2),
+        desde: centroSwitch + const Offset(anchoCaja / 2, 0),
+        hasta: centroPuerto - const Offset(anchoCaja / 2, 0),
         confirmada: confirmado,
         etiqueta: enElPuerto.first.puerto,
+        color: siguienteColor(),
       ));
-
-      xPuerto += anchoCaja + separacionX;
+      alCrecer(margen + anchoColumna + anchoCaja, yPuerto + altoFila);
+      yPuerto += altoFila;
     });
 
-    x += anchoBloque + separacionX * 2;
-    anchoMaximo = matematicas.max(anchoMaximo, x);
-    altoMaximo = matematicas.max(altoMaximo, arriba + separacionY * 2 + altoCaja);
+    y += altoBloque + separacionY * 2;
   });
 
-  // Los cables entre switches, en arco por encima de la fila.
-  final enlaces = <EnlacePlano>[];
-  for (final cable in cables) {
+  // Los cables entre switches, en arco por la IZQUIERDA: ahora los switches
+  // estan uno debajo de otro, y una recta entre el primero y el tercero pasaria
+  // por encima del segundo y se leeria como si lo tocara.
+  for (final cable in datos.mapa.enlacesUnicos) {
+    if (cable.enlace.vecinoId == null) continue;
     final desde = centrosDeSwitch[cable.enlace.equipoId];
     final hasta = centrosDeSwitch[cable.enlace.vecinoId];
     if (desde == null || hasta == null || desde == hasta) continue;
 
-    // Cuanto mas separados esten los dos switches, mas alto sube el arco: asi
-    // dos cables distintos no se encinan en la misma curva.
-    final separacion = (hasta.dx - desde.dx).abs();
-    final altura = matematicas.min(arriba - 12, 24 + separacion / 12);
+    // Cuanto mas separados esten, mas se abre el arco: asi dos cables distintos
+    // no se encinan en la misma curva.
+    final separacion = (hasta.dy - desde.dy).abs();
+    final desvio = 24 + separacion / 12;
 
     enlaces.add(EnlacePlano(
-      desde: desde - const Offset(0, altoCaja / 2),
-      hasta: hasta - const Offset(0, altoCaja / 2),
-      cima: Offset((desde.dx + hasta.dx) / 2, desde.dy - altoCaja / 2 - altura),
+      desde: desde - const Offset(anchoCaja / 2, 0),
+      hasta: hasta - const Offset(anchoCaja / 2, 0),
+      cima: Offset(desde.dx - anchoCaja / 2 - desvio, (desde.dy + hasta.dy) / 2),
       etiqueta: cable.enlace.vecinoPuerto.isEmpty
           ? cable.enlace.interfazLocal
           : '${cable.enlace.interfazLocal} ↔ ${cable.enlace.vecinoPuerto}',
@@ -632,56 +704,47 @@ Plano armarPlano(DatosMapa datos, ColorScheme colores) {
 
   // ------------------------------------------- lo que se declaro a mano ---
   //
-  // Va en su propia franja, debajo de lo que dijeron los switches, y con el
-  // mismo reparto: el aparato arriba y sus puertos debajo. Se dibuja punteado de
-  // punta a punta —caja y cable— porque es lo que alguien TECLEO, y presentarlo
-  // igual que lo confirmado seria hacer pasar una declaracion por una medicion.
-  // **Cada aparato se dibuja UNA vez.** Un switch colgado del modem es hijo del
-  // modem: va debajo de su puerto, con sus propios puertos debajo. Antes salia
-  // dos veces —una como caja bajo el puerto del modem y otra como bloque suelto
-  // con sus puertos—, y el cable que sube al modem no ocupaba ninguno de sus
-  // puertos, asi que un switch de 5 con el uplink puesto seguia ofreciendo 5.
+  // El aparato de entrada a la izquierda y, a su derecha, lo que cuelga de el;
+  // y a la derecha de eso, lo que cuelga de aquello. Se dibuja punteado de punta
+  // a punta —caja y cable— porque es lo que alguien TECLEO, y presentarlo igual
+  // que lo confirmado seria hacer pasar una declaracion por una medicion.
+  //
+  // **Cada aparato se dibuja UNA vez** y el puerto por donde sube al de la
+  // izquierda no se repite como caja: esa conexion ya es la linea que llega.
   final arbol = _ArbolDeclarado(datos);
   if (arbol.raices.isNotEmpty) {
-    if (altoMaximo == 0) altoMaximo = arriba + separacionY / 2;
-    double xManual = separacionX;
-    final yCabecera = altoMaximo + separacionY / 2;
-    double fondo = yCabecera;
-
+    if (y > margen) y += separacionY * 2;
     for (final raiz in arbol.raices) {
-      final ancho = arbol.colocar(
+      final alto = arbol.colocar(
         equipo: raiz,
-        x: xManual,
-        y: yCabecera,
+        x: margen,
+        y: y,
         colores: colores,
         cajas: cajas,
         lineas: lineas,
-        alBajar: (y) => fondo = matematicas.max(fondo, y),
+        alCrecer: alCrecer,
+        siguienteColor: siguienteColor,
       );
-      xManual += ancho + separacionX * 2;
-      anchoMaximo = matematicas.max(anchoMaximo, xManual);
+      y += alto + separacionY * 2;
     }
-
-    altoMaximo = matematicas.max(altoMaximo, fondo + altoCaja);
   }
 
-  // Los que no cuelgan de ningun switch conocido: en su propia zona, abajo.
+  // Los que no cuelgan de ningun sitio conocido: en su propia zona, abajo del
+  // todo, en columnas. No se esconden: un plano incompleto sin avisar es peor
+  // que uno que dice "de estos no se sabe donde estan".
   final sinUbicar = datos.sinUbicar;
   if (sinUbicar.isNotEmpty) {
-    if (altoMaximo == 0) altoMaximo = arriba + separacionY / 2;
-    final yBase = altoMaximo + separacionY;
-    double xSuelto = separacionX;
-    double filaY = yBase;
-    final porFila = matematicas.max(1, (anchoMaximo / (anchoCaja + separacionX)).floor());
+    y = altoMaximo + altoFila;
+    final porColumna = matematicas.max(1, sinUbicar.length > 6 ? (sinUbicar.length / 3).ceil() : sinUbicar.length);
 
     for (var i = 0; i < sinUbicar.length; i++) {
       final equipo = sinUbicar[i];
-      if (i > 0 && i % porFila == 0) {
-        xSuelto = separacionX;
-        filaY += altoCaja + 20;
-      }
+      final columna = i ~/ porColumna;
+      final fila = i % porColumna;
+      final donde = Offset(margen + columna * anchoColumna, y + fila * altoFila);
+
       cajas.add(CajaPlano(
-        rectangulo: Rect.fromLTWH(xSuelto, filaY, anchoCaja, altoCaja),
+        rectangulo: Rect.fromLTWH(donde.dx, donde.dy, anchoCaja, altoCaja),
         titulo: equipo.comoSeLlama,
         // Sin nombre, el titulo YA es la IP: repetirla debajo desperdicia el
         // unico renglon que queda para decir algo del aparato.
@@ -692,8 +755,7 @@ Plano armarPlano(DatosMapa datos, ColorScheme colores) {
         icono: equipo.presente ? Icons.help_outline : Icons.power_off,
         equipoId: equipo.id,
       ));
-      xSuelto += anchoCaja + separacionX;
-      altoMaximo = matematicas.max(altoMaximo, filaY + altoCaja + separacionY / 2);
+      alCrecer(donde.dx + anchoCaja, donde.dy + altoCaja);
     }
   }
 
@@ -701,8 +763,8 @@ Plano armarPlano(DatosMapa datos, ColorScheme colores) {
     cajas: cajas,
     lineas: lineas,
     enlaces: enlaces,
-    tamano: Size(matematicas.max(anchoMaximo + separacionX, 800),
-        matematicas.max(altoMaximo + separacionY, 600)),
+    tamano: Size(matematicas.max(anchoMaximo + margen, 800),
+        matematicas.max(altoMaximo + margen, 600)),
     colorLinea: colores.outline,
     colorTexto: colores.onSurface,
     colorFondo: colores.surface,
@@ -751,6 +813,9 @@ class PintorMapa extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     for (final linea in plano.lineas) {
+      final tinte = linea.color ?? plano.colorLinea;
+      trazo.color = tinte;
+
       if (linea.inalambrica) {
         // Puntos finos: por el aire no hay cable ni puerto que senalar.
         _lineaPunteada(lienzo, linea.desde, linea.hasta, trazo, largo: 2, hueco: 4);
@@ -764,11 +829,16 @@ class PintorMapa extends CustomPainter {
       } else {
         _lineaPunteada(lienzo, linea.desde, linea.hasta, trazo);
       }
-      _texto(lienzo, linea.etiqueta,
-          Offset((linea.desde.dx + linea.hasta.dx) / 2 + 6,
-              (linea.desde.dy + linea.hasta.dy) / 2 - 8),
-          11, plano.colorLinea);
+      // La etiqueta va EN MAYUSCULAS, del tamano del nombre del aparato y del
+      // color de su enlace: antes era un gris de 11 puntos que apenas se veia,
+      // y es justo el dato que dice por donde entra cada cosa.
+      _texto(lienzo, linea.etiqueta.toUpperCase(),
+          Offset((linea.desde.dx + linea.hasta.dx) / 2 - 40,
+              (linea.desde.dy + linea.hasta.dy) / 2 - 20),
+          13, tinte,
+          negrita: true, ancho: separacionX + 20);
     }
+    trazo.color = plano.colorLinea;
 
     for (final caja in plano.cajas) {
       final fondo = Paint()..color = caja.color;

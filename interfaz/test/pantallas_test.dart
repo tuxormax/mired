@@ -161,11 +161,12 @@ void main() {
   testWidgets('el mapa puede abrirse ya en modo edicion', (probador) async {
     // Quien pulso "Editar el cableado" ya dijo a que viene: pedirle que lo diga
     // otra vez al llegar seria hacerle buscar un boton mas.
-    await dibujar(probador, PantallaMapa(red: _red, editarAlAbrir: true));
+    await dibujar(probador, PantallaMapa(red: _red, editarAlAbrir: true, pausarAgendaAlEditar: false));
 
     expect(find.textContaining('Modo edicion'), findsOneWidget);
     expect(find.text('Terminar'), findsOneWidget);
     expect(tomaDeErrores(), isNull);
+
   });
 
   testWidgets('cada alerta se puede despachar por separado', (probador) async {
@@ -183,7 +184,7 @@ void main() {
   testWidgets('el modo edicion no esta encendido de entrada', (probador) async {
     // Un clic de navegacion no puede reescribir la topologia por accidente: el
     // mapa es justo lo que se consulta cuando algo no funciona.
-    await dibujar(probador, PantallaMapa(red: _red));
+    await dibujar(probador, const PantallaMapa(red: _red, pausarAgendaAlEditar: false));
 
     expect(find.textContaining('Modo edicion'), findsNothing);
     expect(find.text('Agregar aparato'), findsNothing);

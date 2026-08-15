@@ -1,10 +1,12 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/tuxormax/mired/internal/autenticacion"
 	"github.com/tuxormax/mired/internal/basedatos"
@@ -272,4 +274,50 @@ func (a *API) ponerAlias(escritor http.ResponseWriter, peticion *http.Request) {
 
 	a.anotarActividad(peticion, "Equipos", fmt.Sprintf("Renombrar equipo %d de %s", id, clave))
 	responderOk(escritor, map[string]any{"guardado": true})
+}
+
+// pausarAgenda detiene los barridos automaticos de una red mientras alguien
+// trabaja en ella.
+//
+// Lo pide la interfaz al entrar en el modo edicion del mapa: ahi se esta
+// DECLARANDO cableado, no midiendo la red, y un barrido corriendo por debajo
+// solo gasta el equipo. Un barrido pedido a mano sigue funcionando: eso lo pide
+// una persona a proposito.
+//
+// La pausa siempre vence sola. Si el programa se cierra de golpe, la red no se
+// queda sin vigilancia para siempre por un aviso que nadie retiro.
+func (a *API) pausarAgenda(escritor http.ResponseWriter, peticion *http.Request) {
+	if !a.exigeEscritura(escritor, peticion, "Pausar la agenda") {
+		return
+	}
+	clave, _ := autenticacion.RedActivaDe(peticion.Context())
+
+	if a.Programador == nil {
+		responderOk(escritor, map[string]any{"pausada": false})
+		return
+	}
+
+	var cuerpo struct {
+		Minutos int `json:"minutos"`
+	}
+	_ = json.NewDecoder(peticion.Body).Decode(&cuerpo)
+
+	hasta := a.Programador.PausarAgenda(clave, time.Duration(cuerpo.Minutos)*time.Minute)
+	responderOk(escritor, map[string]any{
+		"pausada": true,
+		"hasta":   hasta.Format(time.RFC3339),
+	})
+}
+
+// reanudarAgenda vuelve a dejar correr los barridos automaticos.
+func (a *API) reanudarAgenda(escritor http.ResponseWriter, peticion *http.Request) {
+	if !a.exigeEscritura(escritor, peticion, "Reanudar la agenda") {
+		return
+	}
+	clave, _ := autenticacion.RedActivaDe(peticion.Context())
+
+	if a.Programador != nil {
+		a.Programador.ReanudarAgenda(clave)
+	}
+	responderOk(escritor, map[string]any{"pausada": false})
 }

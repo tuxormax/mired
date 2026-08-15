@@ -59,6 +59,9 @@ type Servicio struct {
 	mu         sync.Mutex
 	enCurso    map[string]bool
 	mapaFlujos *mapaDeSubredes
+	// pausadas son las redes cuya agenda esta detenida a peticion de la
+	// interfaz: mientras alguien edita el mapa no se lanza ningun barrido.
+	pausadas pausas
 }
 
 // Nuevo arma el servicio.
@@ -354,6 +357,12 @@ func (s *Servicio) revisarAgenda(ctx context.Context) {
 	}
 
 	for _, tarea := range tareas {
+		// Con la agenda en pausa no se lanza nada NI se recorre el calendario:
+		// si se recorriera, al reanudar habrian pasado los turnos en silencio y
+		// la red se quedaria sin barrer hasta el siguiente.
+		if s.EnPausa(tarea.Clave) {
+			continue
+		}
 		// La agenda se corre ANTES de lanzar el barrido, no despues. Si se
 		// corriera al terminar, un barrido que tarda mas que su intervalo
 		// dispararia el siguiente apenas acabe, y la red quedaria escaneandose

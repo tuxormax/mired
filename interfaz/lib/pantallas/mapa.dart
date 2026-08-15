@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -27,7 +28,12 @@ import 'topologia_manual.dart';
 /// El calculo de posiciones y el pintor viven en mapa_plano.dart, porque los
 /// comparte con la exportacion.
 class PantallaMapa extends StatefulWidget {
-  const PantallaMapa({super.key, required this.red, this.editarAlAbrir = false});
+  const PantallaMapa({
+    super.key,
+    required this.red,
+    this.editarAlAbrir = false,
+    this.pausarAgendaAlEditar = true,
+  });
 
   final Red red;
 
@@ -35,6 +41,11 @@ class PantallaMapa extends StatefulWidget {
   /// de puertos: quien lo pulsa ya dijo a que viene, y obligarle a buscar otro
   /// boton al llegar seria pedirle que lo diga dos veces.
   final bool editarAlAbrir;
+
+  /// Al editar, pedirle al servidor que pare los barridos automaticos de esta
+  /// red. Se puede apagar para dibujar el mapa sin hablar con nadie, que es lo
+  /// que hacen las pruebas: ahi no hay agenda que parar.
+  final bool pausarAgendaAlEditar;
 
   @override
   State<PantallaMapa> createState() => _PantallaMapaState();
@@ -53,11 +64,58 @@ class _PantallaMapaState extends State<PantallaMapa> {
   /// el peor momento para cambiarlo sin querer.
   bool _editando = false;
 
+  /// Mientras se edita, la agenda de esta red queda en pausa. Se apunta para
+  /// poder reanudarla al salir, y se renueva con un reloj mientras dure.
+  bool _pausada = false;
+  Timer? _relojDePausa;
+
   @override
   void initState() {
     super.initState();
     _editando = widget.editarAlAbrir;
     _datos = _cargar();
+    if (_editando && widget.pausarAgendaAlEditar) _pausarMientrasSeEdita();
+  }
+
+  @override
+  void dispose() {
+    // Al salir del mapa se reanuda SIEMPRE, aunque se haya cerrado a lo bruto.
+    _relojDePausa?.cancel();
+    if (_pausada) Api.instancia.reanudarAgenda(widget.red.clave).ignore();
+    super.dispose();
+  }
+
+  /// Mientras se edita el mapa, MiRed no barre esta red.
+  ///
+  /// Editar es DECLARAR cableado, no medir: un barrido corriendo por debajo solo
+  /// gasta el equipo de quien esta trabajando. Se renueva sola mientras dure la
+  /// edicion, y vence si el programa se cierra de golpe.
+  Future<void> _pausarMientrasSeEdita() async {
+    if (!widget.pausarAgendaAlEditar) return;
+    _relojDePausa?.cancel();
+    try {
+      await Api.instancia.pausarAgenda(widget.red.clave);
+      _pausada = true;
+    } catch (_) {
+      // Que no se pueda pausar no impide editar: es una cortesia con el equipo,
+      // no un requisito.
+      return;
+    }
+    _relojDePausa = Timer.periodic(const Duration(minutes: 10), (_) {
+      Api.instancia.pausarAgenda(widget.red.clave).ignore();
+    });
+  }
+
+  Future<void> _reanudar() async {
+    _relojDePausa?.cancel();
+    _relojDePausa = null;
+    if (!_pausada) return;
+    _pausada = false;
+    try {
+      await Api.instancia.reanudarAgenda(widget.red.clave);
+    } catch (_) {
+      // Si no se pudo avisar, la pausa vence sola.
+    }
   }
 
   Future<DatosMapa> _cargar() async {
@@ -348,7 +406,15 @@ class _PantallaMapaState extends State<PantallaMapa> {
             child: FilledButton.tonalIcon(
               icon: Icon(_editando ? Icons.done : Icons.edit_outlined, size: 18),
               label: Text(_editando ? 'Terminar' : 'Editar el cableado'),
-              onPressed: () => setState(() => _editando = !_editando),
+              onPressed: () {
+                setState(() => _editando = !_editando);
+                // Entrar a editar para la agenda de esta red; salir la reanuda.
+                if (_editando) {
+                  _pausarMientrasSeEdita();
+                } else {
+                  _reanudar();
+                }
+              },
             ),
           ),
           IconButton(

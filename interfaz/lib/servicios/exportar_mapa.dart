@@ -149,12 +149,16 @@ String svgDelPlano(Plano plano, EncabezadoMapa encabezado) {
     final punteado = linea.confirmada
         ? ''
         : (linea.declarada ? ' stroke-dasharray="12 5"' : ' stroke-dasharray="6 5"');
+    // Cada enlace lleva SU color, igual que en pantalla: de un switch salen
+    // tantas lineas como puertos, y todas del mismo gris no se pueden seguir.
+    final tinte = linea.color ?? plano.colorLinea;
     salida.writeln('<line x1="${_n(linea.desde.dx)}" y1="${_n(linea.desde.dy)}" '
         'x2="${_n(linea.hasta.dx)}" y2="${_n(linea.hasta.dy)}" '
-        'stroke="${_color(plano.colorLinea)}" stroke-width="2"$punteado/>');
-    salida.writeln('<text x="${_n((linea.desde.dx + linea.hasta.dx) / 2 + 6)}" '
-        'y="${_n((linea.desde.dy + linea.hasta.dy) / 2 + 1)}" font-size="11" '
-        'fill="${_color(plano.colorLinea)}">${_xml(linea.etiqueta)}</text>');
+        'stroke="${_color(tinte)}" stroke-width="2"$punteado/>');
+    salida.writeln('<text x="${_n((linea.desde.dx + linea.hasta.dx) / 2 - 40)}" '
+        'y="${_n((linea.desde.dy + linea.hasta.dy) / 2 - 8)}" font-size="13" '
+        'font-weight="600" '
+        'fill="${_color(tinte)}">${_xml(linea.etiqueta.toUpperCase())}</text>');
   }
 
   for (final caja in plano.cajas) {
@@ -239,9 +243,10 @@ Uint8List pdfDelPlano(Plano plano, EncabezadoMapa encabezado) {
         plano.colorEnlace);
   }
 
-  contenido.writeln('${_colorPdf(plano.colorLinea)} RG');
   for (final linea in plano.lineas) {
+    final tinte = linea.color ?? plano.colorLinea;
     contenido
+      ..writeln('${_colorPdf(tinte)} RG')
       ..writeln('2 w')
       // Guion corto para el grupo inferido, guion largo para lo declarado a
       // mano, continuo para lo confirmado. Los mismos tres trazos de pantalla.
@@ -252,13 +257,14 @@ Uint8List pdfDelPlano(Plano plano, EncabezadoMapa encabezado) {
           '${_n(linea.hasta.dx)} ${_n(linea.hasta.dy + desplazamiento)} l S');
     _textoPdf(
         contenido,
-        linea.etiqueta,
-        (linea.desde.dx + linea.hasta.dx) / 2 + 6,
+        linea.etiqueta.toUpperCase(),
+        (linea.desde.dx + linea.hasta.dx) / 2 - 40,
         (linea.desde.dy + linea.hasta.dy) / 2 - 8 + desplazamiento,
-        11,
-        false,
-        plano.colorLinea);
+        13,
+        true,
+        tinte);
   }
+  contenido.writeln('${_colorPdf(plano.colorLinea)} RG');
   contenido.writeln('[] 0 d');
 
   for (final caja in plano.cajas) {

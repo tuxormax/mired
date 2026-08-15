@@ -7,6 +7,7 @@ import (
 	"crypto/md5" // #nosec G501 — no es seguridad: es la llave fija y publica de Tuya
 	"encoding/binary"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -324,18 +325,30 @@ func EscucharTuya(ctx context.Context, espera time.Duration) map[string][]Dato {
 	}
 
 	// El 6667 va tapado y el 6666 en claro, segun la edad del aparato. Se
-	// escuchan los dos.
+	// escuchan los dos A LA VEZ: uno tras otro serian dos esperas en fila para
+	// oir lo mismo.
+	var candado sync.Mutex
+	var grupo sync.WaitGroup
+
 	for _, puerto := range []int{6667, 6666} {
-		for ip, mensajes := range escucharDifusion(ctx, puerto, espera) {
-			for _, mensaje := range mensajes {
-				datos := leerAnuncioTuya(mensaje)
-				if len(datos) == 0 {
-					continue
+		grupo.Add(1)
+		go func(cual int) {
+			defer grupo.Done()
+			for ip, mensajes := range escucharDifusion(ctx, cual, espera) {
+				for _, mensaje := range mensajes {
+					datos := leerAnuncioTuya(mensaje)
+					if len(datos) == 0 {
+						continue
+					}
+					candado.Lock()
+					encontrados[ip] = append(encontrados[ip], datos...)
+					candado.Unlock()
 				}
-				encontrados[ip] = append(encontrados[ip], datos...)
 			}
-		}
+		}(puerto)
 	}
+	grupo.Wait()
+
 	return encontrados
 }
 

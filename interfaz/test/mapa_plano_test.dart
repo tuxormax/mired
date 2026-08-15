@@ -90,9 +90,38 @@ void main() {
     // Cinco puertos: uno sube al modem, otro lleva al grabador, quedan tres.
     expect(libres.length, 3,
         reason: 'un switch de 5 con el uplink puesto y un equipo colgado tiene 3 libres');
+  });
 
-    final sube = plano.cajas.where((caja) => caja.subtitulo == 'sube al aparato de arriba');
-    expect(sube.length, 1, reason: 'el puerto por donde sube el cable debe verse ocupado');
+  test('el puerto por donde sube el cable no se dibuja dos veces', () {
+    // Con el aparato de la izquierda a la vista, esa conexion YA es la linea que
+    // llega. Repetirla como una caja mas era ensuciar el dibujo con lo mismo.
+    final plano = armarPlano(armarCasa(cableEntrePuertos: true), colores);
+
+    expect(plano.cajas.where((caja) => caja.titulo.contains('MODEM')).length, 1,
+        reason: 'el modem sale una vez: como cabecera, no tambien bajo el switch');
+  });
+
+  test('el mapa crece hacia la derecha, no hacia abajo', () {
+    // Una red se lee como se cablea: la entrada a la izquierda y lo que cuelga,
+    // a su derecha. Dibujado de arriba abajo, un switch de ocho puertos abria el
+    // plano en abanico y las cajas se salian de la pantalla.
+    final plano = armarPlano(armarCasa(cableEntrePuertos: true), colores);
+
+    final modem = plano.cajas.firstWhere((caja) => caja.titulo == 'MODEM TELMEX');
+    final conmutador = plano.cajas.firstWhere((caja) => caja.titulo == 'switch');
+    final grabador = plano.cajas.firstWhere((caja) => caja.titulo == 'dvr');
+
+    expect(conmutador.rectangulo.left, greaterThan(modem.rectangulo.left),
+        reason: 'lo que cuelga del modem va a su derecha');
+    expect(grabador.rectangulo.left, greaterThan(conmutador.rectangulo.left),
+        reason: 'y lo que cuelga del switch, a la derecha del switch');
+
+    // Los hermanos se apilan hacia abajo, en la misma columna.
+    final libres = plano.cajas.where((caja) => caja.puertoLibre).toList();
+    for (final libre in libres) {
+      expect(libre.rectangulo.left, grabador.rectangulo.left,
+          reason: 'los hermanos comparten columna');
+    }
   });
 
   test('sin puerto de destino el switch tambien cuelga del modem', () {

@@ -239,6 +239,15 @@ echo "$AIRE" | grep -qE '"redes":\[\{|"explicacion":"[^"]' \
     && paso "y si no puede oir nada, dice por que" \
     || falla "el aire devolvio una lista vacia sin explicar por que"
 
+# La agenda se puede parar mientras alguien edita el mapa: ahi se declara
+# cableado, no se mide la red, y un barrido por debajo solo gasta el equipo.
+pedir -X POST "$API/api/redes/$CLAVE/pausa" -d '{"minutos":5}' | grep -q '"pausada":true' \
+    && paso "la agenda se puede pausar mientras se edita" \
+    || falla "no se pudo pausar la agenda"
+pedir -X DELETE "$API/api/redes/$CLAVE/pausa" | grep -q '"pausada":false' \
+    && paso "y se reanuda al terminar" \
+    || falla "no se pudo reanudar la agenda"
+
 # Lo que cuelga de una antena por el aire. El WiFi no tiene puertos: se cuelgan
 # UNO O VARIOS equipos de una sola vez, sin inventarle un puerto a cada uno.
 ANTENA=$(pedir -X POST "$API/api/redes/$CLAVE/equipos" \
