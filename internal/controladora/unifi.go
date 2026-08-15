@@ -47,28 +47,28 @@ type Aparato struct {
 	Nombre string
 	Modelo string
 	// EsPuntoDeAcceso distingue una antena de un switch. En el mapa no se dibujan
-	// igual: un switch tiene bocas numeradas y un punto de acceso tiene redes.
+	// igual: un switch tiene puertos numeradas y un punto de acceso tiene redes.
 	EsPuntoDeAcceso bool
-	Bocas           []Boca
+	Puertos         []Puerto
 }
 
-// Boca es un puerto de un switch o una radio de un punto de acceso.
-type Boca struct {
+// Puerto es un puerto de un switch o una radio de un punto de acceso.
+type Puerto struct {
 	Indice        int
 	Nombre        string
 	Activa        bool
 	VelocidadMbps int
 }
 
-// Conectado es un equipo que la controladora ve colgado de una boca.
+// Conectado es un equipo que la controladora ve colgado de un puerto.
 type Conectado struct {
 	MAC string
 	IP  string
 	// AparatoMAC es de que switch o punto de acceso cuelga.
 	AparatoMAC string
-	// Boca es el numero de puerto del switch, o el indice sintetico de la red
+	// Puerto es el numero de puerto del switch, o el indice sintetico de la red
 	// inalambrica cuando cuelga de una antena.
-	Boca int
+	Puerto int
 	// Red es el nombre de la red WiFi. Vacio cuando el equipo esta por cable.
 	Red      string
 	PorCable bool
@@ -268,7 +268,7 @@ func (c *cliente) aparatos(ctx context.Context) ([]Aparato, error) {
 			if nombre == "" {
 				nombre = "Puerto " + strconv.Itoa(puerto.Indice)
 			}
-			aparato.Bocas = append(aparato.Bocas, Boca{
+			aparato.Puertos = append(aparato.Puertos, Puerto{
 				Indice:        puerto.Indice,
 				Nombre:        nombre,
 				Activa:        puerto.Arriba,
@@ -285,7 +285,7 @@ type conectadoUnifi struct {
 	MAC      string `json:"mac"`
 	IP       string `json:"ip"`
 	PorCable bool   `json:"is_wired"`
-	// Por cable: de que switch y en que boca.
+	// Por cable: de que switch y en que puerto.
 	SwitchMAC   string `json:"sw_mac"`
 	SwitchPorto int    `json:"sw_port"`
 	// Por WiFi: de que antena y en que red.
@@ -299,12 +299,12 @@ func (c *cliente) conectados(ctx context.Context) ([]Conectado, error) {
 		return nil, err
 	}
 
-	// Cada red WiFi necesita un numero de boca para poder colgar de ella en el
+	// Cada red WiFi necesita un numero de puerto para poder colgar de ella en el
 	// mapa, igual que un puerto de switch. Se reparten desde un numero alto para
-	// que NUNCA choquen con un puerto de verdad: un switch de 48 bocas es grande,
+	// que NUNCA choquen con un puerto de verdad: un switch de 48 puertos es grande,
 	// y uno de mil no existe.
-	const primeraBocaInalambrica = 1000
-	bocaDeRed := map[string]int{}
+	const primerPuertoInalambrico = 1000
+	puertoDeRed := map[string]int{}
 
 	conectados := make([]Conectado, 0, len(crudos))
 	for _, crudo := range crudos {
@@ -319,17 +319,17 @@ func (c *cliente) conectados(ctx context.Context) ([]Conectado, error) {
 
 		if crudo.PorCable {
 			conectado.AparatoMAC = normalizarMAC(crudo.SwitchMAC)
-			conectado.Boca = crudo.SwitchPorto
+			conectado.Puerto = crudo.SwitchPorto
 		} else {
 			conectado.AparatoMAC = normalizarMAC(crudo.AntenaMAC)
 			conectado.Red = crudo.Red
 			clave := conectado.AparatoMAC + "|" + crudo.Red
-			numero, hay := bocaDeRed[clave]
+			numero, hay := puertoDeRed[clave]
 			if !hay {
-				numero = primeraBocaInalambrica + len(bocaDeRed)
-				bocaDeRed[clave] = numero
+				numero = primerPuertoInalambrico + len(puertoDeRed)
+				puertoDeRed[clave] = numero
 			}
-			conectado.Boca = numero
+			conectado.Puerto = numero
 		}
 
 		if conectado.AparatoMAC == "" {
@@ -343,13 +343,13 @@ func (c *cliente) conectados(ctx context.Context) ([]Conectado, error) {
 	return conectados, nil
 }
 
-// BocasDeRedes arma las bocas sinteticas de un punto de acceso a partir de los
+// PuertosDeRedes arma los puertos sinteticas de un punto de acceso a partir de los
 // equipos que cuelgan de el.
 //
-// Un punto de acceso no tiene una lista de "puertos" que consultar: sus bocas
+// Un punto de acceso no tiene una lista de "puertos" que consultar: sus puertos
 // son las redes WiFi, y solo se sabe cuales estan en uso mirando quien esta
 // conectado. Por eso se derivan aqui y no vienen de la controladora.
-func BocasDeRedes(conectados []Conectado, aparatoMAC string) []Boca {
+func PuertosDeRedes(conectados []Conectado, aparatoMAC string) []Puerto {
 	vistas := map[int]string{}
 	for _, conectado := range conectados {
 		if conectado.AparatoMAC != aparatoMAC || conectado.PorCable {
@@ -359,14 +359,14 @@ func BocasDeRedes(conectados []Conectado, aparatoMAC string) []Boca {
 		if nombre == "" {
 			nombre = "WiFi"
 		}
-		vistas[conectado.Boca] = nombre
+		vistas[conectado.Puerto] = nombre
 	}
 
-	bocas := make([]Boca, 0, len(vistas))
+	puertos := make([]Puerto, 0, len(vistas))
 	for indice, nombre := range vistas {
-		bocas = append(bocas, Boca{Indice: indice, Nombre: nombre, Activa: true})
+		puertos = append(puertos, Puerto{Indice: indice, Nombre: nombre, Activa: true})
 	}
-	return bocas
+	return puertos
 }
 
 func normalizarMAC(mac string) string {

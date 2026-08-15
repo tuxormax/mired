@@ -127,7 +127,7 @@ Deje **apagado** «exigir certificado válido»: casi toda controladora casera u
 un certificado que ella misma se firmó, y exigirlo dejaría la función inservible.
 
 Después de eso, cada equipo por WiFi aparece en el mapa colgando de su antena, y
-la boca lleva el nombre de la red a la que se conectó (`Oficina`, `Invitados`).
+el puerto lleva el nombre de la red a la que se conectó (`Oficina`, `Invitados`).
 Si la controladora deja de contestar, la pantalla lo dice con el motivo: el WiFi
 no desaparece del mapa en silencio.
 
@@ -157,7 +157,7 @@ porque un plano de red sin fecha, a la semana, ya no se sabe si es el bueno.
 
 Hay dos formas y no se estorban:
 
-- **Con switches administrables**: MiRed lee los contadores de cada boca. Como ya
+- **Con switches administrables**: MiRed lee los contadores de cada puerto. Como ya
   sabe qué aparato cuelga de cada una, eso le dice quién consume. Necesita al
   menos dos escaneos completos, porque el consumo se calcula restando dos
   lecturas.

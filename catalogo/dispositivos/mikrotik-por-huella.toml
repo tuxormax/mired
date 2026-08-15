@@ -1,0 +1,12 @@
+# MikroTik reconocido por lo que EL contesta, no por su MAC.
+#
+# Va en archivo aparte porque dentro de una definicion las condiciones se suman
+# (Y): pedir fabricante Y huella dejaria de reconocer al que solo se identifica
+# por una de las dos cosas.
+nombre = "MikroTik"
+categoria = "router"
+icono = "router"
+descripcion = "Contesta el protocolo de vecinos de MikroTik o se identifica como RouterOS."
+
+[coincidencias]
+huella_contiene = ["routeros", "mikrotik", "routerboard"]

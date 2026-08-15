@@ -1,0 +1,10 @@
+# Un aparato de casa de Xiaomi que contesta miIO. Sin el token del aparato no se
+# puede saber mas, y eso se dice: el saludo confirma que es de casa inteligente
+# —no un telefono—, nada mas.
+nombre = "Aparato de casa Xiaomi"
+categoria = "otro"
+icono = "home"
+descripcion = "Aparato Xiaomi de casa inteligente (protocolo miIO)."
+
+[coincidencias]
+huella_contiene = ["miio"]

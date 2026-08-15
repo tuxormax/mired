@@ -7,16 +7,33 @@ import (
 	"sync"
 )
 
-// El fabricante de un aparato se sabe por los primeros tres bytes de su MAC, que
-// la IEEE asigna por empresa. Es lo primero que convierte una lista de IP en
-// algo legible: "Hikvision" ya dice camara, "Brother" ya dice impresora.
+// El fabricante de un aparato se sabe por el principio de su MAC, que la IEEE
+// asigna por empresa. Es lo primero que convierte una lista de IP en algo
+// legible: "Hikvision" ya dice camara, "Brother" ya dice impresora.
 //
-// La lista completa de la IEEE son unas 35 000 entradas y 3 MB. Aqui va
-// embebida una lista corta con lo que aparece de verdad en una red de oficina o
-// casa, y se puede ampliar sin recompilar dejando el archivo oficial en
-// /usr/share/mired/oui.txt (formato: prefijo de 6 caracteres y nombre).
+// La lista buena es la de la IEEE completa —unos 53 000 prefijos— y viaja en el
+// paquete como archivo, no dentro del binario: se actualiza corriendo
+// `herramientas/traer_fabricantes.py` y reemplazando un .txt, sin recompilar
+// nada. La lista corta embebida aqui abajo es el suelo: lo que MiRed sabe si el
+// archivo falta, por ejemplo corriendo desde el arbol de compilacion.
+//
+// **No todos los prefijos miden lo mismo.** La IEEE vende bloques de 24, 28 y 36
+// bits; a un fabricante chico le toca un pedazo de un bloque grande. Por eso la
+// busqueda va del prefijo mas largo al mas corto: si hay respuesta para 9
+// digitos, esa manda sobre la de 6, que solo diria el nombre del mayorista.
 
-const rutaOUI = "/usr/share/mired/oui.txt"
+// Archivos donde se busca la lista, de menor a mayor precedencia. El ultimo que
+// tenga un prefijo es el que manda, para que el usuario pueda corregir un
+// nombre sin tocar lo que instalo el paquete.
+var archivosDeFabricantes = []string{
+	"/usr/share/mired/oui.txt", // nombre viejo, se sigue leyendo
+	"/usr/share/mired/fabricantes.txt",
+	"/etc/mired/fabricantes.txt",
+}
+
+// largosDePrefijo son los tamanos que usa la IEEE: MA-S (36 bits), MA-M (28) y
+// MA-L (24). Se prueban en este orden, del mas especifico al mas general.
+var largosDePrefijo = []int{9, 7, 6}
 
 var fabricantesComunes = map[string]string{
 	"000c29": "VMware", "005056": "VMware", "001c14": "VMware",
@@ -34,7 +51,7 @@ var fabricantesComunes = map[string]string{
 	"245a4c": "Ubiquiti", "687251": "Ubiquiti", "74acb9": "Ubiquiti",
 	"e063da": "Ubiquiti", "802aa8": "Ubiquiti", "dc9fdb": "Ubiquiti",
 	"001478": "TP-Link", "50c7bf": "TP-Link", "a42bb0": "TP-Link", "b0be76": "TP-Link",
-	"6466b3f": "TP-Link", "c006c3": "TP-Link", "9c5322": "TP-Link",
+	"c006c3": "TP-Link", "9c5322": "TP-Link",
 	"000fb5": "NETGEAR", "20e52a": "NETGEAR", "a00460": "NETGEAR", "9c3dcf": "NETGEAR",
 	"001cf0": "D-Link", "1cbdb9": "D-Link", "34089e": "D-Link",
 	"000d88": "D-Link", "b8a386": "D-Link",
@@ -56,7 +73,7 @@ var fabricantesComunes = map[string]string{
 	"44d9e7": "Ubiquiti", "0418d6": "Ubiquiti",
 	"4c11bf": "Hikvision", "bc ad28": "Hikvision", "c0562d": "Hikvision",
 	"28571a": "Hikvision", "44194b": "Hikvision", "58 03fb": "Hikvision",
-	"3c ef8c": "Dahua", "4c11bf1": "Dahua", "e0509f": "Dahua", "90 02a9": "Dahua",
+	"3c ef8c": "Dahua", "e0509f": "Dahua", "90 02a9": "Dahua",
 	"001217": "Cisco-Linksys", "0018f8": "Cisco-Linksys",
 	"00040f": "AVM", "3810d5": "AVM",
 	"7c2f80": "Gigaset", "001e2a": "NETGEAR",
@@ -106,45 +123,71 @@ var fabricantesComunes = map[string]string{
 var (
 	cargaOUI      sync.Once
 	fabricantesOI map[string]string
+	archivoUsado  string
 )
 
 // Fabricante devuelve el fabricante de una MAC, o vacio si no se conoce.
 func Fabricante(mac string) string {
 	cargaOUI.Do(cargarOUI)
 
-	prefijo := normalizarPrefijo(mac)
-	if prefijo == "" {
-		return ""
-	}
-	if nombre, hay := fabricantesOI[prefijo]; hay {
-		return nombre
+	// Del prefijo mas largo al mas corto: el bloque chico dice quien es de
+	// verdad, el grande solo diria el nombre del mayorista que lo revendio.
+	for _, largo := range largosDePrefijo {
+		prefijo := normalizarPrefijo(mac, largo)
+		if prefijo == "" {
+			continue
+		}
+		if nombre, hay := fabricantesOI[prefijo]; hay {
+			return nombre
+		}
 	}
 
 	// Las MAC administradas localmente (bit 2 del primer byte) las inventa el
 	// propio aparato: las usan los telefonos para no ser rastreados. No hay
 	// fabricante que buscar, y decirlo es mas util que dejarlo vacio.
-	if esLocalmenteAdministrada(prefijo) {
+	if esLocalmenteAdministrada(normalizarPrefijo(mac, 6)) {
 		return "MAC aleatoria (privacidad)"
 	}
 	return ""
 }
 
+// FuenteDeFabricantes dice de donde salio la lista en uso y cuantos prefijos
+// tiene. La interfaz lo muestra: un usuario que ve medio inventario "sin
+// fabricante" merece saber si es que se quedo con la lista corta.
+func FuenteDeFabricantes() (string, int) {
+	cargaOUI.Do(cargarOUI)
+	return archivoUsado, len(fabricantesOI)
+}
+
 func cargarOUI() {
-	fabricantesOI = make(map[string]string, len(fabricantesComunes)+1024)
+	fabricantesOI = make(map[string]string, len(fabricantesComunes)+65536)
 	for prefijo, nombre := range fabricantesComunes {
-		limpio := normalizarPrefijo(prefijo)
-		if limpio != "" {
+		if limpio := normalizarPrefijo(prefijo, 6); limpio != "" {
 			fabricantesOI[limpio] = nombre
 		}
 	}
+	archivoUsado = "lista corta embebida"
 
-	// Si el equipo tiene la lista oficial de la IEEE, manda sobre la embebida.
-	archivo, err := os.Open(rutaOUI)
+	for _, ruta := range archivosDeFabricantes {
+		if leidos := cargarArchivo(ruta); leidos > 0 {
+			archivoUsado = ruta
+		}
+	}
+}
+
+// cargarArchivo suma los prefijos de un archivo y devuelve cuantos leyo.
+//
+// Un archivo que no esta no es un error: MiRed corriendo desde el arbol de
+// compilacion no tiene ninguno, y debe seguir reconociendo lo poco que sabe en
+// vez de quedarse sin fabricantes.
+func cargarArchivo(ruta string) int {
+	archivo, err := os.Open(ruta)
 	if err != nil {
-		return
+		return 0
 	}
 	defer archivo.Close()
 
+	leidos := 0
 	lector := bufio.NewScanner(archivo)
 	for lector.Scan() {
 		linea := strings.TrimSpace(lector.Text())
@@ -158,27 +201,38 @@ func cargarOUI() {
 				continue
 			}
 		}
-		prefijo := normalizarPrefijo(partes[0])
-		if prefijo != "" {
-			fabricantesOI[prefijo] = strings.TrimSpace(partes[1])
+		nombre := strings.TrimSpace(partes[1])
+		// El largo lo decide el prefijo escrito, no un tamano fijo: asi el mismo
+		// archivo lleva los bloques de 24, 28 y 36 bits.
+		crudo := soloHexadecimal(partes[0])
+		if nombre == "" || len(crudo) < 6 {
+			continue
 		}
+		if len(crudo) > 9 {
+			crudo = crudo[:9]
+		}
+		fabricantesOI[crudo] = nombre
+		leidos++
 	}
+	return leidos
 }
 
-// normalizarPrefijo deja los primeros seis caracteres hexadecimales, sin
-// separadores: "B8:27:EB:1A:2B:3C" y "b827eb" dan lo mismo.
-func normalizarPrefijo(mac string) string {
+// normalizarPrefijo deja los primeros caracteres hexadecimales que se pidan, sin
+// separadores: "B8:27:EB:1A:2B:3C" con largo 6 da "b827eb".
+func normalizarPrefijo(mac string, largo int) string {
+	limpio := soloHexadecimal(mac)
+	if len(limpio) < largo {
+		return ""
+	}
+	return limpio[:largo]
+}
+
+func soloHexadecimal(texto string) string {
 	var limpio strings.Builder
-	for _, letra := range strings.ToLower(mac) {
+	for _, letra := range strings.ToLower(texto) {
 		if (letra >= '0' && letra <= '9') || (letra >= 'a' && letra <= 'f') {
 			limpio.WriteRune(letra)
 		}
-		if limpio.Len() == 6 {
-			break
-		}
-	}
-	if limpio.Len() < 6 {
-		return ""
 	}
 	return limpio.String()
 }

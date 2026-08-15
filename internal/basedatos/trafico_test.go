@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// sembrarSwitch deja un switch con una boca lista para medirle trafico.
+// sembrarSwitch deja un switch con un puerto lista para medirle trafico.
 func sembrarSwitch(t *testing.T, base *Base) {
 	t.Helper()
 	ctx := context.Background()
@@ -75,14 +75,14 @@ func TestLaSegundaMuestraDaLaTasa(t *testing.T) {
 		t.Fatalf("no se pudo leer el consumo: %v", err)
 	}
 	if len(consumo) != 1 {
-		t.Fatalf("se esperaba una boca con consumo: %+v", consumo)
+		t.Fatalf("se esperaba un puerto con consumo: %+v", consumo)
 	}
 	// 1 250 000 bytes en 10 s = 1 000 000 bits/s. Se admite holgura por el
 	// redondeo del reloj a segundos.
 	if consumo[0].BpsEntrada < 900_000 || consumo[0].BpsEntrada > 1_100_000 {
 		t.Fatalf("la tasa calculada esta mal: %d bps", consumo[0].BpsEntrada)
 	}
-	// Y dice de quien es la boca, que es lo que vuelve util el numero.
+	// Y dice de quien es el puerto, que es lo que vuelve util el numero.
 	if consumo[0].EquipoNombre != "laptop" {
 		t.Fatalf("el consumo deberia decir de quien es: %+v", consumo[0])
 	}

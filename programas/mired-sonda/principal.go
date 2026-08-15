@@ -21,6 +21,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/tuxormax/mired/internal/aire"
 	"github.com/tuxormax/mired/internal/configuracion"
 	"github.com/tuxormax/mired/internal/escaneo"
 	"github.com/tuxormax/mired/internal/snmp"
@@ -168,6 +169,20 @@ func atender(conexion net.Conn, desde string, bitacora *slog.Logger) {
 
 		conexion.SetDeadline(time.Now().Add(30 * time.Minute))
 		resultado := consultarSNMP(peticion, bitacora)
+
+		datos, err := json.Marshal(resultado)
+		if err != nil {
+			responder(conexion, sonda.Respuesta{Ok: false, Error: "no se pudo armar el resultado: " + err.Error()})
+			return
+		}
+		responder(conexion, sonda.Respuesta{Ok: true, Datos: datos})
+
+	case sonda.OrdenAire:
+		// Barrer el aire tarda: la tarjeta tiene que recorrer los canales uno por
+		// uno. Se amplia el plazo mientras dura, igual que en un escaneo.
+		conexion.SetDeadline(time.Now().Add(2 * time.Minute))
+		resultado := aire.Barrer(context.Background())
+		bitacora.Info("aire barrido", "redes", len(resultado.Redes), "herramienta", resultado.Herramienta)
 
 		datos, err := json.Marshal(resultado)
 		if err != nil {

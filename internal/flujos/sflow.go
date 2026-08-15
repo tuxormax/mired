@@ -26,7 +26,7 @@ import (
 // mismo que ya se lee por SNMP, y se ignoran.
 const (
 	// Formatos de muestra. Los "expandidos" son iguales pero con los
-	// identificadores de interfaz en 64 bits, para chasis con muchas bocas.
+	// identificadores de interfaz en 64 bits, para chasis con muchos puertos.
 	muestraDeFlujo          = 1
 	muestraDeFlujoExpandida = 3
 

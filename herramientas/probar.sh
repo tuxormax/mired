@@ -56,7 +56,11 @@ escucha = "127.0.0.1:$PUERTO_FLUJOS"
 [sonda]
 socket = "$CARPETA/sonda.sock"
 [catalogo]
-carpetas = ["$CARPETA/usr/share/mired/dispositivos"]
+# Las tres carpetas del catalogo, todas dentro de la carpeta de la prueba: lo
+# que se guarde aqui NO puede acabar en /etc ni en /var/lib del equipo.
+carpetas = ["$CARPETA/usr/share/mired/dispositivos", "$CARPETA/comunidad", "$CARPETA/propias"]
+carpeta_propia = "$CARPETA/propias"
+carpeta_comunidad = "$CARPETA/comunidad"
 [registro]
 nivel = "info"
 FIN
@@ -145,6 +149,38 @@ curl -s "$API/api/redes" | grep -q '"causa":"Sesion"' \
 pedir "$API/api/catalogo" | grep -q '"definiciones"' \
     && paso "el catalogo de dispositivos carga" || falla "el catalogo no carga"
 
+# Sin la lista de la IEEE nadie tiene fabricante, y sin fabricante el catalogo se
+# queda adivinando por puertos abiertos: todo lo que tenga el 80 abierto acaba
+# llamandose "servidor web".
+[[ -s "$CARPETA/usr/share/mired/fabricantes.txt" ]] \
+    && paso "el paquete trae la lista de fabricantes de la IEEE" \
+    || falla "el paquete no trae usr/share/mired/fabricantes.txt"
+grep -qi '^f492bf	' "$CARPETA/usr/share/mired/fabricantes.txt" 2>/dev/null \
+    && paso "y una MAC conocida encuentra a su dueno" \
+    || falla "la lista de fabricantes no reconoce una MAC que deberia estar"
+
+# El catalogo comunitario: guardar una definicion propia tiene que dejarla
+# reconociendo desde ese mismo momento, sin reiniciar el servicio.
+DEFINICION='{"archivo":"prueba-de-humo.toml","contenido":"nombre = \"Aparato de prueba\"\ncategoria = \"otro\"\n[coincidencias]\nprefijos_mac = [\"aa:bb:cc\"]\n"}'
+pedir -X POST "$API/api/catalogo/dispositivos" -d "$DEFINICION" \
+    | grep -q '"archivo":"prueba-de-humo.toml"' \
+    && paso "se puede guardar una definicion en el catalogo de aqui" \
+    || falla "no se pudo guardar una definicion propia"
+
+pedir -X POST "$API/api/catalogo/dispositivos" \
+     -d '{"archivo":"sin-condiciones.toml","contenido":"nombre = \"Todo\"\n"}' \
+    | grep -q '"ok":false' \
+    && paso "y se rechaza la que reconoceria a todos los aparatos por igual" \
+    || falla "acepto una definicion sin ninguna condicion"
+
+pedir "$API/api/catalogo" | grep -q 'Aparato de prueba' \
+    && paso "la definicion recien guardada ya esta en el catalogo" \
+    || falla "el catalogo no se recargo despues de guardar"
+
+[[ -f "$CARPETA/propias/prueba-de-humo.toml" ]] \
+    && paso "y quedo escrita en la carpeta que dice la configuracion" \
+    || falla "la definicion no se escribio donde debia"
+
 # El historial de versiones viaja dentro del binario y se siembra al arrancar.
 # Que este vacio significaria que el pie de la interfaz no muestra nada.
 pedir "$API/api/versiones" | grep -q '"versionessistema"\|"sistema"' \
@@ -194,6 +230,15 @@ pedir "$API/api/redes/$CLAVE/mapa-puertos" | grep -q '"capacidad"' \
 pedir "$API/api/redes/$CLAVE/alertas" | grep -q '"abiertas"' \
     && paso "las alertas responden" || falla "las alertas fallaron"
 
+# El aire: en un equipo sin tarjeta WiFi tiene que EXPLICARLO, no devolver una
+# lista vacia que se leeria como "aqui no hay redes inalambricas".
+AIRE=$(pedir "$API/api/redes/$CLAVE/aire")
+echo "$AIRE" | grep -q '"redes"' \
+    && paso "el barrido del aire responde" || falla "el barrido del aire no responde"
+echo "$AIRE" | grep -qE '"redes":\[\{|"explicacion":"[^"]' \
+    && paso "y si no puede oir nada, dice por que" \
+    || falla "el aire devolvio una lista vacia sin explicar por que"
+
 # ---------------------------------------------------- topologia declarada --
 #
 # Lo que ningun escaneo puede ver: un switch no administrable no tiene
@@ -228,8 +273,8 @@ pedir -X POST "$API/api/redes/$CLAVE/equipos" -d '{"nombre":"Switch del rack"}' 
     || falla "permitio repetir el nombre de un equipo"
 
 pedir "$API/api/redes/$CLAVE/topologia-manual" | grep -q '"numero":8' \
-    && paso "y le quedaron declaradas sus ocho bocas" \
-    || falla "las bocas del switch no se declararon"
+    && paso "y le quedaron declaradas sus ocho puertos" \
+    || falla "los puertos del switch no se declararon"
 
 # El contador y el mapa leen la MISMA tabla: un switch declarado a mano cuenta
 # desde el momento en que se declara, sin nada que sincronizar.
@@ -255,10 +300,10 @@ pedir "$API/api/redes/$CLAVE/equipos" \
     && paso "el equipo declarado sigue presente tras un escaneo posterior" \
     || falla "el escaneo marco ausente un equipo que nunca va a contestar"
 
-BOCA=$(pedir "$API/api/redes/$CLAVE/topologia-manual" \
+PUERTO=$(pedir "$API/api/redes/$CLAVE/topologia-manual" \
        | sed -n 's/.*"puertos":\[{"id":\([0-9]*\).*/\1/p')
 pedir -X POST "$API/api/redes/$CLAVE/enlaces" \
-     -d "{\"puertoOrigenId\":$BOCA,\"equipoDestinoId\":$MANUAL}" \
+     -d "{\"puertoOrigenId\":$PUERTO,\"equipoDestinoId\":$MANUAL}" \
     | grep -q '"ok":false' \
     && paso "no deja conectar un equipo consigo mismo" \
     || falla "permitio conectar un equipo consigo mismo"

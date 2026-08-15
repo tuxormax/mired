@@ -136,7 +136,7 @@ func TestUnEquipoPorWifiQuedaColgadoDeSuAntena(t *testing.T) {
 
 	// El cableado cuelga del switch, en su puerto real.
 	cableado := porMAC["11:22:33:44:55:66"]
-	if cableado.AparatoMAC != "aa:bb:cc:00:00:01" || cableado.Boca != 5 || !cableado.PorCable {
+	if cableado.AparatoMAC != "aa:bb:cc:00:00:01" || cableado.Puerto != 5 || !cableado.PorCable {
 		t.Fatalf("el equipo cableado quedo mal ubicado: %+v", cableado)
 	}
 
@@ -146,17 +146,17 @@ func TestUnEquipoPorWifiQuedaColgadoDeSuAntena(t *testing.T) {
 		t.Fatalf("el equipo por WiFi quedo mal ubicado: %+v", inalambrico)
 	}
 
-	// **Las bocas inalambricas no pueden chocar con puertos de verdad.** Si la
-	// red "Oficina" se numerara como boca 1, sus equipos aparecerian colgando del
+	// **Los puertos inalambricos no pueden chocar con puertos de verdad.** Si la
+	// red "Oficina" se numerara como puerto 1, sus equipos aparecerian colgando del
 	// puerto 1 de un switch.
-	if inalambrico.Boca < 1000 {
-		t.Fatalf("la boca inalambrica %d podria chocar con un puerto real", inalambrico.Boca)
+	if inalambrico.Puerto < 1000 {
+		t.Fatalf("el puerto inalambrico %d podria chocar con un puerto real", inalambrico.Puerto)
 	}
 
-	// Dos redes distintas de la misma antena son dos bocas distintas.
+	// Dos redes distintas de la misma antena son dos puertos distintos.
 	invitados := porMAC["dd:ee:ff:00:11:22"]
-	if invitados.Boca == inalambrico.Boca {
-		t.Fatal("dos redes WiFi distintas deberian ser dos bocas distintas")
+	if invitados.Puerto == inalambrico.Puerto {
+		t.Fatal("dos redes WiFi distintas deberian ser dos puertos distintos")
 	}
 
 	// Y el que la controladora ve pero no sabe de donde cuelga se descarta:
@@ -166,8 +166,8 @@ func TestUnEquipoPorWifiQuedaColgadoDeSuAntena(t *testing.T) {
 	}
 }
 
-func TestLasBocasDeUnaAntenaSalenDeQuienEstaConectado(t *testing.T) {
-	// Un punto de acceso no tiene una lista de puertos que consultar: sus bocas
+func TestLosPuertosDeUnaAntenaSalenDeQuienEstaConectado(t *testing.T) {
+	// Un punto de acceso no tiene una lista de puertos que consultar: sus puertos
 	// son las redes WiFi, y solo se sabe cuales estan en uso mirando quien esta
 	// conectado.
 	servidor := unifiDeMentira(t, false, aparatosDePrueba, conectadosDePrueba)
@@ -179,16 +179,16 @@ func TestLasBocasDeUnaAntenaSalenDeQuienEstaConectado(t *testing.T) {
 		t.Fatalf("no se pudo consultar: %v", err)
 	}
 
-	bocas := BocasDeRedes(lectura.Conectados, "aa:bb:cc:00:00:02")
-	if len(bocas) != 2 {
-		t.Fatalf("se esperaban dos redes WiFi: %+v", bocas)
+	puertos := PuertosDeRedes(lectura.Conectados, "aa:bb:cc:00:00:02")
+	if len(puertos) != 2 {
+		t.Fatalf("se esperaban dos redes WiFi: %+v", puertos)
 	}
 	nombres := map[string]bool{}
-	for _, boca := range bocas {
-		nombres[boca.Nombre] = true
+	for _, puerto := range puertos {
+		nombres[puerto.Nombre] = true
 	}
 	if !nombres["Oficina"] || !nombres["Invitados"] {
-		t.Fatalf("las bocas deberian llamarse como las redes: %+v", bocas)
+		t.Fatalf("los puertos deberian llamarse como las redes: %+v", puertos)
 	}
 }
 

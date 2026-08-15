@@ -110,6 +110,12 @@ func correr(cfg configuracion.Configuracion, bitacora *slog.Logger) error {
 		SocketSonda: cfg.Sonda.Socket,
 		Programador: agenda,
 		Catalogo:    dispositivos,
+		// Las mismas carpetas de donde se cargo, para poder releerlas cuando se
+		// guarde una definicion propia o se traigan las de la comunidad, sin
+		// reiniciar el servicio.
+		CarpetasCatalogo: cfg.Catalogo.Carpetas,
+		CarpetaPropia:    cfg.Catalogo.Propia,
+		CarpetaComunidad: cfg.Catalogo.Comunidad,
 	}
 
 	// Tareas de fondo: cerrar bases de red que ya nadie usa y limpiar sesiones

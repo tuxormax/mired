@@ -1,0 +1,13 @@
+# El mismo aparato, reconocido por lo que EL dice, no por su MAC.
+#
+# Sirve para dos casos que la MAC no cubre: un bloque de prefijos que no este en
+# la lista de la IEEE que traiga el paquete, y un aparato al que le cambiaron la
+# MAC. Aqui la senal es mas fuerte todavia: contesto el protocolo de Ubiquiti o
+# firmo su certificado como UBNT.
+nombre = "Ubiquiti"
+categoria = "punto_de_acceso"
+icono = "wifi"
+descripcion = "Contesta el protocolo propio de Ubiquiti o se identifica como UBNT/airOS/UniFi."
+
+[coincidencias]
+huella_contiene = ["ubnt", "ubiquiti", "airos", "unifi", "airmax"]

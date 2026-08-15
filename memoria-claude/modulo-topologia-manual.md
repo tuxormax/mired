@@ -1,6 +1,6 @@
 ---
 name: modulo-topologia-manual
-description: El modulo 15 de MiRed: declarar a mano equipos, bocas y cables que ningun escaneo puede ver, sin que se confundan con lo medido.
+description: El modulo 15 de MiRed: declarar a mano equipos, puertos y cables que ningun escaneo puede ver, sin que se confundan con lo medido.
 metadata:
   type: project
 ---
@@ -19,7 +19,7 @@ perfectamente como esta cableada. Ver [red-del-usuario](red-del-usuario.md): esa
 es exactamente la red donde se prueba MiRed.
 
 **No es cosa solo de switches tontos.** Cualquier equipo puede necesitar declarar
-sus bocas: el caso mas comun de todos es un **modem administrable sin SNMP hacia
+sus puertos: el caso mas comun de todos es un **modem administrable sin SNMP hacia
 la LAN** (Telmex y casi todo ISP). Por eso NO hay tabla de "equipos manuales": el
 origen del dato es una columna, no un mundo paralelo.
 
@@ -27,12 +27,12 @@ origen del dato es una columna, no un mundo paralelo.
 
 Solo el programa de escritorio (no hay web — ver [modulo-programa](modulo-programa.md)).
 Dos entradas a lo mismo:
-1. **Ficha del equipo** (pestana Equipos): botones «Ficha» y «Bocas», y «Borrar»
+1. **Ficha del equipo** (pestana Equipos): botones «Ficha» y «Puertos», y «Borrar»
    solo en lo declarado.
 2. **Boton «Editar el cableado» en la pestana Puertos** → abre el mapa YA en
    modo edicion. Es la entrada principal.
-3. **Modo edicion del mapa**: boton «Editar el cableado» en la barra. Toca una
-   boca libre → menu; toca un equipo → sus bocas; toca un cable declarado →
+3. **Modo edicion del mapa**: boton «Editar el cableado» en la barra. Toca un
+   puerto libre → menu; toca un equipo → sus puertos; toca un cable declarado →
    quitarlo.
 
 > **El boton va CON SU NOMBRE, y en la pestana de Puertos.** Empezo siendo un
@@ -49,9 +49,9 @@ Dos entradas a lo mismo:
 - **El modo edicion es explicito.** Sin el, un clic de navegacion reescribiria la
   topologia por accidente, y el mapa es justo lo que se consulta cuando algo no
   funciona: el peor momento para cambiarlo sin querer.
-- **Una boca lleva UN cable.** Reconectar reemplaza; guardar dos serian dos
+- **Un puerto lleva UN cable.** Reconectar reemplaza; guardar dos serian dos
   verdades incompatibles colgando del mismo sitio.
-- **Un equipo no se conecta consigo mismo** (ni boca con boca del mismo aparato).
+- **Un equipo no se conecta consigo mismo** (ni puerto con puerto del mismo aparato).
 - **Solo se borra lo declarado.** Lo descubierto se marca ausente y conserva su
   historia, que es de donde salen las alertas.
 - **Un enlace declarado NO dispara la alerta de cambio de topologia**: lo movio el
@@ -78,8 +78,8 @@ Dos entradas a lo mismo:
 | nombre | `maxLength: 120` |
 | modelo | `maxLength: 120` |
 | notas | `maxLength: 2000` |
-| numero de boca | validado 1-512 antes de enviar; el `+` del contador se apaga en 512 |
-| tipo de boca | dropdown LAN/WAN, nunca texto libre |
+| numero de puerto | validado 1-512 antes de enviar; el `+` del contador se apaga en 512 |
+| tipo de puerto | dropdown LAN/WAN, nunca texto libre |
 | que es el aparato | dropdown de la **lista unica de categorias**, nunca texto libre. Ver [ref-categorias](ref-categorias.md) |
 | velocidad | dropdown 10/100/1000/2500/10000 + «No se sabe» (guarda NULL) |
 | conexion | dropdown cable/wifi/vacio |
@@ -93,7 +93,7 @@ El servidor valida **lo mismo** y contesta con mensaje de negocio, no con un 500
   evento de presencia cada vez y la alerta de «lleva dias sin aparecer» avisaria
   de un aparato atornillado a la pared. Ver [modulo-escaneo](modulo-escaneo.md).
 - **Reconciliacion con SNMP.** `Base.Contradicciones()` compara cada cable
-  `manual` contra `conexiones_puerto` (bocas confirmadas) y contra `enlaces`
+  `manual` contra `conexiones_puerto` (puertos confirmados) y contra `enlaces`
   (LLDP/CDP). Cuando no cuadran se muestran **las dos versiones** en un aviso rojo
   arriba del mapa; **no se pisa ninguna**. Prioridad al reconciliar:
   `snmp`/`lldp`/`cdp` > `manual` > `inferido`, pero la decision la toma quien

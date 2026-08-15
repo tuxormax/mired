@@ -1,0 +1,12 @@
+# FortiGate: el firewall que hace de router en media oficina mexicana.
+#
+# No tiene protocolo de descubrimiento abierto, pero se delata solo: su
+# certificado de fabrica lleva la organizacion Fortinet y, en el nombre comun, el
+# numero de serie, que empieza por el modelo (FGT60F... es un FortiGate 60F).
+nombre = "FortiGate (firewall)"
+categoria = "router"
+icono = "shield"
+descripcion = "Firewall Fortinet haciendo de puerta de salida. Se reconoce por su certificado, su panel o el puerto 541 de gestion."
+
+[coincidencias]
+huella_contiene = ["fortigate", "fortinet", "fortiwifi", "fgfm"]

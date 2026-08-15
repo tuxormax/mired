@@ -1,5 +1,5 @@
 // Paquete snmp le pregunta a los switches administrables lo que ningun barrido
-// de red puede averiguar por su cuenta: que hay conectado en cada boca.
+// de red puede averiguar por su cuenta: que hay conectado en cada puerto.
 //
 // Corre dentro de mired-sonda. No toca la base de datos: devuelve lo que
 // contesto el equipo y el servidor decide que guardar.
@@ -97,16 +97,16 @@ type Ficha struct {
 	EsSwitch    bool       `json:"esSwitch"`
 	Credencial  string     `json:"credencial"`
 	Interfaces  []Interfaz `json:"interfaces,omitempty"`
-	// MacsPorPuerto son las MAC que el switch ve colgando de cada boca. Es el
+	// MacsPorPuerto son las MAC que el switch ve colgando de cada puerto. Es el
 	// dato que responde "¿que hay conectado en el puerto 7?".
 	MacsPorPuerto map[string][]string `json:"macsPorPuerto,omitempty"`
-	// Contadores son los bytes acumulados de cada boca, por indice de interfaz.
+	// Contadores son los bytes acumulados de cada puerto, por indice de interfaz.
 	Contadores map[int]Contador `json:"contadores,omitempty"`
-	// Vecinos son los equipos que se anunciaron por LLDP en cada boca.
+	// Vecinos son los equipos que se anunciaron por LLDP en cada puerto.
 	Vecinos []Vecino `json:"vecinos,omitempty"`
 }
 
-// Interfaz es una boca del equipo.
+// Interfaz es un puerto del equipo.
 type Interfaz struct {
 	Indice        int    `json:"indice"`
 	Nombre        string `json:"nombre"`
@@ -118,7 +118,7 @@ type Interfaz struct {
 	VelocidadMbps int    `json:"velocidadMbps"`
 }
 
-// Contador son los bytes que han pasado por una boca desde que el switch
+// Contador son los bytes que han pasado por un puerto desde que el switch
 // encendio. El dato util es la resta entre dos lecturas.
 type Contador struct {
 	Entrada uint64 `json:"entrada"`
@@ -128,7 +128,7 @@ type Contador struct {
 	SesentaYCuatro bool `json:"sesentaYCuatro"`
 }
 
-// Vecino es un equipo que se anuncio en una boca, por LLDP o por CDP.
+// Vecino es un equipo que se anuncio en un puerto, por LLDP o por CDP.
 type Vecino struct {
 	InterfazLocal string `json:"interfazLocal"`
 	Nombre        string `json:"nombre"`
@@ -298,7 +298,7 @@ func protocoloPrivacidad(nombre string) gosnmp.SnmpV3PrivProtocol {
 	}
 }
 
-// leerInterfaces arma la tabla de bocas del equipo.
+// leerInterfaces arma la tabla de puertos del equipo.
 func leerInterfaces(conexion *gosnmp.GoSNMP) []Interfaz {
 	porIndice := map[int]*Interfaz{}
 
@@ -357,7 +357,7 @@ func interfaz(porIndice map[int]*Interfaz, numero int) *Interfaz {
 	return nueva
 }
 
-// leerTablaMac averigua que MAC ve el switch en cada boca.
+// leerTablaMac averigua que MAC ve el switch en cada puerto.
 //
 // Es EL dato de la fase: sin el no hay mapa de puertos. Se intenta primero la
 // tabla con VLAN, que es la que llenan los switches modernos, y se cae a la
@@ -397,7 +397,7 @@ func leerTablaMac(conexion *gosnmp.GoSNMP) map[string][]string {
 	return porPuerto
 }
 
-// leerContadores lee los bytes acumulados de cada boca.
+// leerContadores lee los bytes acumulados de cada puerto.
 //
 // Se intentan primero los de 64 bits. Los de 32 se desbordan cada pocos minutos
 // en un puerto gigabit, asi que una resta hecha sobre ellos puede dar cualquier
@@ -467,14 +467,14 @@ func leerVecinos(conexion *gosnmp.GoSNMP, interfaces []Interfaz) []Vecino {
 
 	vecinos := map[string]*Vecino{}
 	tomar := func(sufijo string) *Vecino {
-		boca, ok := bocaLocal(sufijo, 1, porIndice)
+		puerto, ok := puertoLocal(sufijo, 1, porIndice)
 		if !ok {
 			return nil
 		}
 		if existente, hay := vecinos[sufijo]; hay {
 			return existente
 		}
-		nuevo := &Vecino{InterfazLocal: boca}
+		nuevo := &Vecino{InterfazLocal: puerto}
 		vecinos[sufijo] = nuevo
 		return nuevo
 	}
@@ -519,8 +519,8 @@ func leerVecinos(conexion *gosnmp.GoSNMP, interfaces []Interfaz) []Vecino {
 // mitades del parque instalado.
 //
 // La diferencia que importa al leerlo: en CDP el indice de la fila es
-// ifIndexLocal.numeroDeVecino, o sea el **primer** numero es la boca local. En
-// LLDP es el del medio. Confundirlos cuelga cada vecino de la boca equivocada.
+// ifIndexLocal.numeroDeVecino, o sea el **primer** numero es el puerto local. En
+// LLDP es el del medio. Confundirlos cuelga cada vecino del puerto equivocado.
 func leerVecinosCDP(conexion *gosnmp.GoSNMP, interfaces []Interfaz) []Vecino {
 	porIndice := map[int]string{}
 	for _, puerto := range interfaces {
@@ -529,14 +529,14 @@ func leerVecinosCDP(conexion *gosnmp.GoSNMP, interfaces []Interfaz) []Vecino {
 
 	vecinos := map[string]*Vecino{}
 	tomar := func(sufijo string) *Vecino {
-		boca, ok := bocaLocal(sufijo, 0, porIndice)
+		puerto, ok := puertoLocal(sufijo, 0, porIndice)
 		if !ok {
 			return nil
 		}
 		if existente, hay := vecinos[sufijo]; hay {
 			return existente
 		}
-		nuevo := &Vecino{InterfazLocal: boca, Origen: OrigenCDP}
+		nuevo := &Vecino{InterfazLocal: puerto, Origen: OrigenCDP}
 		vecinos[sufijo] = nuevo
 		return nuevo
 	}
@@ -571,7 +571,7 @@ func leerVecinosCDP(conexion *gosnmp.GoSNMP, interfaces []Interfaz) []Vecino {
 	return lista
 }
 
-// bocaLocal saca de que boca del equipo consultado habla una fila de vecinos, y
+// puertoLocal saca de que puerto del equipo consultado habla una fila de vecinos, y
 // la devuelve con el nombre bonito del puerto si se conoce.
 //
 // **Los dos protocolos ponen ese numero en un lugar distinto del indice**, y es
@@ -579,9 +579,9 @@ func leerVecinosCDP(conexion *gosnmp.GoSNMP, interfaces []Interfaz) []Vecino {
 //   - LLDP indexa `tiempo.puertoLocal.numeroDeVecino` → posicion 1, la de en medio.
 //   - CDP indexa `ifIndexLocal.numeroDeVecino` → posicion 0, la primera.
 //
-// Equivocarse no revienta nada: cuelga cada vecino de la boca equivocada, que es
+// Equivocarse no revienta nada: cuelga cada vecino del puerto equivocado, que es
 // mucho peor porque el mapa sale plausible y falso.
-func bocaLocal(sufijo string, posicion int, porIndice map[int]string) (string, bool) {
+func puertoLocal(sufijo string, posicion int, porIndice map[int]string) (string, bool) {
 	partes := strings.Split(sufijo, ".")
 	if posicion >= len(partes) {
 		return "", false

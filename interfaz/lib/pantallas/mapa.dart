@@ -12,12 +12,12 @@ import '../widgets/mensajes.dart';
 import 'mapa_plano.dart';
 import 'topologia_manual.dart';
 
-/// PantallaMapa dibuja la red: los switches arriba y lo que cuelga de cada boca
+/// PantallaMapa dibuja la red: los switches arriba y lo que cuelga de cada puerto
 /// debajo.
 ///
 /// Dos reglas de dibujo que son el corazon del proyecto:
-///  - Lo **confirmado** (una sola MAC en la boca) va con linea llena.
-///  - Lo **inferido** (varias MAC en la misma boca, o sea un switch tonto atras)
+///  - Lo **confirmado** (una sola MAC en el puerto) va con linea llena.
+///  - Lo **inferido** (varias MAC en el mismo puerto, o sea un switch tonto atras)
 ///    va con linea punteada y agrupado. Dibujarlo igual que lo confirmado seria
 ///    mentir sobre lo que se sabe.
 ///  - Lo que no cuelga de ningun switch conocido NO se esconde: va aparte, en su
@@ -72,15 +72,15 @@ class _PantallaMapaState extends State<PantallaMapa> {
   ///
   /// Se eligio clic-clic y no arrastre libre: arrastrar equipos sobre un lienzo
   /// exige deteccion de colisiones en el pintor para un beneficio marginal.
-  /// Tocar una boca y elegir del menu resuelve lo mismo y se entiende solo.
+  /// Tocar un puerto y elegir del menu resuelve lo mismo y se entiende solo.
   Future<void> _alTocar(Offset donde, Plano plano, DatosMapa datos) async {
     // De la ultima a la primera: las cajas se pintan en orden, asi que la de
     // encima es la ultima que se dibujo.
     for (final caja in plano.cajas.reversed) {
       if (!caja.rectangulo.contains(donde)) continue;
 
-      if (caja.bocaLibre && caja.puertoFisicoId != null) {
-        await _conectarBoca(caja.puertoFisicoId!, datos);
+      if (caja.puertoLibre && caja.puertoFisicoId != null) {
+        await _conectarPuerto(caja.puertoFisicoId!, datos);
         return;
       }
       if (caja.enlaceId != null) {
@@ -96,7 +96,7 @@ class _PantallaMapaState extends State<PantallaMapa> {
     }
   }
 
-  Future<void> _conectarBoca(int puertoId, DatosMapa datos) async {
+  Future<void> _conectarPuerto(int puertoId, DatosMapa datos) async {
     final eleccion = await showModalBottomSheet<String>(
       context: context,
       builder: (contextoHoja) => SafeArea(
@@ -112,7 +112,7 @@ class _PantallaMapaState extends State<PantallaMapa> {
             ListTile(
               leading: const Icon(Icons.link),
               title: const Text('Conectar uno que ya se descubrio'),
-              subtitle: const Text('De los que todavia no estan en ninguna boca'),
+              subtitle: const Text('De los que todavia no estan en ningun puerto'),
               onTap: () => Navigator.of(contextoHoja).pop('existente'),
             ),
           ],
@@ -130,14 +130,31 @@ class _PantallaMapaState extends State<PantallaMapa> {
     } else {
       destino = await showDialog<Equipo>(
         context: context,
-        builder: (_) => DialogoElegirEquipo(candidatos: datos.sinUbicar),
+        builder: (_) => DialogoElegirEquipo(candidatos: datos.conectablesDesde(puertoId)),
       );
     }
-    if (destino == null) return;
+    if (destino == null || !mounted) return;
+
+    // Si el otro extremo tiene puertos declarados, hay que decir en CUAL entra
+    // el cable. Un cable ocupa un puerto en las dos puntas: sin esto, un switch
+    // de 5 puertos colgado del modem seguia diciendo que tenia 5 libres.
+    int? puertoDestinoId;
+    final libres = datos.topologia.puertosLibresDe(destino.id);
+    if (libres.isNotEmpty) {
+      final elegido = await showDialog<int>(
+        context: context,
+        builder: (_) => DialogoElegirPuerto(equipo: destino!, puertos: libres),
+      );
+      if (elegido == null) return;
+      // 0 es "no se en cual": se conecta contra el aparato, como antes.
+      if (elegido > 0) puertoDestinoId = elegido;
+    }
 
     try {
-      await Api.instancia
-          .conectar(widget.red.clave, puertoOrigenId: puertoId, equipoDestinoId: destino.id);
+      await Api.instancia.conectar(widget.red.clave,
+          puertoOrigenId: puertoId,
+          puertoDestinoId: puertoDestinoId,
+          equipoDestinoId: puertoDestinoId == null ? destino.id : null);
       _recargar();
     } catch (problema, pila) {
       if (mounted) await mostrarProblema(context, problema, pila: pila.toString());
@@ -150,7 +167,7 @@ class _PantallaMapaState extends State<PantallaMapa> {
       builder: (contextoModal) => AlertDialog(
         title: const Text('Quitar el cable'),
         content: const Text(
-            'Se borra solo lo que se declaro a mano. La boca queda libre y el equipo '
+            'Se borra solo lo que se declaro a mano. El puerto queda libre y el equipo '
             'vuelve a la zona de los que no cuelgan de ningun sitio conocido.'),
         actions: [
           TextButton(
@@ -175,7 +192,7 @@ class _PantallaMapaState extends State<PantallaMapa> {
   Future<void> _menuDeEquipo(Equipo equipo, DatosMapa datos) async {
     final cambio = await showDialog<bool>(
       context: context,
-      builder: (_) => DialogoBocas(clave: widget.red.clave, equipo: equipo),
+      builder: (_) => DialogoPuertos(clave: widget.red.clave, equipo: equipo),
     );
     if (cambio == true) _recargar();
   }
@@ -203,12 +220,14 @@ class _PantallaMapaState extends State<PantallaMapa> {
       // Las DOS fechas, y la de los datos primero: un mapa exportado hoy con
       // datos de hace tres semanas no es un mapa de hoy, y quien lo reciba tiene
       // que poder saberlo sin preguntar. Va en los CUATRO formatos, CSV incluido.
+      // La frase se arma entera, no pegando un "del" delante de lo que salga:
+      // sin escaneo previo quedaba "Datos del sin escanear todavia".
       final deCuandoSonLosDatos = datos.mapa.momento.isEmpty
-          ? 'sin escanear todavia'
-          : _enPalabras(datos.mapa.momento);
+          ? 'Todavia sin escanear'
+          : 'Datos del ${_enPalabras(datos.mapa.momento)}';
       final encabezado = EncabezadoMapa(
         titulo: 'Mapa de ${widget.red.nombre}',
-        subtitulo: 'Datos del $deCuandoSonLosDatos'
+        subtitulo: '$deCuandoSonLosDatos'
             '  ·  Exportado el '
             '${momento.toIso8601String().substring(0, 19).replaceFirst('T', ' ')}'
             '  ·  ${Api.instancia.version}',
@@ -444,8 +463,8 @@ class _BarraEdicion extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Modo edicion: toque una boca libre para conectarle algo, un equipo '
-              'para declarar sus bocas, o un cable declarado para quitarlo.',
+              'Modo edicion: toque un puerto libre para conectarle algo, un equipo '
+              'para declarar sus puertos, o un cable declarado para quitarlo.',
               style: Theme.of(contexto)
                   .textTheme
                   .labelMedium
@@ -500,7 +519,7 @@ class _AvisoContradicciones extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(left: 26, top: 2),
               child: Text(
-                '${choque.equipoNombre}, boca ${choque.numero}: usted declaro '
+                '${choque.equipoNombre}, puerto ${choque.numero}: usted declaro '
                 '"${choque.declarado}" y ${choque.fuente.toUpperCase()} dice '
                 '"${choque.medido}".',
                 style: Theme.of(contexto)

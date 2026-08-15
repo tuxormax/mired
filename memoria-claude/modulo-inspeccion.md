@@ -57,7 +57,7 @@ servidor recogiendo), `internal/basedatos/aplicaciones.go` (persistencia).
   pais quedaria agrupado bajo "com.mx".
 
 ## Sin puerto espejo no mide casi nada
-Un switch manda a cada boca solo lo suyo. **Hace falta un puerto espejo (SPAN)**
+Un switch manda a cada puerto solo lo suyo. **Hace falta un puerto espejo (SPAN)**
 copiando hacia la tarjeta configurada en `[dpi] interfaz`. Sin el no falla: mide
 poco. Por eso `Estado` lleva la cuenta de **paquetes vistos** y avisa cuando son
 menos de 100: es el unico dato que dice si el espejo esta bien configurado.

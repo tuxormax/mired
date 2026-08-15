@@ -13,6 +13,43 @@ metadata:
 Bitacora cronologica. El **tripwire** de cada uno vive en [[gotchas]] o en el
 `bug-*.md` que corresponda; aqui queda la cronica.
 
+## 2026-08-15 — Media red salia como "Servidor web"
+**Problema:** el modem, la television y el AP aparecian los tres como "Servidor
+web", y el contador los sumaba en "Servidores".
+**Causa:** dos cosas encadenadas. (1) La lista de fabricantes embebida tenia
+**99 prefijos** y ninguno de los de esta red, asi que nadie tenia fabricante.
+(2) Sin fabricante, la unica definicion que coincidia era la mas debil de todas
+—"tiene el 80 abierto"—, que ademas se llamaba "Servidor web" y contaba como
+servidor.
+**Solucion:** el paquete instala la lista completa de la IEEE (52 977 prefijos,
+con los bloques de 28 y 36 bits, y gana el mas largo) y las definiciones que
+describen un SINTOMA se marcan `generico = true`: solo contestan si ninguna otra
+pudo. Ademas se agrego el reconocimiento por huella (modulo 16). Ver
+[[modulo-reconocimiento]].
+
+## 2026-08-15 — La PC donde corre MiRed no aparecia en su propio inventario
+**Problema:** 192.168.1.100 —el equipo que corre MiRed— era el unico aparato de
+la casa que no salia en la lista.
+**Causa:** nadie se manda un ARP a su propia direccion, y la respuesta al ping
+propio va por dentro sin salir a la red. Las dos capas de descubrimiento lo
+saltaban por construccion.
+**Solucion:** `anotarEsteEquipo` en `internal/escaneo`: la sonda lee sus propias
+tarjetas y se anota con metodo `propio`, que es el dato mas firme de todos (por
+encima de arp).
+
+## 2026-08-15 — El switch salia dos veces en el mapa y su uplink no ocupaba puerto
+**Problema:** un switch de 5 puertos colgado del modem se dibujaba dos veces
+—una como caja bajo el puerto del modem y otra como bloque suelto con sus
+puertos— y seguia ofreciendo 5 puertos libres cuando uno lo ocupa el cable que
+sube al modem.
+**Causa:** el plano dibujaba en DOS niveles fijos, sin arbol, y la interfaz solo
+sabia conectar contra un EQUIPO (`equipoDestinoId`), nunca contra un puerto del
+otro extremo, aunque la base lo soportaba desde 0011.
+**Solucion:** `_ArbolDeclarado` en `mapa_plano.dart` (cada aparato se dibuja una
+vez, colgando de quien lo alimenta) y `DialogoElegirPuerto` al conectar contra un
+aparato con puertos declarados. Migracion 0014: un puerto tampoco puede recibir
+dos cables por el lado del destino.
+
 ## 2026-08-12 — `dpkg-deb` rechazaba el paquete por permisos 2775
 **Problema:** al armar el `.deb`, `dpkg-deb` abortaba con "el directorio de
 control tiene permisos erroneos".

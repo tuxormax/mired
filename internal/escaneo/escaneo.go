@@ -22,11 +22,13 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"os"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/tuxormax/mired/internal/huella"
 	"github.com/tuxormax/mired/internal/sonda"
 )
 
@@ -91,6 +93,13 @@ func Barrer(ctx context.Context, peticion sonda.PeticionEscaneo) (sonda.Resultad
 			}
 		}
 
+		// El equipo donde corre MiRed no se descubre a si mismo: nadie se manda
+		// un ARP a su propia direccion, y su respuesta al ping va por dentro sin
+		// salir a la red. Sin esto, la PC del usuario es el unico aparato de la
+		// casa que falta en el inventario. No hace falta preguntarselo a nadie:
+		// sus tarjetas dicen su IP y su MAC.
+		anotarEsteEquipo(vistos, prefijo)
+
 		// ICMP cubre lo que no es local y, en la subred local, lo que tiene la
 		// MAC en cache pero no contesto el ARP de este barrido.
 		hayICMP := true
@@ -128,6 +137,7 @@ func Barrer(ctx context.Context, peticion sonda.PeticionEscaneo) (sonda.Resultad
 	if !peticion.SoloPresencia {
 		revisarPuertos(ctx, vistos, puertos, esperaPuerto)
 		resolverNombres(ctx, vistos)
+		recogerHuellas(ctx, vistos, esperaBarrido, esperaPuerto)
 	}
 
 	for _, equipo := range vistos {
@@ -163,6 +173,146 @@ func anotar(vistos map[string]*sonda.EquipoVisto, ip netip.Addr, subred, metodo 
 	}
 }
 
+// recogerHuellas le pregunta a cada aparato QUE es.
+//
+// Va en dos tiempos, porque son dos naturalezas distintas:
+//
+//  1. Una sola pregunta a toda la red —mDNS, UPnP, WS-Discovery, SADP—, que trae
+//     el nombre y el modelo de las televisiones, los Chromecast, las impresoras
+//     y las camaras sin tocarle un puerto a nadie.
+//  2. Una tanda de preguntas a cada direccion: su pagina, su certificado y el
+//     protocolo propio de su fabricante.
+//
+// Solo corre en el escaneo profundo. El barrido de presencia tiene que seguir
+// siendo lo que es: rapido y barato.
+func recogerHuellas(ctx context.Context, vistos map[string]*sonda.EquipoVisto,
+	esperaRed, esperaEquipo time.Duration) {
+	if len(vistos) == 0 {
+		return
+	}
+
+	// Lo que se le pregunta al grupo entero, una vez por barrido.
+	deLaRed := huella.PreguntarALaRed(ctx, esperaRed)
+	for ip, datos := range deLaRed {
+		if equipo, hay := vistos[ip]; hay {
+			equipo.Huella = append(equipo.Huella, comoDatosDeSonda(datos)...)
+		}
+	}
+
+	// Y lo que se le pregunta a cada uno, con el mismo tope de conexiones a la
+	// vez que el resto del escaneo para no ahogar una red chica.
+	permisos := make(chan struct{}, paralelismoPuertos/8+1)
+	var candado sync.Mutex
+	var grupo sync.WaitGroup
+
+	for _, equipo := range vistos {
+		grupo.Add(1)
+		go func(destino *sonda.EquipoVisto) {
+			defer grupo.Done()
+			permisos <- struct{}{}
+			defer func() { <-permisos }()
+
+			if ctx.Err() != nil {
+				return
+			}
+			abiertos := make([]int, 0, len(destino.Puertos))
+			for _, puerto := range destino.Puertos {
+				abiertos = append(abiertos, puerto.Numero)
+			}
+
+			datos := huella.DeUnEquipo(ctx, destino.IP, abiertos, esperaEquipo)
+			if len(datos) == 0 {
+				return
+			}
+			candado.Lock()
+			destino.Huella = append(destino.Huella, comoDatosDeSonda(datos)...)
+			candado.Unlock()
+		}(equipo)
+	}
+	grupo.Wait()
+
+	// Se quitan los repetidos: la misma marca puede llegar por la pagina y por
+	// UPnP, y guardarla dos veces no agrega nada.
+	for _, equipo := range vistos {
+		equipo.Huella = sinRepetir(equipo.Huella)
+	}
+}
+
+func comoDatosDeSonda(datos []huella.Dato) []sonda.DatoHuella {
+	convertidos := make([]sonda.DatoHuella, 0, len(datos))
+	for _, dato := range datos {
+		convertidos = append(convertidos, sonda.DatoHuella{
+			Fuente: dato.Fuente, Clave: dato.Clave, Valor: dato.Valor,
+		})
+	}
+	return convertidos
+}
+
+func sinRepetir(datos []sonda.DatoHuella) []sonda.DatoHuella {
+	vistos := map[string]bool{}
+	limpios := make([]sonda.DatoHuella, 0, len(datos))
+	for _, dato := range datos {
+		clave := dato.Fuente + "|" + dato.Clave + "|" + dato.Valor
+		if vistos[clave] {
+			continue
+		}
+		vistos[clave] = true
+		limpios = append(limpios, dato)
+	}
+	sort.Slice(limpios, func(i, j int) bool {
+		if limpios[i].Fuente != limpios[j].Fuente {
+			return limpios[i].Fuente < limpios[j].Fuente
+		}
+		if limpios[i].Clave != limpios[j].Clave {
+			return limpios[i].Clave < limpios[j].Clave
+		}
+		return limpios[i].Valor < limpios[j].Valor
+	})
+	return limpios
+}
+
+// anotarEsteEquipo agrega las direcciones propias que caen dentro del rango.
+//
+// Se anota con el metodo "propio", que es el dato mas firme de todos: no es que
+// algo contesto en esa direccion, es que esa direccion ES de este equipo.
+func anotarEsteEquipo(vistos map[string]*sonda.EquipoVisto, prefijo netip.Prefix) {
+	tarjetas, err := net.Interfaces()
+	if err != nil {
+		return
+	}
+
+	nombre, _ := os.Hostname()
+
+	for i := range tarjetas {
+		if tarjetas[i].Flags&net.FlagUp == 0 || tarjetas[i].Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		direcciones, err := tarjetas[i].Addrs()
+		if err != nil {
+			continue
+		}
+		for _, direccion := range direcciones {
+			red, ok := direccion.(*net.IPNet)
+			if !ok {
+				continue
+			}
+			propia, ok := netip.AddrFromSlice(red.IP)
+			if !ok {
+				continue
+			}
+			propia = propia.Unmap()
+			if !prefijo.Contains(propia) {
+				continue
+			}
+
+			anotar(vistos, propia, prefijo.String(), "propio", tarjetas[i].HardwareAddr)
+			if equipo := vistos[propia.String()]; equipo != nil && equipo.Nombre == "" {
+				equipo.Nombre = nombre
+			}
+		}
+	}
+}
+
 // sinEquiposDe dice si esta subred no aporto ningun equipo todavia.
 func sinEquiposDe(vistos map[string]*sonda.EquipoVisto, subred string) bool {
 	for _, equipo := range vistos {
@@ -175,6 +325,9 @@ func sinEquiposDe(vistos map[string]*sonda.EquipoVisto, subred string) bool {
 
 func confianza(metodo string) int {
 	switch metodo {
+	case "propio":
+		// Es este mismo equipo: no hay dato mas seguro que ese.
+		return 4
 	case "arp":
 		return 3
 	case "icmp":

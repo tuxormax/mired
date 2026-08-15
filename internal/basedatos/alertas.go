@@ -339,9 +339,9 @@ func (b *Base) alertasCambioIP(ctx context.Context, escaneoID int64) ([]Alerta, 
 	return alertas, filas.Err()
 }
 
-// AlertasDeMovimiento avisa de los equipos que se cambiaron de boca del switch.
+// AlertasDeMovimiento avisa de los equipos que se cambiaron de puerto del switch.
 //
-// Solo se llama con movimientos entre bocas CONFIRMADAS: en una boca compartida
+// Solo se llama con movimientos entre puertos CONFIRMADOS: en un puerto compartido
 // nunca se supo cual equipo estaba donde, asi que decir que se movio seria
 // inventar.
 func (b *Base) AlertasDeMovimiento(ctx context.Context, movimientos []MovimientoDePuerto) error {

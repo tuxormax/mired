@@ -202,7 +202,7 @@ func (s *Servicio) correr(clave string, escaneoID int64, subredes []string, solo
 		s.consultarSNMP(ctx, clave, resultado.Equipos)
 		// Las controladoras WiFi van DESPUES de SNMP: lo que dicen se guarda por
 		// el mismo camino, y asi el punto de acceso ya existe como equipo con sus
-		// bocas antes de colgarle los equipos inalambricos.
+		// puertos antes de colgarle los equipos inalambricos.
 		s.consultarControladoras(ctx, clave)
 		s.reconocer(ctx, clave)
 	}
@@ -232,6 +232,13 @@ func convertir(vistos []sonda.EquipoVisto) []basedatos.EquipoDescubierto {
 				Banner:    puerto.Banner,
 			})
 		}
+		huella := make([]basedatos.DatoHuella, 0, len(visto.Huella))
+		for _, dato := range visto.Huella {
+			huella = append(huella, basedatos.DatoHuella{
+				Fuente: dato.Fuente, Clave: dato.Clave, Valor: dato.Valor,
+			})
+		}
+
 		equipos = append(equipos, basedatos.EquipoDescubierto{
 			IP:         visto.IP,
 			MAC:        visto.MAC,
@@ -240,6 +247,7 @@ func convertir(vistos []sonda.EquipoVisto) []basedatos.EquipoDescubierto {
 			Metodo:     visto.Metodo,
 			Subred:     visto.Subred,
 			Puertos:    puertos,
+			Huella:     huella,
 		})
 	}
 	return equipos
@@ -504,7 +512,7 @@ func (s *Servicio) consultarSNMP(ctx context.Context, clave string, vistos []son
 		if err != nil {
 			return err
 		}
-		// Que un equipo se cambie de boca es un hecho que solo se ve aqui, y en
+		// Que un equipo se cambie de puerto es un hecho que solo se ve aqui, y en
 		// una red con puertos documentados es justo lo que interesa saber.
 		if len(movimientos) > 0 {
 			if err := base.AlertasDeMovimiento(ctx, movimientos); err != nil {
@@ -563,6 +571,8 @@ func (s *Servicio) reconocer(ctx context.Context, clave string) {
 				Puertos:    equipo.Puertos,
 				Banners:    equipo.Banners,
 				SnmpDescr:  equipo.SnmpDescr,
+				Huella:     equipo.Huella,
+				Modelo:     equipo.Modelo,
 			})
 			if definicion == nil {
 				// Sin coincidencia se deja vacio a proposito: la interfaz lo usa

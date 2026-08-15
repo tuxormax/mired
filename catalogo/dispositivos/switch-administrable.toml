@@ -3,7 +3,7 @@
 nombre = "Switch administrable"
 categoria = "switch_administrable"
 icono = "router"
-descripcion = "Switch que contesta SNMP y reporta en que boca esta cada equipo."
+descripcion = "Switch que contesta SNMP y reporta en que puerto esta cada equipo."
 
 [coincidencias]
 snmp_contiene = ["switch", "ethernet switch"]

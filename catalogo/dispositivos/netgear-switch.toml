@@ -1,0 +1,9 @@
+# Los switches ProSafe de Netgear contestan NSDP con su modelo. Las familias GS,
+# JGS, MS y XS son switches; los routers de casa (R, RAX, WNDR) no.
+nombre = "Switch NETGEAR"
+categoria = "switch_administrable"
+icono = "lan"
+descripcion = "Switch NETGEAR administrable, de los que contestan NSDP."
+
+[coincidencias]
+modelo_contiene = ["gs1", "gs3", "gs7", "jgs", "ms1", "xs7"]

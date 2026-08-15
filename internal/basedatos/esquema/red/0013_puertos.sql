@@ -1,0 +1,15 @@
+-- El vocabulario: lo que se llamaba "boca" ahora se llama PUERTO.
+--
+-- La palabra "boca" era un intento de no confundir el conector fisico de un
+-- switch con un puerto TCP, pero el sistema ya decia "puerto" en todo lo
+-- importante —las tablas puertos_fisicos y conexiones_puerto, las columnas
+-- puerto_origen_id y puerto_destino_id, y la pantalla del mapa—, asi que la
+-- palabra rara sobrevivia en una sola columna y en los textos.
+--
+-- Donde el conector fisico y el puerto TCP puedan confundirse, el nombre largo
+-- es "puerto fisico"; el puerto TCP se dice siempre "puerto TCP".
+--
+-- La migracion 0004 NO se toca: una migracion ya aplicada se queda como se
+-- aplico, y el cambio de nombre se hace aqui para que una base vieja y una
+-- recien creada terminen exactamente iguales.
+ALTER TABLE conexiones_puerto RENAME COLUMN cuantos_en_boca TO cuantos_en_puerto;

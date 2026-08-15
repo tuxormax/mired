@@ -435,7 +435,7 @@ String csvDelMapa(DatosMapa datos, [EncabezadoMapa? encabezado]) {
       _paraCsv('${encabezado.titulo} — ${encabezado.subtitulo}'),
       '',
     ],
-    'switch,ip_switch,puerto,equipo,ip_equipo,mac,certeza,equipos_en_la_boca,origen_del_dato',
+    'switch,ip_switch,puerto,equipo,ip_equipo,mac,certeza,equipos_en_el_puerto,origen_del_dato',
   ];
   for (final puerto in datos.mapa.puertos) {
     renglones.add([
@@ -446,7 +446,7 @@ String csvDelMapa(DatosMapa datos, [EncabezadoMapa? encabezado]) {
       puerto.equipoIp,
       puerto.mac,
       puerto.confirmado ? 'confirmado' : 'grupo',
-      '${puerto.cuantosEnBoca}',
+      '${puerto.cuantosEnPuerto}',
       'snmp',
     ].map(_paraCsv).join(','));
   }
@@ -454,10 +454,10 @@ String csvDelMapa(DatosMapa datos, [EncabezadoMapa? encabezado]) {
   // Lo declarado a mano va con su propia columna de origen. Mezclarlo con lo
   // medido sin decir cual es cual convertiria la hoja en un inventario que
   // parece comprobado y no lo esta.
-  for (final boca in datos.topologia.puertos) {
-    final equipo = datos.equipoPorId(boca.equipoId);
-    final cable = datos.topologia.enlaceDe(boca.id);
-    final soyOrigen = cable != null && cable.puertoOrigenId == boca.id;
+  for (final puerto in datos.topologia.puertos) {
+    final equipo = datos.equipoPorId(puerto.equipoId);
+    final cable = datos.topologia.enlaceDe(puerto.id);
+    final soyOrigen = cable != null && cable.puertoOrigenId == puerto.id;
     final otroLado = cable == null
         ? ''
         : (soyOrigen ? cable.destinoNombre : cable.origenNombre);
@@ -467,11 +467,11 @@ String csvDelMapa(DatosMapa datos, [EncabezadoMapa? encabezado]) {
     renglones.add([
       equipo?.comoSeLlama ?? '',
       equipo?.ip ?? '',
-      boca.tipo == 'wan' ? 'WAN' : 'boca ${boca.numero}',
+      puerto.tipo == 'wan' ? 'WAN' : 'puerto ${puerto.numero}',
       otroLado,
       destino?.ip ?? '',
       destino?.mac ?? '',
-      cable == null ? 'boca libre' : 'declarado a mano',
+      cable == null ? 'puerto libre' : 'declarado a mano',
       '',
       cable?.origenDato ?? 'manual',
     ].map(_paraCsv).join(','));

@@ -11,7 +11,7 @@ metadata:
 # Modulo: SNMP y mapa de puertos
 
 **Que hace:** le pregunta a los switches administrables que hay conectado en cada
-boca. Es lo unico que ningun barrido puede averiguar solo.
+puerto. Es lo unico que ningun barrido puede averiguar solo.
 
 **Donde vive:** `internal/snmp/cliente.go` (corre en la sonda),
 `internal/basedatos/topologia.go` (persistencia y armado),
@@ -26,14 +26,14 @@ boca. Es lo unico que ningun barrido puede averiguar solo.
    LLDP.
 
 ## La decision honesta del proyecto
-- Boca con **UNA** MAC → enlace **confirmado**: ahi cuelga ese aparato.
-- Boca con **VARIAS** MAC → **grupo**: atras hay un switch no administrable o un
-  punto de acceso. Se guarda `cuantos_en_boca` y `confirmado = 0`.
+- Puerto con **UNA** MAC → enlace **confirmado**: ahi cuelga ese aparato.
+- Puerto con **VARIAS** MAC → **grupo**: atras hay un switch no administrable o un
+  punto de acceso. Se guarda `cuantos_en_puerto` y `confirmado = 0`.
   **Inventarle un puerto a cada uno seria mentir**, y un plano con datos
   inventados es peor que no tenerlo.
 
 ## Perfil de capacidades por red (`ficha.capacidad_mapa_puertos`)
-`exacta` (hay bocas confirmadas) · `por_grupo` (solo grupos) · `no_disponible`
+`exacta` (hay puertos confirmados) · `por_grupo` (solo grupos) · `no_disponible`
 (ningun switch contesto) · `desconocida` (todavia no se consulta).
 **Se recalcula tambien cuando NADIE contesta**: que nadie conteste es una
 respuesta, y la interfaz la explica en vez de quedarse en "desconocida".
@@ -46,7 +46,7 @@ respuesta, y la interfaz la explica en vez de quedarse en "desconocida".
 - Se intenta primero `dot1qTpFdbPort` (con VLAN) y se cae a la clasica.
 - `BulkWalk` no existe en SNMPv1: ahi se usa `Walk`.
 - La tabla de reenvio es una **foto**: al guardar se borran las conexiones
-  anteriores de ese switch, o un equipo que se cambio de boca apareceria en dos.
+  anteriores de ese switch, o un equipo que se cambio de puerto apareceria en dos.
 
 ## El mapa y su exportacion (interfaz)
 El calculo de posiciones y el pintor viven en

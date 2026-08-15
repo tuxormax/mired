@@ -1,3 +1,6 @@
+# Ubiquiti: antenas, UniFi y switches. Se reconoce por dos caminos y basta con
+# uno: el prefijo de su MAC, o lo que contesta su propio protocolo de
+# descubrimiento (que ademas dice el modelo, el firmware y el SSID que emite).
 nombre = "Ubiquiti"
 categoria = "punto_de_acceso"
 icono = "wifi"

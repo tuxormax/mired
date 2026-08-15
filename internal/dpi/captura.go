@@ -21,8 +21,8 @@ import (
 // dependencias.
 //
 // **Para que esto sirva de algo hace falta un puerto espejo.** Un switch manda a
-// cada boca solo lo suyo, asi que un equipo conectado normalmente ve su propio
-// trafico y poco mas. Hay que decirle al switch que copie a la boca de MiRed
+// cada puerto solo lo suyo, asi que un equipo conectado normalmente ve su propio
+// trafico y poco mas. Hay que decirle al switch que copie al puerto de MiRed
 // todo lo que pasa por otra —lo que se llama puerto espejo o SPAN—. Sin eso,
 // esto no falla: mide menos, y el informe lo dice.
 

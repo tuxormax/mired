@@ -10,7 +10,7 @@ import (
 // va a ver jamas. Toda esta parte existe para que ese aparato pueda estar en el
 // mapa sin que se confunda con lo que si se midio.
 
-func TestUnSwitchTontoSeDeclaraConSusBocas(t *testing.T) {
+func TestUnSwitchTontoSeDeclaraConSusPuertos(t *testing.T) {
 	_, base, devolver := conRedDePrueba(t)
 	defer devolver()
 	ctx := context.Background()
@@ -31,10 +31,10 @@ func TestUnSwitchTontoSeDeclaraConSusBocas(t *testing.T) {
 
 	puertos, err := base.ListarPuertosFisicos(ctx)
 	if err != nil {
-		t.Fatalf("no se pudieron leer las bocas: %v", err)
+		t.Fatalf("no se pudieron leer los puertos: %v", err)
 	}
 	if len(puertos) != 8 {
-		t.Fatalf("se pidieron 8 bocas y hay %d", len(puertos))
+		t.Fatalf("se pidieron 8 puertos y hay %d", len(puertos))
 	}
 
 	// Repetir el nombre en la misma red se rechaza con un mensaje de negocio, no
@@ -73,7 +73,7 @@ func TestUnEquipoDeclaradoNoSeMarcaAusenteAlEscanear(t *testing.T) {
 	}
 }
 
-func TestUnaBocaLlevaUnSoloCable(t *testing.T) {
+func TestUnPuertoLlevaUnSoloCable(t *testing.T) {
 	_, base, devolver := conRedDePrueba(t)
 	defer devolver()
 	ctx := context.Background()
@@ -98,20 +98,20 @@ func TestUnaBocaLlevaUnSoloCable(t *testing.T) {
 	}
 
 	puertos, _ := base.ListarPuertosFisicos(ctx)
-	boca := puertos[0].ID
+	puerto := puertos[0].ID
 
 	if _, err := base.CrearEnlaceManual(ctx, EnlaceFisico{
-		PuertoOrigenID: boca, EquipoDestinoID: &laptop,
+		PuertoOrigenID: puerto, EquipoDestinoID: &laptop,
 	}); err != nil {
 		t.Fatalf("no se pudo conectar la laptop: %v", err)
 	}
 
-	// Volver a conectar la MISMA boca reemplaza: dos cables en una boca serian
+	// Volver a conectar el MISMO puerto reemplaza: dos cables en un puerto serian
 	// dos verdades incompatibles colgando del mismo sitio.
 	if _, err := base.CrearEnlaceManual(ctx, EnlaceFisico{
-		PuertoOrigenID: boca, EquipoDestinoID: &impresora,
+		PuertoOrigenID: puerto, EquipoDestinoID: &impresora,
 	}); err != nil {
-		t.Fatalf("no se pudo reconectar la boca: %v", err)
+		t.Fatalf("no se pudo reconectar el puerto: %v", err)
 	}
 
 	enlaces, err := base.ListarEnlacesFisicos(ctx)
@@ -119,7 +119,7 @@ func TestUnaBocaLlevaUnSoloCable(t *testing.T) {
 		t.Fatalf("no se pudieron leer los cables: %v", err)
 	}
 	if len(enlaces) != 1 {
-		t.Fatalf("una boca deberia llevar un solo cable y hay %d", len(enlaces))
+		t.Fatalf("un puerto deberia llevar un solo cable y hay %d", len(enlaces))
 	}
 	if enlaces[0].EquipoDestinoID == nil || *enlaces[0].EquipoDestinoID != impresora {
 		t.Fatalf("el cable quedo apuntando al equipo viejo: %+v", enlaces[0])
@@ -184,14 +184,14 @@ func TestSNMPQueContradiceLoDeclaradoSeReporta(t *testing.T) {
 		}
 	}
 
-	boca, err := base.AgregarPuertoFisico(ctx, PuertoFisico{
+	puerto, err := base.AgregarPuertoFisico(ctx, PuertoFisico{
 		EquipoID: elSwitch, Numero: 5, Tipo: "lan",
 	})
 	if err != nil {
-		t.Fatalf("no se pudo declarar la boca: %v", err)
+		t.Fatalf("no se pudo declarar el puerto: %v", err)
 	}
 	if _, err := base.CrearEnlaceManual(ctx, EnlaceFisico{
-		PuertoOrigenID: boca.ID, EquipoDestinoID: &declarado,
+		PuertoOrigenID: puerto.ID, EquipoDestinoID: &declarado,
 	}); err != nil {
 		t.Fatalf("no se pudo declarar el cable: %v", err)
 	}
@@ -205,7 +205,7 @@ func TestSNMPQueContradiceLoDeclaradoSeReporta(t *testing.T) {
 		t.Fatalf("no deberia haber contradicciones todavia: %+v", choques)
 	}
 
-	// Ahora el switch contesta, y dice otra cosa en esa misma boca.
+	// Ahora el switch contesta, y dice otra cosa en ese mismo puerto.
 	if _, err := base.GuardarSNMP(ctx, []FichaSNMP{{
 		IP: "192.168.1.1", Nombre: "sw-nuevo", EsSwitch: true,
 		Interfaces:    []InterfazSNMP{{Indice: 5, Nombre: "Gi0/5", Activa: true}},
@@ -364,5 +364,126 @@ func TestElCatalogoNoPisaLoQueSeDeclaroAMano(t *testing.T) {
 		if equipo.ID == creado.ID && equipo.Categoria != "gateway" {
 			t.Fatalf("el catalogo piso lo que declaro una persona: %q", equipo.Categoria)
 		}
+	}
+}
+
+func TestElCableOcupaUnPuertoEnLasDosPuntas(t *testing.T) {
+	// El caso de una casa: un modem con un switch colgado. Si el cable solo
+	// ocupa el puerto del modem, el switch de cinco sigue diciendo que tiene
+	// cinco libres, y esa cuenta es justamente la que se usa para saber cuanto
+	// lugar queda.
+	_, base, devolver := conRedDePrueba(t)
+	defer devolver()
+	ctx := context.Background()
+
+	modem, err := base.CrearEquipoManual(ctx, EquipoManual{
+		Nombre: "Modem", Categoria: "gateway", Puertos: 1})
+	if err != nil {
+		t.Fatalf("no se pudo declarar el modem: %v", err)
+	}
+	conmutador, err := base.CrearEquipoManual(ctx, EquipoManual{
+		Nombre: "Switch", Categoria: "switch_simple", Puertos: 5})
+	if err != nil {
+		t.Fatalf("no se pudo declarar el switch: %v", err)
+	}
+
+	puertos, _ := base.ListarPuertosFisicos(ctx)
+	var delModem, delSwitch []int64
+	for _, puerto := range puertos {
+		switch puerto.EquipoID {
+		case modem.ID:
+			delModem = append(delModem, puerto.ID)
+		case conmutador.ID:
+			delSwitch = append(delSwitch, puerto.ID)
+		}
+	}
+	if len(delModem) != 1 || len(delSwitch) != 5 {
+		t.Fatalf("se esperaban 1 y 5 puertos y hay %d y %d", len(delModem), len(delSwitch))
+	}
+
+	uplink := delSwitch[4]
+	if _, err := base.CrearEnlaceManual(ctx, EnlaceFisico{
+		PuertoOrigenID: delModem[0], PuertoDestinoID: &uplink,
+	}); err != nil {
+		t.Fatalf("no se pudo conectar puerto contra puerto: %v", err)
+	}
+
+	topologia, err := base.LeerTopologiaManual(ctx)
+	if err != nil {
+		t.Fatalf("no se pudo leer la topologia: %v", err)
+	}
+
+	ocupados := map[int64]bool{}
+	for _, enlace := range topologia.Enlaces {
+		ocupados[enlace.PuertoOrigenID] = true
+		if enlace.PuertoDestinoID != nil {
+			ocupados[*enlace.PuertoDestinoID] = true
+		}
+	}
+	if !ocupados[uplink] {
+		t.Fatal("el puerto del switch por donde sube el cable tiene que quedar ocupado")
+	}
+
+	libres := 0
+	for _, puerto := range delSwitch {
+		if !ocupados[puerto] {
+			libres++
+		}
+	}
+	if libres != 4 {
+		t.Fatalf("al switch de cinco con el uplink puesto le quedan 4 libres, no %d", libres)
+	}
+}
+
+func TestUnPuertoDeDestinoTampocoLlevaDosCables(t *testing.T) {
+	_, base, devolver := conRedDePrueba(t)
+	defer devolver()
+	ctx := context.Background()
+
+	uno, err := base.CrearEquipoManual(ctx, EquipoManual{
+		Nombre: "Switch de arriba", Categoria: "switch_simple", Puertos: 2})
+	if err != nil {
+		t.Fatalf("no se pudo declarar: %v", err)
+	}
+	dos, err := base.CrearEquipoManual(ctx, EquipoManual{
+		Nombre: "Switch de abajo", Categoria: "switch_simple", Puertos: 2})
+	if err != nil {
+		t.Fatalf("no se pudo declarar: %v", err)
+	}
+
+	puertos, _ := base.ListarPuertosFisicos(ctx)
+	var arriba, abajo []int64
+	for _, puerto := range puertos {
+		if puerto.EquipoID == uno.ID {
+			arriba = append(arriba, puerto.ID)
+		}
+		if puerto.EquipoID == dos.ID {
+			abajo = append(abajo, puerto.ID)
+		}
+	}
+
+	destino := abajo[0]
+	if _, err := base.CrearEnlaceManual(ctx, EnlaceFisico{
+		PuertoOrigenID: arriba[0], PuertoDestinoID: &destino,
+	}); err != nil {
+		t.Fatalf("no se pudo conectar el primer cable: %v", err)
+	}
+	// Otro cable, desde otro puerto, al MISMO puerto de destino: reemplaza, no
+	// se suma. Dos cables en un puerto serian dos verdades incompatibles.
+	if _, err := base.CrearEnlaceManual(ctx, EnlaceFisico{
+		PuertoOrigenID: arriba[1], PuertoDestinoID: &destino,
+	}); err != nil {
+		t.Fatalf("no se pudo reconectar el puerto de destino: %v", err)
+	}
+
+	topologia, _ := base.LeerTopologiaManual(ctx)
+	cuantos := 0
+	for _, enlace := range topologia.Enlaces {
+		if enlace.PuertoDestinoID != nil && *enlace.PuertoDestinoID == destino {
+			cuantos++
+		}
+	}
+	if cuantos != 1 {
+		t.Fatalf("el puerto de destino quedo con %d cables", cuantos)
 	}
 }

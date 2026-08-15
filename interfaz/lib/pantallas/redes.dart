@@ -6,6 +6,7 @@ import '../servicios/descarga.dart';
 import '../servicios/frescura.dart';
 import '../servicios/trayectoria.dart';
 import '../widgets/mensajes.dart';
+import 'catalogo.dart';
 import 'controladoras.dart';
 import 'credenciales.dart';
 import 'entrar.dart';
@@ -101,6 +102,13 @@ class _PantallaRedesState extends State<PantallaRedes> {
                 MaterialPageRoute<void>(builder: (_) => const PantallaUsuarios()),
               ),
             ),
+          IconButton(
+            tooltip: 'Catalogo de dispositivos',
+            icon: const Icon(Icons.devices_other),
+            onPressed: () => Navigator.of(contexto).push(
+              MaterialPageRoute<void>(builder: (_) => const PantallaCatalogo()),
+            ),
+          ),
           IconButton(
             tooltip: 'Actualizar',
             icon: const Icon(Icons.refresh),

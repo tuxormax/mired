@@ -63,13 +63,27 @@ void main() {
     expect(tomaDeErrores(), isNull);
   });
 
-  testWidgets('la pantalla de una red dibuja sus cuatro pestanas', (probador) async {
+  testWidgets('la pantalla de una red dibuja sus cinco pestanas', (probador) async {
     await dibujar(probador, PantallaRed(red: _red));
 
     expect(find.text('Equipos'), findsOneWidget);
     expect(find.text('Puertos'), findsOneWidget);
     expect(find.text('Consumo'), findsOneWidget);
+    expect(find.text('WiFi'), findsOneWidget);
     expect(find.text('Que se revisa'), findsOneWidget);
+    expect(tomaDeErrores(), isNull);
+  });
+
+  testWidgets('el aire no se barre solo: hay que pedirlo', (probador) async {
+    // Recorrer los canales corta el WiFi de este equipo unos segundos. Hacerlo
+    // sin que nadie lo pida seria cortarle la conexion a alguien por dibujar
+    // una lista.
+    await dibujar(probador, PantallaRed(red: _red));
+    await probador.tap(find.text('WiFi'));
+    await probador.pumpAndSettle();
+
+    expect(find.text('Escuchar el aire'), findsOneWidget);
+    expect(find.textContaining('redes ·'), findsNothing);
     expect(tomaDeErrores(), isNull);
   });
 
@@ -290,15 +304,15 @@ dynamic _respuestaDe(String ruta) {
          'indice': 5, 'puerto': 'Gi0/5', 'alias': '', 'activa': true,
          'velocidadMbps': 1000, 'mac': 'b8:27:eb:1a:2b:3c', 'equipoId': 1,
          'equipoNombre': 'Impresora de contabilidad', 'equipoIp': '192.168.1.47',
-         'confirmado': true, 'cuantosEnBoca': 1},
+         'confirmado': true, 'cuantosEnPuerto': 1},
         {'switchId': 3, 'switchNombre': 'sw-principal', 'switchIp': '192.168.1.1',
          'indice': 7, 'puerto': 'Gi0/7', 'alias': '', 'activa': true,
          'velocidadMbps': 100, 'mac': 'cc:cc:cc:00:00:20', 'equipoId': null,
-         'equipoNombre': '', 'equipoIp': '', 'confirmado': false, 'cuantosEnBoca': 4},
+         'equipoNombre': '', 'equipoIp': '', 'confirmado': false, 'cuantosEnPuerto': 4},
       ],
     };
   }
-  // Lo declarado a mano: un switch tonto (id 4) de dos bocas, con la primera
+  // Lo declarado a mano: un switch tonto (id 4) de dos puertos, con el primero
   // conectada a un equipo ya descubierto y la segunda libre. Es el caso que
   // ningun escaneo puede ver y que hace falta que el mapa sepa dibujar.
   // De que esta hecha la red. Lo cuenta el SERVIDOR sobre toda la red, no la
@@ -336,11 +350,11 @@ dynamic _respuestaDe(String ruta) {
   }
   if (ruta.endsWith('/consumo')) {
     return {
-      'explicacion': 'El consumo sale de los contadores de cada boca del switch.',
+      'explicacion': 'El consumo sale de los contadores de cada puerto del switch.',
       'consumo': [
         {'switchId': 3, 'switchNombre': 'sw-principal', 'indice': 5, 'puerto': 'Gi0/5',
          'equipoNombre': 'Impresora de contabilidad', 'equipoIp': '192.168.1.47',
-         'confirmado': true, 'cuantosEnBoca': 1, 'bpsEntrada': 8000000,
+         'confirmado': true, 'cuantosEnPuerto': 1, 'bpsEntrada': 8000000,
          'bpsSalida': 2000000, 'momento': '2026-08-12T10:00:00-06:00'},
       ],
       'porFlujos': [],

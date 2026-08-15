@@ -18,7 +18,7 @@ solo paquete** y sin ponerse en el camino del trafico.
 | | Contadores SNMP | Flujos del router |
 |---|---|---|
 | Necesita | switch administrable | router que exporte NetFlow |
-| Da | consumo **por boca**, cruzado con quien cuelga de ella | consumo **por equipo** |
+| Da | consumo **por puerto**, cruzado con quien cuelga de ella | consumo **por equipo** |
 | No da | trafico que no pasa por ese switch | en que puerto esta el equipo |
 | Costo | casi nulo | casi nulo |
 
@@ -35,7 +35,7 @@ dato util es la resta entre dos lecturas dividida por el tiempo. Por eso:
   pintaria un pico enorme que nunca ocurrio.
 - Se prefieren los contadores de **64 bits**: los de 32 se desbordan en minutos
   en un puerto gigabit.
-- Las muestras se podan a los 90 dias: 48 bocas cada 6 horas son 7 000 renglones
+- Las muestras se podan a los 90 dias: 48 puertos cada 6 horas son 7 000 renglones
   al mes por switch, y esto tiene que correr en una Raspberry.
 
 ## Flujos: NetFlow v5, un puerto para todas las redes

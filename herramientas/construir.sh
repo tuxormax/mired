@@ -132,6 +132,14 @@ for ARQ in "${ARQUITECTURAS[@]}"; do
     if [[ -d "$RAIZ/catalogo/dispositivos" ]]; then
         cp -r "$RAIZ/catalogo/dispositivos/." "$ARBOL/usr/share/mired/dispositivos/" 2>/dev/null || true
     fi
+    # La lista de fabricantes de la IEEE. Va como archivo y no dentro del
+    # binario para que se pueda actualizar sin recompilar: se corre
+    # herramientas/traer_fabricantes.py y se reemplaza este .txt.
+    if [[ -f "$RAIZ/catalogo/fabricantes.txt" ]]; then
+        cp "$RAIZ/catalogo/fabricantes.txt" "$ARBOL/usr/share/mired/fabricantes.txt"
+    else
+        echo "   AVISO: no esta catalogo/fabricantes.txt; el paquete ira con la lista corta" >&2
+    fi
     # El programa de escritorio, su icono y su entrada de menu. Solo cabe en el
     # paquete de la arquitectura de este equipo: Flutter no compila a arm64
     # desde aqui, y meter un binario de amd64 en el .deb de arm64 seria entregar

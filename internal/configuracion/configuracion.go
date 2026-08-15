@@ -89,6 +89,16 @@ type Catalogo struct {
 	// Carpetas se leen en orden: las ultimas mandan sobre las primeras, para que
 	// una definicion propia pueda corregir a una que trae el paquete.
 	Carpetas []string `toml:"carpetas"`
+	// Propia es donde se ESCRIBE lo que se declara en esta instalacion.
+	//
+	// Va aparte de la lista porque escribir y leer no son lo mismo: corriendo
+	// como programa de escritorio, MiRed lee lo que instalo el paquete en
+	// /usr/share pero no puede escribir ahi ni en /etc, y sus definiciones
+	// tienen que caer en la carpeta del usuario.
+	Propia string `toml:"carpeta_propia"`
+	// Comunidad es donde se guarda lo que se baja del repositorio. Se guarda
+	// aparte para que actualizar nunca pise una definicion escrita aqui.
+	Comunidad string `toml:"carpeta_comunidad"`
 }
 
 // Registro ajusta el detalle de la bitacora.
@@ -141,10 +151,16 @@ func PorOmision() Configuracion {
 			Escucha: ":2055",
 		},
 		Catalogo: Catalogo{
+			// En orden, de menos a mas mandona: lo que trae el paquete, lo que
+			// se bajo de la comunidad, y lo que se escribio aqui. Quien tiene el
+			// aparato delante sabe mas que el repositorio.
 			Carpetas: []string{
 				"/usr/share/mired/dispositivos",
+				"/var/lib/mired/dispositivos-comunidad",
 				"/etc/mired/dispositivos",
 			},
+			Propia:    "/etc/mired/dispositivos",
+			Comunidad: "/var/lib/mired/dispositivos-comunidad",
 		},
 		Registro: Registro{
 			Nivel: "info",
@@ -228,6 +244,8 @@ func aplicarEntorno(cfg *Configuracion) {
 	if valor, hay := os.LookupEnv("MIRED_DISPOSITIVOS"); hay && valor != "" {
 		cfg.Catalogo.Carpetas = strings.Split(valor, ":")
 	}
+	texto("MIRED_DISPOSITIVOS_PROPIOS", &cfg.Catalogo.Propia)
+	texto("MIRED_DISPOSITIVOS_COMUNIDAD", &cfg.Catalogo.Comunidad)
 	texto("MIRED_NIVEL_REGISTRO", &cfg.Registro.Nivel)
 }
 

@@ -30,6 +30,7 @@ var puertosComunes = []int{
 	443,   // HTTPS
 	445,   // Compartir archivos de Windows
 	515,   // Impresion LPD
+	541,   // FGFM: el canal de gestion de Fortinet
 	554,   // RTSP (camaras)
 	587,   // SMTP autenticado
 	631,   // IPP (impresoras)
@@ -44,10 +45,13 @@ var puertosComunes = []int{
 	6379,  // Redis
 	7000,  // Camaras y streaming
 	8000,  // HTTP alterno
+	8001,  // Ficha de las televisiones Samsung
 	8006,  // Proxmox
+	8060,  // Roku
 	8080,  // HTTP alterno
 	8443,  // HTTPS alterno
 	8888,  // HTTP alterno
+	10443, // Panel de FortiGate
 	9000,  // Paneles
 	9100,  // Impresion cruda (JetDirect)
 	27017, // MongoDB
@@ -60,10 +64,12 @@ var nombresServicio = map[int]string{
 	21: "FTP", 22: "SSH", 23: "Telnet", 25: "SMTP", 53: "DNS", 80: "HTTP",
 	110: "POP3", 135: "RPC Windows", 139: "NetBIOS", 143: "IMAP", 161: "SNMP",
 	389: "LDAP", 443: "HTTPS", 445: "Compartir archivos", 515: "Impresion LPD",
+	541: "Gestion Fortinet (FGFM)", 10443: "Panel FortiGate",
 	554: "RTSP (camara)", 587: "SMTP", 631: "IPP (impresora)", 1433: "SQL Server",
 	1723: "PPTP", 3000: "Panel web", 3306: "MySQL/MariaDB", 3389: "Escritorio remoto",
 	5000: "UPnP / panel", 5432: "PostgreSQL", 5900: "VNC", 6379: "Redis",
 	7000: "Streaming", 8000: "HTTP alterno", 8006: "Proxmox", 8080: "HTTP alterno",
+	8001: "TV Samsung", 8060: "Roku",
 	8443: "HTTPS alterno", 8888: "HTTP alterno", 9000: "Panel web",
 	9100: "Impresion cruda", 27017: "MongoDB", 32400: "Plex", 62078: "iPhone",
 }

@@ -3,7 +3,7 @@
 //
 // Es la fase 10 del plan y viaja en un paquete Debian **aparte**, a proposito:
 // mirar todos los paquetes cuesta mucho mas que preguntarle a un switch cuantos
-// bytes paso por una boca, y esa es la diferencia entre MiRed y las herramientas
+// bytes paso por un puerto, y esa es la diferencia entre MiRed y las herramientas
 // que acaban en "consumo alto". Quien no lo instale no paga nada por ello.
 //
 // Reparte los papeles igual que mired-sonda: es el que necesita permisos de red

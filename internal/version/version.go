@@ -16,7 +16,7 @@ var (
 	//
 	// Este valor y el de abajo son solo el respaldo para `go run`: al compilar de
 	// verdad los fija construir.sh leyendolos del historial.
-	Numero = "v1.15"
+	Numero = "v1.17"
 	// Revision sube en cada entrega y NUNCA se reinicia, tampoco al cambiar de
 	// version. Sale del historial, no de un argumento que alguien teclea.
 	Revision = "20"

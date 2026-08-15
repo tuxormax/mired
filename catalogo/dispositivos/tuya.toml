@@ -1,0 +1,13 @@
+# Focos, enchufes, sensores y camaras de las marcas que se venden en cualquier
+# lado con la aplicacion Smart Life. No contestan a nada: **avisan solos** por
+# difusion cada pocos segundos, y por eso hasta ahora salian sin reconocer.
+#
+# La categoria es "otro" a proposito: por el anuncio no se sabe si es un foco o
+# un enchufe, y adivinarlo seria inventar.
+nombre = "Aparato de casa inteligente (Tuya)"
+categoria = "otro"
+icono = "lightbulb"
+descripcion = "Aparato de la plataforma Tuya / Smart Life: foco, enchufe, sensor o camara barata."
+
+[coincidencias]
+huella_contiene = ["tuya", "gwid", "productkey"]

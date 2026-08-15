@@ -27,6 +27,11 @@ type Equipo struct {
 	PrimeraVez string   `json:"primeraVez"`
 	UltimaVez  string   `json:"ultimaVez"`
 	Puertos    []Puerto `json:"puertos"`
+	// Huella es lo que el aparato conto de si mismo: el titulo de su pagina, su
+	// certificado, lo que anuncia por mDNS o UPnP y lo que contesta al protocolo
+	// de su fabricante. Con la fuente de cada cosa, para poder decir de donde
+	// salio en vez de presentarlo todo como igual de firme.
+	Huella []DatoHuella `json:"huella,omitempty"`
 	// Modelo y Notas los escribe una persona. No salen de ningun barrido: son lo
 	// que sabe quien tiene el aparato delante.
 	Modelo string `json:"modelo"`
@@ -78,6 +83,18 @@ type EquipoDescubierto struct {
 	Metodo     string
 	Subred     string
 	Puertos    []PuertoDescubierto
+	// Huella es lo que el aparato dijo de si mismo: el titulo de su pagina, su
+	// certificado, lo que anuncia por mDNS o UPnP, y lo que contesta al
+	// protocolo propio de su fabricante.
+	Huella []DatoHuella
+}
+
+// DatoHuella es una cosa que un aparato conto de si mismo, con la fuente de
+// donde se supo.
+type DatoHuella struct {
+	Fuente string `json:"fuente"`
+	Clave  string `json:"clave"`
+	Valor  string `json:"valor"`
 }
 
 // PuertoDescubierto es un puerto que contesto durante el barrido.
@@ -145,6 +162,9 @@ func (b *Base) GuardarDescubrimiento(ctx context.Context, escaneoID int64, profu
 
 			if profundo {
 				if err := guardarPuertos(ctx, tx, escaneoID, equipoID, visto.Puertos, momento); err != nil {
+					return err
+				}
+				if err := guardarHuella(ctx, tx, equipoID, visto.Huella, momento); err != nil {
 					return err
 				}
 			}
@@ -248,6 +268,52 @@ func guardarEquipo(ctx context.Context, tx *sql.Tx, identidad string, visto Equi
 		return 0, false, fmt.Errorf("no se pudo actualizar el equipo %s: %w", visto.IP, err)
 	}
 	return equipoID, false, nil
+}
+
+// guardarHuella suma lo que el aparato conto de si mismo.
+//
+// Se SUMA, no se reemplaza: cada fuente contesta cuando quiere —el aparato pudo
+// no estar de humor para el mDNS de este barrido— y borrar lo de ayer porque hoy
+// no volvio a decirlo dejaria la ficha parpadeando. La fecha dice de cuando es
+// cada cosa.
+func guardarHuella(ctx context.Context, tx *sql.Tx, equipoID int64, datos []DatoHuella, momento string) error {
+	for _, dato := range datos {
+		if dato.Fuente == "" || dato.Clave == "" || dato.Valor == "" {
+			continue
+		}
+		_, err := tx.ExecContext(ctx, `
+			INSERT INTO huellas (equipo_id, fuente, clave, valor, ultima_vez)
+			VALUES (?, ?, ?, ?, ?)
+			ON CONFLICT (equipo_id, fuente, clave, valor) DO UPDATE SET
+				ultima_vez = excluded.ultima_vez`,
+			equipoID, dato.Fuente, dato.Clave, dato.Valor, momento)
+		if err != nil {
+			return fmt.Errorf("no se pudo guardar la huella %s/%s: %w", dato.Fuente, dato.Clave, err)
+		}
+	}
+	return nil
+}
+
+// HuellaDe devuelve lo que un equipo conto de si mismo.
+func (b *Base) HuellaDe(ctx context.Context, equipoID int64) ([]DatoHuella, error) {
+	filas, err := b.QueryContext(ctx, `
+		SELECT fuente, clave, valor FROM huellas
+		 WHERE equipo_id = ?
+		 ORDER BY fuente, clave, valor`, equipoID)
+	if err != nil {
+		return nil, fmt.Errorf("no se pudo leer la huella: %w", err)
+	}
+	defer filas.Close()
+
+	datos := []DatoHuella{}
+	for filas.Next() {
+		var dato DatoHuella
+		if err := filas.Scan(&dato.Fuente, &dato.Clave, &dato.Valor); err != nil {
+			return nil, err
+		}
+		datos = append(datos, dato)
+	}
+	return datos, filas.Err()
 }
 
 func guardarPuertos(ctx context.Context, tx *sql.Tx, escaneoID, equipoID int64, puertos []PuertoDescubierto, momento string) error {
@@ -477,7 +543,31 @@ func (b *Base) ListarEquipos(ctx context.Context, soloPresentes bool) ([]Equipo,
 			equipos[indice].Puertos = append(equipos[indice].Puertos, p)
 		}
 	}
-	return equipos, filasPuertos.Err()
+	if err := filasPuertos.Err(); err != nil {
+		return nil, err
+	}
+
+	// Lo mismo con las huellas: una sola consulta y se reparten en memoria.
+	filasHuella, err := b.QueryContext(ctx, `
+		SELECT equipo_id, fuente, clave, valor
+		  FROM huellas
+		 ORDER BY fuente, clave, valor`)
+	if err != nil {
+		return nil, fmt.Errorf("no se pudieron listar las huellas: %w", err)
+	}
+	defer filasHuella.Close()
+
+	for filasHuella.Next() {
+		var equipoID int64
+		var dato DatoHuella
+		if err := filasHuella.Scan(&equipoID, &dato.Fuente, &dato.Clave, &dato.Valor); err != nil {
+			return nil, err
+		}
+		if indice, hay := porID[equipoID]; hay {
+			equipos[indice].Huella = append(equipos[indice].Huella, dato)
+		}
+	}
+	return equipos, filasHuella.Err()
 }
 
 // PonerAlias le pone a un equipo el nombre que una persona quiera.
@@ -544,6 +634,10 @@ type DatosParaReconocer struct {
 	Puertos    []int
 	Banners    []string
 	SnmpDescr  string
+	// Huella es todo lo que el aparato conto de si mismo, junto en una linea.
+	Huella string
+	// Modelo es lo que alguna de esas fuentes dijo que era el modelo.
+	Modelo string
 }
 
 // ParaReconocer junta lo que el catalogo necesita de cada equipo.
@@ -601,7 +695,37 @@ func (b *Base) ParaReconocer(ctx context.Context) ([]DatosParaReconocer, error) 
 			}
 		}
 	}
-	return equipos, puertos.Err()
+	if err := puertos.Err(); err != nil {
+		return nil, err
+	}
+
+	// Y lo que cada aparato conto de si mismo. Es la senal que distingue un
+	// modem de una television cuando los dos solo tienen el 80 abierto.
+	huellas, err := b.QueryContext(ctx, `SELECT equipo_id, clave, valor FROM huellas`)
+	if err != nil {
+		return nil, fmt.Errorf("no se pudieron leer las huellas: %w", err)
+	}
+	defer huellas.Close()
+
+	for huellas.Next() {
+		var equipoID int64
+		var clave, valor string
+		if err := huellas.Scan(&equipoID, &clave, &valor); err != nil {
+			return nil, err
+		}
+		indice, hay := porID[equipoID]
+		if !hay {
+			continue
+		}
+		if equipos[indice].Huella != "" {
+			equipos[indice].Huella += " "
+		}
+		equipos[indice].Huella += valor
+		if clave == "modelo" && equipos[indice].Modelo == "" {
+			equipos[indice].Modelo = valor
+		}
+	}
+	return equipos, huellas.Err()
 }
 
 // Reconocido es lo que el catalogo averiguo de un equipo.

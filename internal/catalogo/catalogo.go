@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/pelletier/go-toml/v2"
 )
@@ -39,6 +40,16 @@ type Definicion struct {
 	Icono       string `toml:"icono"`
 	Descripcion string `toml:"descripcion"`
 	Aporta      string `toml:"aporta"`
+
+	// Generico marca una definicion que describe un SINTOMA, no un aparato:
+	// "tiene el 80 abierto", "acepta SSH". Casi todo aparato de red trae panel
+	// web, asi que esa senal no identifica a nadie.
+	//
+	// Una definicion generica NUNCA le gana a una que si identifica: solo se usa
+	// cuando ninguna otra coincidio. Sin esto, un modem, una antena y una
+	// televisión salen los tres como "Servidor web", que es la peor respuesta
+	// posible: parece un dato y no lo es.
+	Generico bool `toml:"generico"`
 
 	Coincidencias Coincidencias `toml:"coincidencias"`
 }
@@ -63,6 +74,14 @@ type Coincidencias struct {
 	NombreContiene []string `toml:"nombre_contiene"`
 	// SnmpContiene busca texto en la descripcion que da el equipo por SNMP.
 	SnmpContiene []string `toml:"snmp_contiene"`
+	// HuellaContiene busca en TODO lo que el aparato conto de si mismo: el
+	// titulo de su pagina, su certificado, lo que anuncia por mDNS o UPnP y lo
+	// que contesta al protocolo de su fabricante. Es la senal mas fuerte que hay
+	// despues del prefijo de la MAC, porque la dijo el aparato.
+	HuellaContiene []string `toml:"huella_contiene"`
+	// ModeloContiene busca solo en el modelo, cuando dos aparatos de la misma
+	// marca hay que separarlos.
+	ModeloContiene []string `toml:"modelo_contiene"`
 	// PrefijosMac son prefijos de MAC exactos (aa:bb:cc).
 	PrefijosMac []string `toml:"prefijos_mac"`
 }
@@ -76,12 +95,40 @@ type Equipo struct {
 	Puertos    []int
 	Banners    []string
 	SnmpDescr  string
+	// Huella es todo lo que el aparato conto de si mismo, ya junto en una linea:
+	// titulo de su pagina, certificado, mDNS, UPnP y protocolo del fabricante.
+	Huella string
+	// Modelo es lo que se dedujo como modelo, si algo lo dijo.
+	Modelo string
 }
 
 // Catalogo es el juego de definiciones cargadas.
+//
+// Se puede recargar en caliente —al guardar una definicion propia o al traer las
+// de la comunidad— sin reiniciar el servicio, y por eso lleva candado: mientras
+// una peticion lo reemplaza, un escaneo puede estar reconociendo equipos.
 type Catalogo struct {
+	candado      sync.RWMutex
 	definiciones []Definicion
 	problemas    []string
+}
+
+// Reemplazar cambia el contenido por el de otro catalogo recien cargado.
+//
+// Se cambia el CONTENIDO y no el puntero a proposito: el puntero lo guardan el
+// servidor y el programador por separado, y cambiarlo en uno solo dejaria a los
+// escaneos reconociendo con el catalogo viejo para siempre.
+func (c *Catalogo) Reemplazar(otro *Catalogo) {
+	if otro == nil {
+		return
+	}
+	otro.candado.RLock()
+	definiciones, problemas := otro.definiciones, otro.problemas
+	otro.candado.RUnlock()
+
+	c.candado.Lock()
+	defer c.candado.Unlock()
+	c.definiciones, c.problemas = definiciones, problemas
 }
 
 // Cargar lee todas las definiciones de las carpetas dadas.
@@ -148,30 +195,59 @@ func Cargar(carpetas []string) (*Catalogo, error) {
 }
 
 // Definiciones devuelve todo lo cargado.
-func (c *Catalogo) Definiciones() []Definicion { return c.definiciones }
+func (c *Catalogo) Definiciones() []Definicion {
+	c.candado.RLock()
+	defer c.candado.RUnlock()
+	return c.definiciones
+}
 
 // Problemas devuelve los archivos que no se pudieron usar, para poder decirlo en
 // la interfaz en vez de que el usuario se pregunte por que su definicion no
 // funciona.
-func (c *Catalogo) Problemas() []string { return c.problemas }
+func (c *Catalogo) Problemas() []string {
+	c.candado.RLock()
+	defer c.candado.RUnlock()
+	return c.problemas
+}
 
 // Reconocer devuelve la definicion que mejor describe al equipo, o nil.
 //
 // Gana la MAS ESPECIFICA, no la primera: si una definicion dice solo "es HP" y
 // otra dice "es HP y tiene el 9100 abierto", la segunda describe mejor al
 // aparato y debe ganar sin importar como se llamen los archivos.
+//
+// Y antes que eso: **lo que identifica gana a lo que solo describe un sintoma**.
+// Una definicion generica (ver Definicion.Generico) se guarda para el final y
+// solo contesta si ninguna otra pudo.
 func (c *Catalogo) Reconocer(equipo Equipo) *Definicion {
-	mejor := -1
-	var elegida *Definicion
+	c.candado.RLock()
+	defer c.candado.RUnlock()
+
+	mejor, mejorGenerica := -1, -1
+	var elegida, generica *Definicion
 
 	for i := range c.definiciones {
 		puntos, coincide := evaluar(c.definiciones[i].Coincidencias, equipo)
-		if coincide && puntos > mejor {
+		if !coincide {
+			continue
+		}
+		if c.definiciones[i].Generico {
+			if puntos > mejorGenerica {
+				mejorGenerica = puntos
+				generica = &c.definiciones[i]
+			}
+			continue
+		}
+		if puntos > mejor {
 			mejor = puntos
 			elegida = &c.definiciones[i]
 		}
 	}
-	return elegida
+
+	if elegida != nil {
+		return elegida
+	}
+	return generica
 }
 
 // evaluar dice si el equipo cumple las condiciones y que tan especificas son.
@@ -249,6 +325,24 @@ func evaluar(condiciones Coincidencias, equipo Equipo) (int, bool) {
 		puntos += 4
 	}
 
+	if len(condiciones.HuellaContiene) > 0 {
+		algunaCondicion = true
+		if !contieneAlguno(strings.ToLower(equipo.Huella), enMinusculas(condiciones.HuellaContiene)) {
+			return 0, false
+		}
+		// Vale casi tanto como el prefijo de la MAC: lo dijo el propio aparato,
+		// no se dedujo de que tenga un puerto abierto.
+		puntos += 5
+	}
+
+	if len(condiciones.ModeloContiene) > 0 {
+		algunaCondicion = true
+		if !contieneAlguno(strings.ToLower(equipo.Modelo), enMinusculas(condiciones.ModeloContiene)) {
+			return 0, false
+		}
+		puntos += 5
+	}
+
 	// Una definicion sin ninguna condicion coincidiria con todo. Eso no es un
 	// dispositivo: es un error de quien lo escribio, y se descarta.
 	if !algunaCondicion {
@@ -282,6 +376,15 @@ func Proponer(equipo Equipo, nombre string) string {
 	if equipo.Fabricante != "" {
 		salida.WriteString(fmt.Sprintf("fabricantes = [%q]\n", equipo.Fabricante))
 	}
+	// Lo que el aparato dijo de si mismo es la mejor condicion que puede llevar
+	// una definicion: no depende de que tenga un puerto abierto ni de en que
+	// bloque de MAC le toco caer.
+	if equipo.Modelo != "" {
+		salida.WriteString(fmt.Sprintf("modelo_contiene = [%q]\n", equipo.Modelo))
+	} else if equipo.Huella != "" {
+		salida.WriteString(fmt.Sprintf("# huella_contiene = [%q]   # descomente y recorte a lo que identifique\n",
+			recortar(equipo.Huella, 60)))
+	}
 	if len(equipo.Puertos) > 0 {
 		puertos := make([]string, 0, len(equipo.Puertos))
 		for _, puerto := range equipo.Puertos {
@@ -296,6 +399,9 @@ func Proponer(equipo Equipo, nombre string) string {
 	}
 	if equipo.SnmpDescr != "" {
 		salida.WriteString(fmt.Sprintf("# SNMP dijo: %s\n", equipo.SnmpDescr))
+	}
+	if equipo.Huella != "" {
+		salida.WriteString(fmt.Sprintf("# el aparato dijo de si mismo: %s\n", recortar(equipo.Huella, 200)))
 	}
 
 	salida.WriteString("\n# Guarde este archivo en /etc/mired/dispositivos/ y reinicie mired-servidor\n")
@@ -371,4 +477,13 @@ func prefijoDeMac(mac string) string {
 		return ""
 	}
 	return limpio[0:2] + ":" + limpio[2:4] + ":" + limpio[4:6]
+}
+
+// recortar deja un texto en un largo presentable para un comentario.
+func recortar(texto string, largo int) string {
+	texto = strings.Join(strings.Fields(texto), " ")
+	if len(texto) <= largo {
+		return texto
+	}
+	return strings.TrimSpace(texto[:largo]) + "..."
 }

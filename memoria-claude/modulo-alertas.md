@@ -32,8 +32,8 @@ herramienta util: el valor no es escanear, es enterarse.
    debe poder decir algo distinto de lo que quedo escrito.
 3. **Un puerto nuevo solo alerta en un equipo CONOCIDO.** En uno recien
    descubierto la noticia era el equipo, no sus puertos.
-4. **El cambio de boca solo se detecta entre bocas CONFIRMADAS**: en una boca
-   compartida nunca se supo cual equipo estaba donde, asi que decir que se movio
+4. **El cambio de puerto solo se detecta entre puertos CONFIRMADOS**: en un puerto
+   compartido nunca se supo cual equipo estaba donde, asi que decir que se movio
    seria inventar.
 5. **"Red sin reportar" es la unica alerta que no nace de un escaneo** — nace de
    que no hubo ninguno. La revisa el programador cada cinco minutos, y una red

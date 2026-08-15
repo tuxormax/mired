@@ -155,6 +155,11 @@ class Equipo {
   /// separados para «Impresora HP» y «Impresora de red».
   final String categoria;
 
+  /// Lo que el aparato conto DE SI MISMO: el titulo de su pagina, el nombre de
+  /// su certificado, lo que anuncia por mDNS o UPnP y lo que contesta al
+  /// protocolo de su fabricante. Cada dato trae de que fuente salio.
+  final List<DatoHuella> huella;
+
   const Equipo({
     required this.id,
     required this.ip,
@@ -174,6 +179,7 @@ class Equipo {
     this.origen = 'descubierto',
     this.conexion = '',
     this.categoria = '',
+    this.huella = const [],
   });
 
   factory Equipo.desdeJson(Map<String, dynamic> json) => Equipo(
@@ -197,6 +203,9 @@ class Equipo {
         origen: json['origen'] as String? ?? 'descubierto',
         conexion: json['conexion'] as String? ?? '',
         categoria: json['categoria'] as String? ?? '',
+        huella: ((json['huella'] as List<dynamic>?) ?? [])
+            .map((fila) => DatoHuella.desdeJson(fila as Map<String, dynamic>))
+            .toList(),
       );
 
   /// El nombre que conviene mostrar: manda el que puso una persona sobre el
@@ -213,9 +222,29 @@ class Equipo {
   /// Lo declaro una persona, no lo encontro ningun barrido.
   bool get esManual => origen == 'manual';
 
+  /// El modelo que dijo el propio aparato, si alguna fuente lo dijo. Se prefiere
+  /// al que teclee una persona solo para MOSTRARLO: el tecleado sigue mandando
+  /// en la ficha, porque quien tiene el aparato delante sabe mas.
+  String get modeloDicho {
+    for (final dato in huella) {
+      if (dato.clave == 'modelo') return dato.valor;
+    }
+    return '';
+  }
+
+  /// La red inalambrica que emite, cuando el aparato la anuncia.
+  String get redQueEmite {
+    for (final dato in huella) {
+      if (dato.clave == 'red') return dato.valor;
+    }
+    return '';
+  }
+
   /// Que tan seguro es que este equipo exista tal como se ve.
   String get certeza {
     switch (metodo) {
+      case 'propio':
+        return 'Este equipo, donde corre MiRed';
       case 'arp':
         return 'Confirmado por ARP';
       case 'icmp':
@@ -224,6 +253,91 @@ class Equipo {
         return 'Solo contesto un puerto TCP';
       default:
         return '';
+    }
+  }
+}
+
+/// Un dato que el aparato conto de si mismo, y de donde se supo.
+///
+/// La fuente se guarda y se muestra a proposito: no vale lo mismo un modelo
+/// firmado en un certificado que uno sacado del titulo de una pagina, y la
+/// interfaz tiene que poder decirlo en vez de presentarlo todo igual de firme.
+class DatoHuella {
+  final String fuente;
+  final String clave;
+  final String valor;
+
+  const DatoHuella({required this.fuente, required this.clave, required this.valor});
+
+  factory DatoHuella.desdeJson(Map<String, dynamic> json) => DatoHuella(
+        fuente: json['fuente'] as String? ?? '',
+        clave: json['clave'] as String? ?? '',
+        valor: json['valor'] as String? ?? '',
+      );
+
+  /// Como se lee la fuente en pantalla.
+  String get comoSeLlamaLaFuente {
+    switch (fuente) {
+      case 'web':
+        return 'su pagina web';
+      case 'certificado':
+        return 'su certificado';
+      case 'ssh':
+        return 'su SSH';
+      case 'mdns':
+        return 'lo que anuncia por Bonjour';
+      case 'ssdp':
+        return 'lo que anuncia por UPnP';
+      case 'netbios':
+        return 'su nombre de Windows';
+      case 'onvif':
+        return 'el protocolo de camaras ONVIF';
+      case 'ubiquiti':
+        return 'el protocolo de Ubiquiti';
+      case 'mikrotik':
+        return 'el protocolo de MikroTik';
+      case 'tplink':
+        return 'el protocolo de TP-Link';
+      case 'hikvision':
+        return 'el protocolo de Hikvision';
+      case 'roku':
+        return 'el protocolo de Roku';
+      case 'television':
+        return 'la ficha de la television';
+      case 'impresora':
+        return 'su panel de impresion';
+      default:
+        return fuente;
+    }
+  }
+
+  /// Como se lee lo que se supo.
+  String get comoSeLlamaLaClave {
+    switch (clave) {
+      case 'nombre':
+        return 'Nombre';
+      case 'modelo':
+        return 'Modelo';
+      case 'fabricante':
+        return 'Fabricante';
+      case 'firmware':
+        return 'Version';
+      case 'serie':
+        return 'Numero de serie';
+      case 'titulo':
+        return 'Titulo de su pagina';
+      case 'servidor':
+        return 'Servidor web';
+      case 'realm':
+        return 'Pide clave para';
+      case 'mac':
+        return 'MAC que declara';
+      case 'servicio':
+        return 'Ofrece';
+      case 'red':
+        return 'Red WiFi que emite';
+      default:
+        return clave;
     }
   }
 }
@@ -357,7 +471,7 @@ class ErrorMiRed implements Exception {
   String toString() => mensaje.isNotEmpty ? mensaje : errorCrudo;
 }
 
-/// Un renglon del mapa de puertos: que hay conectado en una boca de un switch.
+/// Un renglon del mapa de puertos: que hay conectado en un puerto de un switch.
 class PuertoDeSwitch {
   final int switchId;
   final String switchNombre;
@@ -372,7 +486,7 @@ class PuertoDeSwitch {
   final String equipoNombre;
   final String equipoIp;
   final bool confirmado;
-  final int cuantosEnBoca;
+  final int cuantosEnPuerto;
 
   const PuertoDeSwitch({
     required this.switchId,
@@ -388,7 +502,7 @@ class PuertoDeSwitch {
     required this.equipoNombre,
     required this.equipoIp,
     required this.confirmado,
-    required this.cuantosEnBoca,
+    required this.cuantosEnPuerto,
   });
 
   factory PuertoDeSwitch.desdeJson(Map<String, dynamic> json) => PuertoDeSwitch(
@@ -405,7 +519,7 @@ class PuertoDeSwitch {
         equipoNombre: json['equipoNombre'] as String? ?? '',
         equipoIp: json['equipoIp'] as String? ?? '',
         confirmado: json['confirmado'] as bool? ?? false,
-        cuantosEnBoca: json['cuantosEnBoca'] as int? ?? 1,
+        cuantosEnPuerto: json['cuantosEnPuerto'] as int? ?? 1,
       );
 
   String get quienEs =>
@@ -563,11 +677,11 @@ class CuentaPorCategoria {
       );
 }
 
-/// Una boca fisica de un equipo, contada mirando el aparato.
+/// Un puerto fisico de un equipo, contada mirando el aparato.
 ///
 /// No es lo mismo que las interfaces que anuncia un switch por SNMP: aquellas
-/// solo existen si el equipo habla. Un switch de ocho bocas de cien pesos no
-/// habla, no tiene direccion, y aun asi tiene ocho bocas.
+/// solo existen si el equipo habla. Un switch de ocho puertos de cien pesos no
+/// habla, no tiene direccion, y aun asi tiene ocho puertos.
 class PuertoFisico {
   final int id;
   final int equipoId;
@@ -719,11 +833,26 @@ class TopologiaManual {
 
   bool get hayAlgo => puertos.isNotEmpty || enlaces.isNotEmpty;
 
-  /// Las bocas de un equipo, ordenadas como se ven en el aparato.
+  /// Los puertos de un equipo, ordenadas como se ven en el aparato.
   List<PuertoFisico> puertosDe(int equipoId) =>
       puertos.where((puerto) => puerto.equipoId == equipoId).toList();
 
-  /// El cable que sale de una boca, si hay alguno.
+  /// Los puertos de un equipo que todavia no llevan cable.
+  ///
+  /// Es lo que hay que ofrecer al conectar: un switch de 5 puertos con el
+  /// uplink puesto tiene 4 libres, no 5.
+  List<PuertoFisico> puertosLibresDe(int equipoId) =>
+      puertosDe(equipoId).where((puerto) => enlaceDe(puerto.id) == null).toList();
+
+  /// De que equipo es un puerto.
+  int? equipoDelPuerto(int puertoId) {
+    for (final puerto in puertos) {
+      if (puerto.id == puertoId) return puerto.equipoId;
+    }
+    return null;
+  }
+
+  /// El cable que sale de un puerto, si hay alguno.
   EnlaceFisico? enlaceDe(int puertoId) {
     for (final enlace in enlaces) {
       if (enlace.puertoOrigenId == puertoId || enlace.puertoDestinoId == puertoId) {
@@ -918,7 +1047,7 @@ class DestinoAlerta {
       );
 }
 
-/// Cuanto gasta una boca de switch y quien cuelga de ella.
+/// Cuanto gasta un puerto de switch y quien cuelga de ella.
 class ConsumoDePuerto {
   final int switchId;
   final String switchNombre;
@@ -927,7 +1056,7 @@ class ConsumoDePuerto {
   final String equipoNombre;
   final String equipoIp;
   final bool confirmado;
-  final int cuantosEnBoca;
+  final int cuantosEnPuerto;
   final int bpsEntrada;
   final int bpsSalida;
   final String momento;
@@ -947,7 +1076,7 @@ class ConsumoDePuerto {
     required this.equipoNombre,
     required this.equipoIp,
     required this.confirmado,
-    required this.cuantosEnBoca,
+    required this.cuantosEnPuerto,
     required this.bpsEntrada,
     required this.bpsSalida,
     required this.momento,
@@ -962,7 +1091,7 @@ class ConsumoDePuerto {
         equipoNombre: json['equipoNombre'] as String? ?? '',
         equipoIp: json['equipoIp'] as String? ?? '',
         confirmado: json['confirmado'] as bool? ?? false,
-        cuantosEnBoca: json['cuantosEnBoca'] as int? ?? 0,
+        cuantosEnPuerto: json['cuantosEnPuerto'] as int? ?? 0,
         bpsEntrada: json['bpsEntrada'] as int? ?? 0,
         bpsSalida: json['bpsSalida'] as int? ?? 0,
         momento: json['momento'] as String? ?? '',
@@ -973,7 +1102,7 @@ class ConsumoDePuerto {
 
   String get quienEs {
     if (equipoNombre.isNotEmpty) return equipoNombre;
-    if (cuantosEnBoca > 1) return '$cuantosEnBoca equipos en esta boca';
+    if (cuantosEnPuerto > 1) return '$cuantosEnPuerto equipos en este puerto';
     return puerto;
   }
 
@@ -1058,10 +1187,10 @@ class ConsumoPorAplicacion {
 class Consumo {
   final String explicacion;
 
-  /// Lo medido con los contadores del switch: dice en que boca esta cada quien.
+  /// Lo medido con los contadores del switch: dice en que puerto esta cada quien.
   final List<ConsumoDePuerto> puertos;
 
-  /// Lo medido con los flujos del router: no dice la boca, pero funciona sin
+  /// Lo medido con los flujos del router: no dice el puerto, pero funciona sin
   /// switches administrables.
   final List<ConsumoDePuerto> porFlujos;
 

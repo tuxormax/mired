@@ -13,16 +13,16 @@ import (
 // Aqui vive la tercera fuente del mapa: lo que una persona DECLARA.
 //
 // MiRed ya sabia distinguir el enlace confirmado (se lo dijo el switch) del
-// inferido (varias MAC en una boca). Ninguno de los dos sirve en la red mas
+// inferido (varias MAC en un puerto). Ninguno de los dos sirve en la red mas
 // comun que existe: modem del ISP, switch tonto, PC, antena y grabador de
 // camaras. Ahi no hay a quien preguntarle nada, pero el dueno tiene el cable
 // delante y lo sabe. Esto es para que pueda decirlo, **sin que despues se
 // confunda con lo que se midio**: el origen del dato viaja con el dato.
 
 var (
-	// ErrPuertoRepetido: esa boca ya estaba declarada en ese equipo.
+	// ErrPuertoRepetido: ese puerto ya estaba declarada en ese equipo.
 	ErrPuertoRepetido = errors.New("ese puerto ya esta declarado en el equipo")
-	// ErrPuertoNoExiste lo devuelven las operaciones sobre una boca que ya no esta.
+	// ErrPuertoNoExiste lo devuelven las operaciones sobre un puerto que ya no esta.
 	ErrPuertoNoExiste = errors.New("el puerto no existe")
 	// ErrEnlaceNoExiste lo devuelven las operaciones sobre un cable que ya no esta.
 	ErrEnlaceNoExiste = errors.New("el enlace no existe")
@@ -42,12 +42,12 @@ const (
 	OrigenInferido = "inferido"
 )
 
-// PuertoFisico es una boca de un equipo, contada mirando el aparato.
+// PuertoFisico es un puerto de un equipo, contada mirando el aparato.
 //
 // No es lo mismo que `interfaces`: aquellas son las que el equipo ANUNCIA por
 // SNMP con su indice interno, y solo existen si el equipo habla. Un switch de
-// ocho bocas de cien pesos no habla, no tiene direccion, y aun asi tiene ocho
-// bocas.
+// ocho puertos de cien pesos no habla, no tiene direccion, y aun asi tiene ocho
+// puertos.
 type PuertoFisico struct {
 	ID       int64 `json:"id"`
 	EquipoID int64 `json:"equipoId"`
@@ -111,13 +111,13 @@ type EquipoManual struct {
 	Categoria string `json:"categoria"`
 	// Tipo es como se lee. Lo manda la interfaz junto con la categoria, sacado de
 	// la misma lista, para que la ficha no muestre la clave cruda.
-	Tipo   string `json:"tipo"`
-	Modelo string `json:"modelo"`
+	Tipo     string `json:"tipo"`
+	Modelo   string `json:"modelo"`
 	Notas    string `json:"notas"`
 	IP       string `json:"ip"`
 	MAC      string `json:"mac"`
 	Conexion string `json:"conexion"`
-	// Puertos permite crear el switch con sus bocas de una vez, que es como lo
+	// Puertos permite crear el switch con sus puertos de una vez, que es como lo
 	// piensa quien lo esta capturando: "es un switch de ocho".
 	Puertos int `json:"puertos"`
 }
@@ -206,13 +206,13 @@ func (b *Base) CrearEquipoManual(ctx context.Context, datos EquipoManual) (Equip
 			return err
 		}
 
-		// Las bocas se numeran 1..N y son LAN. La WAN de un modem se agrega
+		// Los puertos se numeran 1..N y son LAN. La WAN de un modem se agrega
 		// aparte: casi ningun aparato tiene la WAN en medio de la fila.
 		for numero := 1; numero <= datos.Puertos; numero++ {
 			if _, err := tx.ExecContext(ctx, `
 				INSERT INTO puertos_fisicos (equipo_id, numero, tipo, creado_en)
 				VALUES (?, ?, 'lan', ?)`, equipoID, numero, momento); err != nil {
-				return fmt.Errorf("no se pudo crear la boca %d: %w", numero, err)
+				return fmt.Errorf("no se pudo crear el puerto %d: %w", numero, err)
 			}
 		}
 
@@ -303,15 +303,15 @@ func (b *Base) BorrarEquipoManual(ctx context.Context, equipoID int64) error {
 	if filas, _ := resultado.RowsAffected(); filas == 0 {
 		return ErrEquipoNoExiste
 	}
-	// Las bocas y sus cables se van con el: dejarlos colgando de un equipo
+	// Los puertos y sus cables se van con el: dejarlos colgando de un equipo
 	// borrado pondria lineas hacia la nada en el mapa.
 	_, err = b.ExecContext(ctx, `DELETE FROM puertos_fisicos WHERE equipo_id = ?`, equipoID)
 	return err
 }
 
-// --------------------------------------------------------------- bocas --
+// --------------------------------------------------------------- puertos --
 
-// AgregarPuertoFisico declara una boca de un equipo.
+// AgregarPuertoFisico declara un puerto de un equipo.
 func (b *Base) AgregarPuertoFisico(ctx context.Context, puerto PuertoFisico) (PuertoFisico, error) {
 	if err := validarPuerto(puerto); err != nil {
 		return PuertoFisico{}, err
@@ -333,7 +333,7 @@ func (b *Base) AgregarPuertoFisico(ctx context.Context, puerto PuertoFisico) (Pu
 	return puerto, nil
 }
 
-// EditarPuertoFisico corrige una boca ya declarada.
+// EditarPuertoFisico corrige un puerto ya declarada.
 func (b *Base) EditarPuertoFisico(ctx context.Context, puerto PuertoFisico) error {
 	if err := validarPuerto(puerto); err != nil {
 		return err
@@ -357,7 +357,7 @@ func (b *Base) EditarPuertoFisico(ctx context.Context, puerto PuertoFisico) erro
 	return nil
 }
 
-// BorrarPuertoFisico quita una boca. El cable que colgaba de ella se va con
+// BorrarPuertoFisico quita un puerto. El cable que colgaba de ella se va con
 // ella: un cable sin punta no es medio dato, es un dibujo falso.
 func (b *Base) BorrarPuertoFisico(ctx context.Context, id int64) error {
 	resultado, err := b.ExecContext(ctx, `DELETE FROM puertos_fisicos WHERE id = ?`, id)
@@ -392,19 +392,19 @@ func esRepetido(err error) bool {
 
 // -------------------------------------------------------------- cables --
 
-// CrearEnlaceManual declara que de esta boca sale un cable hacia alla.
+// CrearEnlaceManual declara que de este puerto sale un cable hacia alla.
 //
-// Reemplaza el cable anterior de esa boca si lo habia: una boca lleva UN cable, y
+// Reemplaza el cable anterior de ese puerto si lo habia: un puerto lleva UN cable, y
 // guardar dos dejaria dos verdades incompatibles colgando del mismo sitio.
 func (b *Base) CrearEnlaceManual(ctx context.Context, enlace EnlaceFisico) (EnlaceFisico, error) {
 	if enlace.PuertoOrigenID <= 0 {
-		return EnlaceFisico{}, errors.New("falta decir de que boca sale el cable")
+		return EnlaceFisico{}, errors.New("falta decir de que puerto sale el cable")
 	}
-	tieneBoca := enlace.PuertoDestinoID != nil && *enlace.PuertoDestinoID > 0
+	tienePuerto := enlace.PuertoDestinoID != nil && *enlace.PuertoDestinoID > 0
 	tieneEquipo := enlace.EquipoDestinoID != nil && *enlace.EquipoDestinoID > 0
-	if tieneBoca == tieneEquipo {
+	if tienePuerto == tieneEquipo {
 		return EnlaceFisico{}, errors.New(
-			"el cable va a una boca o a un equipo, no a los dos ni a ninguno")
+			"el cable va a un puerto o a un equipo, no a los dos ni a ninguno")
 	}
 
 	momento := Ahora()
@@ -422,7 +422,7 @@ func (b *Base) CrearEnlaceManual(ctx context.Context, enlace EnlaceFisico) (Enla
 		}
 
 		var equipoDestino int64
-		if tieneBoca {
+		if tienePuerto {
 			if *enlace.PuertoDestinoID == enlace.PuertoOrigenID {
 				return ErrEnlaceAlReves
 			}
@@ -450,8 +450,8 @@ func (b *Base) CrearEnlaceManual(ctx context.Context, enlace EnlaceFisico) (Enla
 			return ErrEnlaceAlReves
 		}
 
-		// La boca de destino tampoco puede llevar dos cables.
-		if tieneBoca {
+		// El puerto de destino tampoco puede llevar dos cables.
+		if tienePuerto {
 			if _, err := tx.ExecContext(ctx,
 				`DELETE FROM enlaces_fisicos WHERE puerto_origen_id = ? OR puerto_destino_id = ?`,
 				*enlace.PuertoDestinoID, *enlace.PuertoDestinoID); err != nil {
@@ -503,15 +503,15 @@ func (b *Base) BorrarEnlaceFisico(ctx context.Context, id int64) error {
 // TopologiaManual es todo lo declarado a mano en una red, mas los tramos donde
 // eso no cuadra con lo que reportan los equipos.
 type TopologiaManual struct {
-	Puertos        []PuertoFisico  `json:"puertos"`
-	Enlaces        []EnlaceFisico  `json:"enlaces"`
+	Puertos         []PuertoFisico  `json:"puertos"`
+	Enlaces         []EnlaceFisico  `json:"enlaces"`
 	Contradicciones []Contradiccion `json:"contradicciones"`
 	// Momento es de cuando es lo mas reciente que se declaro. Va con los datos
 	// por la misma regla que el resto de MiRed: todo reporte dice de cuando es.
 	Momento string `json:"momento"`
 }
 
-// LeerTopologiaManual devuelve las bocas declaradas, sus cables y las
+// LeerTopologiaManual devuelve los puertos declarados, sus cables y las
 // contradicciones contra lo medido.
 func (b *Base) LeerTopologiaManual(ctx context.Context) (TopologiaManual, error) {
 	topologia := TopologiaManual{
@@ -551,7 +551,7 @@ func (b *Base) LeerTopologiaManual(ctx context.Context) (TopologiaManual, error)
 	return topologia, nil
 }
 
-// ListarPuertosFisicos devuelve las bocas declaradas de todos los equipos de la
+// ListarPuertosFisicos devuelve los puertos declarados de todos los equipos de la
 // red.
 func (b *Base) ListarPuertosFisicos(ctx context.Context) ([]PuertoFisico, error) {
 	filas, err := b.QueryContext(ctx, `
@@ -627,7 +627,7 @@ func (b *Base) ListarEnlacesFisicos(ctx context.Context) ([]EnlaceFisico, error)
 // La prioridad al reconciliar es snmp/lldp/cdp > manual > inferido, pero la
 // decision NO se toma aqui: esto solo dice donde no cuadran.
 func (b *Base) Contradicciones(ctx context.Context) ([]Contradiccion, error) {
-	// Contra la tabla de reenvio del switch: solo bocas CONFIRMADAS. En una boca
+	// Contra la tabla de reenvio del switch: solo puertos CONFIRMADOS. En un puerto
 	// con varios equipos nunca se supo cual estaba ahi, asi que no hay nada que
 	// contradecir.
 	const consulta = `

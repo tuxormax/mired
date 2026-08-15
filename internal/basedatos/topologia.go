@@ -25,7 +25,7 @@ type FichaSNMP struct {
 	Vecinos       []VecinoSNMP
 }
 
-// InterfazSNMP es una boca de un equipo administrable.
+// InterfazSNMP es un puerto de un equipo administrable.
 type InterfazSNMP struct {
 	Indice        int
 	Nombre        string
@@ -37,7 +37,7 @@ type InterfazSNMP struct {
 	VelocidadMbps int
 }
 
-// VecinoSNMP es un equipo anunciado en una boca, por LLDP o por CDP.
+// VecinoSNMP es un equipo anunciado en un puerto, por LLDP o por CDP.
 type VecinoSNMP struct {
 	InterfazLocal string
 	Nombre        string
@@ -61,7 +61,7 @@ const (
 	CapacidadNoDisponible = "no_disponible"
 )
 
-// MovimientoDePuerto es un equipo que cambio de boca entre dos consultas.
+// MovimientoDePuerto es un equipo que cambio de puerto entre dos consultas.
 type MovimientoDePuerto struct {
 	EquipoID int64
 	Nombre   string
@@ -72,7 +72,7 @@ type MovimientoDePuerto struct {
 // GuardarSNMP guarda lo que contestaron los equipos administrables y arma con
 // eso el mapa de puertos.
 //
-// Devuelve tambien que equipos se cambiaron de boca: es un hecho que solo se
+// Devuelve tambien que equipos se cambiaron de puerto: es un hecho que solo se
 // puede ver aqui, comparando la foto anterior con la nueva, y de ahi sale la
 // alerta de "se movio de lugar".
 func (b *Base) GuardarSNMP(ctx context.Context, fichas []FichaSNMP) ([]MovimientoDePuerto, error) {
@@ -80,7 +80,7 @@ func (b *Base) GuardarSNMP(ctx context.Context, fichas []FichaSNMP) ([]Movimient
 	var movimientos []MovimientoDePuerto
 
 	err := b.EnTransaccion(ctx, func(tx *sql.Tx) error {
-		// Las MAC conocidas permiten enlazar cada boca con el equipo que ya se
+		// Las MAC conocidas permiten enlazar cada puerto con el equipo que ya se
 		// descubrio, en vez de dejar una direccion suelta que no le dice nada a
 		// nadie.
 		porMAC, err := equiposPorMAC(ctx, tx)
@@ -90,7 +90,7 @@ func (b *Base) GuardarSNMP(ctx context.Context, fichas []FichaSNMP) ([]Movimient
 
 		// Donde estaba cada MAC antes de esta consulta. Se toma ANTES de tocar
 		// nada: despues del borrado ya no hay con que comparar.
-		antes, err := bocaPorMac(ctx, tx)
+		antes, err := puertoPorMac(ctx, tx)
 		if err != nil {
 			return err
 		}
@@ -118,19 +118,19 @@ func (b *Base) GuardarSNMP(ctx context.Context, fichas []FichaSNMP) ([]Movimient
 			}
 		}
 
-		despues, err := bocaPorMac(ctx, tx)
+		despues, err := puertoPorMac(ctx, tx)
 		if err != nil {
 			return err
 		}
-		movimientos = compararBocas(ctx, tx, antes, despues, porMAC)
+		movimientos = compararPuertos(ctx, tx, antes, despues, porMAC)
 		return nil
 	})
 
 	return movimientos, err
 }
 
-// bocaPorMac dice en que boca esta cada MAC, como texto legible.
-func bocaPorMac(ctx context.Context, tx *sql.Tx) (map[string]string, error) {
+// puertoPorMac dice en que puerto esta cada MAC, como texto legible.
+func puertoPorMac(ctx context.Context, tx *sql.Tx) (map[string]string, error) {
 	filas, err := tx.QueryContext(ctx, `
 		SELECT c.mac,
 		       COALESCE(sw.alias, sw.nombre, sw.ip) || ' ' ||
@@ -144,20 +144,20 @@ func bocaPorMac(ctx context.Context, tx *sql.Tx) (map[string]string, error) {
 	}
 	defer filas.Close()
 
-	// Solo se miran las bocas CONFIRMADAS: en una boca con varios equipos no se
+	// Solo se miran los puertos CONFIRMADOS: en un puerto con varios equipos no se
 	// puede decir que alguno se movio, porque nunca se supo cual estaba donde.
 	donde := map[string]string{}
 	for filas.Next() {
-		var mac, boca string
-		if err := filas.Scan(&mac, &boca); err != nil {
+		var mac, puerto string
+		if err := filas.Scan(&mac, &puerto); err != nil {
 			return nil, err
 		}
-		donde[mac] = boca
+		donde[mac] = puerto
 	}
 	return donde, filas.Err()
 }
 
-func compararBocas(ctx context.Context, tx *sql.Tx, antes, despues map[string]string, porMAC map[string]int64) []MovimientoDePuerto {
+func compararPuertos(ctx context.Context, tx *sql.Tx, antes, despues map[string]string, porMAC map[string]int64) []MovimientoDePuerto {
 	var movimientos []MovimientoDePuerto
 
 	for mac, ahora := range despues {
@@ -266,8 +266,8 @@ func guardarInterfaces(ctx context.Context, tx *sql.Tx, equipoID int64, interfac
 
 // guardarConexiones arma el mapa de puertos.
 //
-// Aqui esta la decision honesta del proyecto: una boca con UNA MAC es un enlace
-// confirmado; una boca con varias es un grupo detras de algo no administrable, y
+// Aqui esta la decision honesta del proyecto: un puerto con UNA MAC es un enlace
+// confirmado; un puerto con varias es un grupo detras de algo no administrable, y
 // se guarda como tal. Inventar un puerto para cada equipo de ese grupo seria
 // mentir, y un plano de sitio con datos inventados es peor que no tenerlo.
 func guardarConexiones(ctx context.Context, tx *sql.Tx, switchID int64, macsPorPuerto map[string][]string, porMAC map[string]int64, momento string) error {
@@ -276,7 +276,7 @@ func guardarConexiones(ctx context.Context, tx *sql.Tx, switchID int64, macsPorP
 	}
 
 	// Se borra lo anterior de este switch: la tabla de reenvio es una foto del
-	// momento, y conservar bocas viejas dejaria equipos colgando de puertos
+	// momento, y conservar puertos viejos dejaria equipos colgando de puertos
 	// donde ya no estan.
 	if _, err := tx.ExecContext(ctx,
 		`DELETE FROM conexiones_puerto WHERE switch_id = ?`, switchID); err != nil {
@@ -303,12 +303,12 @@ func guardarConexiones(ctx context.Context, tx *sql.Tx, switchID int64, macsPorP
 			}
 			_, err := tx.ExecContext(ctx, `
 				INSERT INTO conexiones_puerto (switch_id, interfaz_indice, mac, equipo_id,
-				                               confirmado, cuantos_en_boca, ultima_vez)
+				                               confirmado, cuantos_en_puerto, ultima_vez)
 				VALUES (?, ?, ?, ?, ?, ?, ?)
 				ON CONFLICT (switch_id, interfaz_indice, mac) DO UPDATE SET
 					equipo_id = excluded.equipo_id,
 					confirmado = excluded.confirmado,
-					cuantos_en_boca = excluded.cuantos_en_boca,
+					cuantos_en_puerto = excluded.cuantos_en_puerto,
 					ultima_vez = excluded.ultima_vez`,
 				switchID, indice, mac, equipoID, boolAEntero(cuantos == 1), cuantos, momento)
 			if err != nil {
@@ -417,20 +417,20 @@ func (b *Base) Enlaces(ctx context.Context) ([]EnlaceEntreEquipos, error) {
 
 // PuertoDeSwitch es un renglon del mapa de puertos.
 type PuertoDeSwitch struct {
-	SwitchID      int64  `json:"switchId"`
-	SwitchNombre  string `json:"switchNombre"`
-	SwitchIP      string `json:"switchIp"`
-	Indice        int    `json:"indice"`
-	Puerto        string `json:"puerto"`
-	Alias         string `json:"alias"`
-	Activa        bool   `json:"activa"`
-	VelocidadMbps int    `json:"velocidadMbps"`
-	MAC           string `json:"mac"`
-	EquipoID      *int64 `json:"equipoId"`
-	EquipoNombre  string `json:"equipoNombre"`
-	EquipoIP      string `json:"equipoIp"`
-	Confirmado    bool   `json:"confirmado"`
-	CuantosEnBoca int    `json:"cuantosEnBoca"`
+	SwitchID        int64  `json:"switchId"`
+	SwitchNombre    string `json:"switchNombre"`
+	SwitchIP        string `json:"switchIp"`
+	Indice          int    `json:"indice"`
+	Puerto          string `json:"puerto"`
+	Alias           string `json:"alias"`
+	Activa          bool   `json:"activa"`
+	VelocidadMbps   int    `json:"velocidadMbps"`
+	MAC             string `json:"mac"`
+	EquipoID        *int64 `json:"equipoId"`
+	EquipoNombre    string `json:"equipoNombre"`
+	EquipoIP        string `json:"equipoIp"`
+	Confirmado      bool   `json:"confirmado"`
+	CuantosEnPuerto int    `json:"cuantosEnPuerto"`
 }
 
 // MomentoDelMapa dice de cuando son los datos del mapa de puertos.
@@ -450,7 +450,7 @@ func (b *Base) MomentoDelMapa(ctx context.Context) (string, error) {
 	return momento.String, nil
 }
 
-// MapaDePuertos devuelve que hay conectado en cada boca de cada switch.
+// MapaDePuertos devuelve que hay conectado en cada puerto de cada switch.
 func (b *Base) MapaDePuertos(ctx context.Context) ([]PuertoDeSwitch, error) {
 	filas, err := b.QueryContext(ctx, `
 		SELECT c.switch_id,
@@ -466,7 +466,7 @@ func (b *Base) MapaDePuertos(ctx context.Context) ([]PuertoDeSwitch, error) {
 		       COALESCE(eq.alias, eq.nombre, eq.ip, ''),
 		       COALESCE(eq.ip, ''),
 		       c.confirmado,
-		       c.cuantos_en_boca
+		       c.cuantos_en_puerto
 		  FROM conexiones_puerto c
 		  JOIN equipos sw ON sw.id = c.switch_id
 		  LEFT JOIN interfaces i ON i.equipo_id = c.switch_id AND i.indice = c.interfaz_indice
@@ -483,7 +483,7 @@ func (b *Base) MapaDePuertos(ctx context.Context) ([]PuertoDeSwitch, error) {
 		var activa, confirmado int
 		if err := filas.Scan(&p.SwitchID, &p.SwitchNombre, &p.SwitchIP, &p.Indice,
 			&p.Puerto, &p.Alias, &activa, &p.VelocidadMbps, &p.MAC, &p.EquipoID,
-			&p.EquipoNombre, &p.EquipoIP, &confirmado, &p.CuantosEnBoca); err != nil {
+			&p.EquipoNombre, &p.EquipoIP, &confirmado, &p.CuantosEnPuerto); err != nil {
 			return nil, err
 		}
 		p.Activa = activa == 1
@@ -497,7 +497,7 @@ func (b *Base) MapaDePuertos(ctx context.Context) ([]PuertoDeSwitch, error) {
 // ficha, para que la interfaz lo diga sin rodeos en vez de mostrar pantallas
 // vacias sin explicacion.
 func (b *Base) CalcularCapacidades(ctx context.Context) (string, error) {
-	var switches, bocasConfirmadas, bocasGrupo int
+	var switches, puertosConfirmados, puertosGrupo int
 
 	if err := b.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM equipos_snmp WHERE es_switch = 1`).Scan(&switches); err != nil {
@@ -505,7 +505,7 @@ func (b *Base) CalcularCapacidades(ctx context.Context) (string, error) {
 	}
 	if err := b.QueryRowContext(ctx,
 		`SELECT COALESCE(SUM(confirmado), 0), COALESCE(SUM(1 - confirmado), 0) FROM conexiones_puerto`).
-		Scan(&bocasConfirmadas, &bocasGrupo); err != nil {
+		Scan(&puertosConfirmados, &puertosGrupo); err != nil {
 		return "", fmt.Errorf("no se pudieron contar las conexiones: %w", err)
 	}
 
@@ -513,9 +513,9 @@ func (b *Base) CalcularCapacidades(ctx context.Context) (string, error) {
 	switch {
 	case switches == 0:
 		capacidad = CapacidadNoDisponible
-	case bocasConfirmadas > 0:
+	case puertosConfirmados > 0:
 		capacidad = CapacidadExacta
-	case bocasGrupo > 0:
+	case puertosGrupo > 0:
 		capacidad = CapacidadPorGrupo
 	}
 
@@ -528,7 +528,7 @@ func (b *Base) CalcularCapacidades(ctx context.Context) (string, error) {
 	return capacidad, nil
 }
 
-// ContadorPuerto son los bytes acumulados de una boca en un momento dado.
+// ContadorPuerto son los bytes acumulados de un puerto en un momento dado.
 type ContadorPuerto struct {
 	Indice         int
 	Entrada        uint64
@@ -536,26 +536,26 @@ type ContadorPuerto struct {
 	SesentaYCuatro bool
 }
 
-// PuntoTrafico es un renglon de la grafica de consumo de una boca.
+// PuntoTrafico es un renglon de la grafica de consumo de un puerto.
 type PuntoTrafico struct {
 	Momento    string `json:"momento"`
 	BpsEntrada int64  `json:"bpsEntrada"`
 	BpsSalida  int64  `json:"bpsSalida"`
 }
 
-// ConsumoDePuerto es lo que gasta una boca, con quien cuelga de ella.
+// ConsumoDePuerto es lo que gasta un puerto, con quien cuelga de ella.
 type ConsumoDePuerto struct {
-	SwitchID      int64  `json:"switchId"`
-	SwitchNombre  string `json:"switchNombre"`
-	Indice        int    `json:"indice"`
-	Puerto        string `json:"puerto"`
-	EquipoNombre  string `json:"equipoNombre"`
-	EquipoIP      string `json:"equipoIp"`
-	Confirmado    bool   `json:"confirmado"`
-	CuantosEnBoca int    `json:"cuantosEnBoca"`
-	BpsEntrada    int64  `json:"bpsEntrada"`
-	BpsSalida     int64  `json:"bpsSalida"`
-	Momento       string `json:"momento"`
+	SwitchID        int64  `json:"switchId"`
+	SwitchNombre    string `json:"switchNombre"`
+	Indice          int    `json:"indice"`
+	Puerto          string `json:"puerto"`
+	EquipoNombre    string `json:"equipoNombre"`
+	EquipoIP        string `json:"equipoIp"`
+	Confirmado      bool   `json:"confirmado"`
+	CuantosEnPuerto int    `json:"cuantosEnPuerto"`
+	BpsEntrada      int64  `json:"bpsEntrada"`
+	BpsSalida       int64  `json:"bpsSalida"`
+	Momento         string `json:"momento"`
 	// Estimado dice que la cifra sale de un muestreo (sFlow) y no de una cuenta.
 	// Los contadores del switch y NetFlow cuentan; sFlow estima. Presentar las
 	// dos igual seria hacer pasar una estimacion por una medicion.
@@ -643,12 +643,12 @@ func calcularTasa(antes, ahora string, antesEntrada, antesSalida int64, contador
 		int64(float64(deltaSalida) * 8 / segundos), true
 }
 
-// ConsumoActual devuelve cuanto gasta cada boca en su ultima medicion, con el
+// ConsumoActual devuelve cuanto gasta cada puerto en su ultima medicion, con el
 // equipo que cuelga de ella.
 //
 // Esto es lo que responde "quien se esta comiendo el internet" sin capturar un
 // solo paquete: el switch ya llevaba la cuenta y MiRed ya sabia quien esta en
-// cada boca.
+// cada puerto.
 func (b *Base) ConsumoActual(ctx context.Context) ([]ConsumoDePuerto, error) {
 	filas, err := b.QueryContext(ctx, `
 		SELECT m.switch_id,
@@ -680,7 +680,7 @@ func (b *Base) ConsumoActual(ctx context.Context) ([]ConsumoDePuerto, error) {
 		var confirmado int
 		if err := filas.Scan(&c.SwitchID, &c.SwitchNombre, &c.Indice, &c.Puerto,
 			&c.BpsEntrada, &c.BpsSalida, &c.Momento, &c.EquipoNombre, &c.EquipoIP,
-			&confirmado, &c.CuantosEnBoca); err != nil {
+			&confirmado, &c.CuantosEnPuerto); err != nil {
 			return nil, err
 		}
 		c.Confirmado = confirmado == 1
@@ -689,7 +689,7 @@ func (b *Base) ConsumoActual(ctx context.Context) ([]ConsumoDePuerto, error) {
 	return consumo, filas.Err()
 }
 
-// HistorialTrafico devuelve los puntos de la grafica de una boca.
+// HistorialTrafico devuelve los puntos de la grafica de un puerto.
 func (b *Base) HistorialTrafico(ctx context.Context, switchID int64, indice, limite int) ([]PuntoTrafico, error) {
 	if limite <= 0 || limite > 1000 {
 		limite = 200
@@ -718,8 +718,8 @@ func (b *Base) HistorialTrafico(ctx context.Context, switchID int64, indice, lim
 
 // PodarTrafico borra las muestras viejas.
 //
-// Sin esto la tabla crece para siempre: una medicion por boca cada seis horas,
-// con cuarenta y ocho bocas, son siete mil renglones al mes por switch. En una
+// Sin esto la tabla crece para siempre: una medicion por puerto cada seis horas,
+// con cuarenta y ocho puertos, son siete mil renglones al mes por switch. En una
 // Raspberry eso importa.
 func (b *Base) PodarTrafico(ctx context.Context, diasAConservar int) error {
 	if diasAConservar <= 0 {

@@ -182,8 +182,8 @@ Regla del proyecto (2026-08-13, la pidio el usuario):
   Importar `package:web` directo desde una pantalla rompe `flutter test`, que
   corre en la maquina virtual de Dart, no en un navegador.
 - **No contar renglones para saber cuantos hay**: usar la cuenta que manda el
-  servidor. En el mapa, una boca con 9 MAC decia "1 equipos" cuando la respuesta
-  traia un renglon resumido. La cuenta buena es `cuantosEnBoca`.
+  servidor. En el mapa, un puerto con 9 MAC decia "1 equipos" cuando la respuesta
+  traia un renglon resumido. La cuenta buena es `cuantosEnPuerto`.
 
 ## Leer paquetes y protocolos binarios
 - **NetFlow y sFlow dicen los dos "version 5".** NetFlow la pone en 2 bytes y
@@ -198,22 +198,22 @@ Regla del proyecto (2026-08-13, la pidio el usuario):
 - **Saltar las etiquetas de VLAN.** Un puerto espejo y un switch con VLAN mandan
   la trama con su etiqueta: sin saltarla, el tipo de protocolo se lee 4 bytes
   antes y el trafico de esa red desaparece entero, sin un solo error.
-- **LLDP y CDP ponen la boca local en un lugar distinto del indice**: LLDP en la
+- **LLDP y CDP ponen el puerto local en un lugar distinto del indice**: LLDP en la
   posicion 1 (`tiempo.puerto.vecino`) y CDP en la 0 (`ifIndex.vecino`).
-  Confundirlos cuelga cada vecino de la boca equivocada: el mapa sale plausible
+  Confundirlos cuelga cada vecino del puerto equivocado: el mapa sale plausible
   y falso.
 - **sFlow ESTIMA, no cuenta.** Se multiplica por la tasa de muestreo. Esa
   diferencia viaja en la columna `estimado` hasta la pantalla; una vez juntas en
   la misma tabla, ya no hay forma de volver a separarlas.
 - **Nunca contar renglones para saber cuantos hay**: usar la cuenta que manda el
-  servidor. En el mapa, una boca con 9 MAC decia "1 equipos".
+  servidor. En el mapa, un puerto con 9 MAC decia "1 equipos".
 - **Un equipo con `origen = 'manual'` NUNCA entra en un barrido.** Todo lo que
   recorra `equipos` para marcar ausencias, calcular presencia o disparar alertas
   tiene que filtrarlo: un switch no administrable no tiene direccion y no va a
   contestar jamas. Ya esta hecho en `marcarAusentes`; el proximo sitio que
   compare "lo visto" contra "lo que hay" tiene que acordarse.
 - **Hay TRES origenes de un enlace, no dos**: medido (SNMP/LLDP/CDP), deducido
-  (varias MAC en una boca) y **tecleado** (`origen_dato = 'manual'`). Todo lo que
+  (varias MAC en un puerto) y **tecleado** (`origen_dato = 'manual'`). Todo lo que
   dibuje, exporte o resuma el mapa tiene que dejar ver cual es cual — pantalla,
   PNG, SVG, PDF y CSV. Presentarlos igual hace pasar una declaracion por una
   medicion. Ver [[modulo-topologia-manual]].
@@ -275,3 +275,31 @@ Regla del proyecto (2026-08-13, la pidio el usuario):
 
 **Ver tambien:** [[mired-arquitectura]], [[contrato-api]], [[mired]],
 [[modulo-inspeccion]]
+
+## El vocabulario: es PUERTO, no boca
+
+Lo que se llamaba "boca" se llama **puerto** en todo el sistema desde la
+v1.15-21. Donde el conector fisico y el puerto TCP puedan confundirse se dice
+**puerto fisico** y **puerto TCP**, con todas sus letras.
+
+- La migracion **0004 no se toco**: una migracion ya aplicada se queda como se
+  aplico. El cambio de nombre de la columna lo hace la **0013**.
+- En `internal/version/historial.toml` las entradas viejas siguen diciendo
+  "bocas": son el registro de lo que se entrego ese dia y no se reescribe.
+
+## Una definicion del catalogo suma sus condiciones (Y), no las alterna (O)
+
+Poner `fabricantes` **y** `huella_contiene` en el mismo archivo exige las dos
+cosas. Para reconocer por una **o** por la otra hacen falta **dos archivos**
+(ver `ubiquiti.toml` y `ubiquiti-por-huella.toml`). Es el error mas facil de
+cometer al ampliar el catalogo, y se nota como "dejo de reconocer lo que antes
+reconocia".
+
+## Lo que se ESCRIBE del catalogo no va donde se LEE
+
+Corriendo como programa de escritorio, MiRed lee `/usr/share/mired/dispositivos`
+pero **no puede escribir** en `/etc` ni en `/var/lib`. Por eso las carpetas de
+escritura son configurables aparte (`carpeta_propia`, `carpeta_comunidad`) y el
+programa las apunta a la carpeta del usuario al arrancar los servicios. Si se
+agrega algo que escriba catalogo, tiene que usar esas dos, nunca una ruta fija.
+

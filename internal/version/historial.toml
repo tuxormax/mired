@@ -22,10 +22,10 @@
 #                   cambiar de version.
 #   tipo            feature | fix | ajuste | change
 #
-# Los 15 modulos de la v1.15: redes, subredes, equipos, escaneo y agenda,
+# Los 17 modulos de la v1.17: redes, subredes, equipos, escaneo y agenda,
 # presencia, mapa de puertos, mapa visual, alertas, consumo, inspeccion profunda,
-# usuarios, credenciales SNMP, controladoras WiFi, catalogo de dispositivos y
-# topologia manual.
+# usuarios, credenciales SNMP, controladoras WiFi, catalogo de dispositivos,
+# topologia manual, catalogo comunitario y barrido de aire.
 
 # --------------------------------------------------------------- el sistema --
 
@@ -189,6 +189,70 @@ tipo = "feature"
 modulo = "Equipos y catalogo"
 notas = "La lista de equipos dice ahora de que esta hecha la red: cuantos aparatos hay en total, cuantos estan prendidos y cuantos de cada tipo. Detras hay una LISTA UNICA de categorias que usan los dos lados: el catalogo clasifica con ella lo que descubre y el formulario de alta manual la ofrece en un desplegable, nunca como texto libre. Antes el catalogo decia 'punto_de_acceso' y el alta manual decia 'ap': el contador habria sacado dos cubos para la misma cosa. Una prueba compara las dos listas y falla si se separan. El switch declarado a mano cuenta desde el momento en que se declara, porque el contador y el mapa leen la misma tabla."
 
+[[sistema]]
+version = "1.15"
+revision = 21
+fecha = "2026-08-15"
+tipo = "change"
+modulo = "Vocabulario"
+notas = "Lo que se llamaba boca ahora se llama PUERTO en todo el sistema: pantallas, mensajes, columnas y codigo. La palabra rara nacio para no confundir el conector fisico con un puerto TCP, pero el sistema ya decia puerto en las tablas y en el mapa, asi que solo servia para tener dos nombres para la misma cosa. Donde los dos sentidos puedan confundirse se dice PUERTO FISICO y PUERTO TCP, con todas sus letras."
+
+[[sistema]]
+version = "1.15"
+revision = 22
+fecha = "2026-08-15"
+tipo = "feature"
+modulo = "Catalogo de dispositivos"
+notas = "MiRed ya sabe de quien es cada MAC: el paquete instala la lista completa de la IEEE —52 977 prefijos, incluidos los bloques chicos de 28 y 36 bits— en vez de los 99 que traia embebidos, y gana el prefijo mas largo que coincida. Ademas, una regla generica ya no le gana a una identificacion: tener el puerto 80 abierto describe un sintoma, no un aparato, y por eso el modem, la television y la antena salian los tres como Servidor web. Ahora eso solo se dice cuando no se sabe nada mejor, y se dice como lo que es: equipo con pagina web."
+
+[[sistema]]
+version = "1.15"
+revision = 23
+fecha = "2026-08-15"
+tipo = "fix"
+modulo = "Escaneo"
+notas = "El equipo donde corre MiRed ya aparece en su propio inventario. Nadie se manda un ARP a su propia direccion y su respuesta al ping va por dentro sin salir a la red, asi que la PC del usuario era el unico aparato de la casa que faltaba. No hace falta preguntarselo a nadie: sus tarjetas dicen su IP, su MAC y su nombre, y se anota con el metodo propio, que es el dato mas firme de todos."
+
+[[sistema]]
+version = "1.15"
+revision = 24
+fecha = "2026-08-15"
+tipo = "fix"
+modulo = "Mapa y topologia manual"
+notas = "Un cable ocupa un puerto en las DOS puntas: al conectar contra un aparato que tiene puertos declarados, ahora se pregunta en cual entra. Un switch de cinco puertos colgado del modem queda con cuatro libres, no con cinco. Y cada aparato se dibuja UNA vez: el switch que cuelga del modem va debajo de su puerto con los suyos abajo, en vez de salir dos veces —una como caja y otra como bloque suelto—. En la lista de equipos la IP se lee del tamano del renglon de abajo, porque es lo que identifica a un aparato en la red."
+
+[[sistema]]
+version = "1.15"
+revision = 25
+fecha = "2026-08-15"
+tipo = "feature"
+modulo = "Reconocimiento de aparatos"
+notas = "MiRed ya no adivina que es un aparato mirandole los puertos: se lo pregunta. Lee el titulo y el encabezado de su pagina web, el nombre del candado que pide para entrar, el nombre y la organizacion de su certificado, y su banner de SSH. Escucha lo que la red anuncia sola —mDNS/Bonjour, UPnP y WS-Discovery— y habla los protocolos propios de las marcas que mas se venden aqui: Ubiquiti (que ademas contesta el SSID que emite y la MAC de su radio), MikroTik, TP-Link Kasa, Hikvision, Roku, televisiones Samsung, impresoras por IPP y el nombre de Windows por NetBIOS. Todo se guarda con la FUENTE de donde salio, para poder decir de donde se supo cada cosa en vez de presentarlo todo como igual de firme. Nada de esto entra a ningun lado: son los mismos mensajes que usan las aplicaciones de cada fabricante para encontrar sus equipos."
+
+[[sistema]]
+version = "1.16"
+revision = 26
+fecha = "2026-08-15"
+tipo = "feature"
+modulo = "Catalogo comunitario"
+notas = "El modulo 16: lo que una persona aprende de su red, aprovechable por las demas. Un aparato que MiRed no reconocio se puede guardar en el catalogo de aqui —queda reconocido desde el proximo escaneo, sin reiniciar nada— y compartirse con la comunidad: MiRed deja el aporte ya escrito contra el repositorio y quien lo publica es la persona, con su cuenta. Y al reves: se pueden traer las definiciones que publicaron los demas, que se guardan en su propia carpeta. **Las tres mandan en orden: paquete, comunidad, propias.** Actualizar nunca pisa una definicion escrita aqui, porque quien tiene el aparato delante sabe mas que ningun repositorio. Corriendo como programa, lo propio y lo de la comunidad se escriben en la carpeta del usuario: en /etc no hay permiso."
+
+[[sistema]]
+version = "1.17"
+revision = 27
+fecha = "2026-08-15"
+tipo = "feature"
+modulo = "Barrido de aire"
+notas = "El modulo 17: la unica medicion de MiRed que no pasa por un cable. Escucha que redes inalambricas se oyen desde el equipo y dice, de cada antena, el SSID que emite, el BSSID —que es la MAC del RADIO, distinta de la del cable—, el canal, la banda, la seguridad y con que fuerza llega. Cada antena se cruza con el inventario para decir de que aparato es, distinguiendo lo MEDIDO (la MAC del radio es la del equipo) de lo DEDUCIDO (esta a uno o dos numeros de la del cable, que es como numeran casi todos los fabricantes). Hace falta tarjeta WiFi en el equipo: cuando no la hay se dice con esas palabras, en vez de una lista vacia que se leeria como que no hay redes. No se barre solo al abrir la pestana, porque recorrer los canales corta unos segundos el WiFi de ese equipo."
+
+[[sistema]]
+version = "1.17"
+revision = 28
+fecha = "2026-08-15"
+tipo = "feature"
+modulo = "Reconocimiento de aparatos"
+notas = "Se completan los protocolos de fabricante que faltaban: Tuya / Smart Life (los focos y enchufes, que no contestan a nada: **avisan solos** por difusion y hay que estar escuchando), TP-Link Omada, D-Link, NETGEAR NSDP, Dahua DHDiscover, Xiaomi miIO, Ruckus y Fortinet. Fortinet no tiene descubrimiento abierto: se reconoce por su certificado —que trae el numero de serie, y de ahi sale el modelo— y por el puerto 541 de gestion. De los protocolos que solo se conocen por ingenieria inversa se lee lo que se entiende y nada mas: si el aparato contesta con su modelo dentro, se saca; si contesta otra cosa, no se inventa. Trece definiciones nuevas de catalogo, incluidas FortiGate, FortiAP, Ruckus, Omada, switches D-Link y NETGEAR por su modelo, Tuya y Dahua."
+
 # ----------------------------------------------------------------- la base --
 #
 # Cada entrada apunta al numero de migracion que la trae. El esquema de las bases
@@ -249,3 +313,27 @@ fecha = "2026-08-14"
 tipo = "feature"
 modulo = "Topologia manual"
 notas = "Red 0011: columnas modelo, origen y conexion en equipos, mas puertos_fisicos y enlaces_fisicos. El cable lleva su origen_dato —manual, snmp, lldp, cdp o inferido— para que lo tecleado no se confunda con lo medido. La tabla enlaces de 0004 NO se toca: aquella guarda lo que un switch anuncia de su vecino, esta guarda el cable ya resuelto."
+
+[[base]]
+version = "1.15"
+revision = 8
+fecha = "2026-08-15"
+tipo = "change"
+modulo = "Vocabulario"
+notas = "Red 0013: la columna cuantos_en_boca de conexiones_puerto pasa a llamarse cuantos_en_puerto. La migracion 0004 no se toca —una migracion ya aplicada se queda como se aplico— y el cambio de nombre se hace aparte, para que una base vieja y una recien creada terminen exactamente iguales."
+
+[[base]]
+version = "1.15"
+revision = 9
+fecha = "2026-08-15"
+tipo = "fix"
+modulo = "Topologia manual"
+notas = "Red 0014: indice unico por puerto de destino en enlaces_fisicos. La regla de un cable por puerto estaba a medias desde 0011, que solo cubria el puerto de origen: un mismo puerto podia recibir dos cables por el otro lado y el mapa dibujaba dos verdades incompatibles en el mismo lugar."
+
+[[base]]
+version = "1.15"
+revision = 10
+fecha = "2026-08-15"
+tipo = "feature"
+modulo = "Reconocimiento de aparatos"
+notas = "Red 0015: tabla huellas, con lo que cada aparato dice de si mismo y de que fuente salio cada dato. La fuente se guarda con el dato a proposito: no vale lo mismo un modelo firmado en un certificado que uno sacado del titulo de una pagina."

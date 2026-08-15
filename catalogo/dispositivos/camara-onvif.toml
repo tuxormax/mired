@@ -1,0 +1,10 @@
+# ONVIF es el idioma comun de las camaras IP: lo hablan Hikvision, Dahua, Uniview
+# y casi toda camara vendida aqui, aunque la marca no aparezca por ningun lado.
+# La camara contesta con su fabricante y su modelo, asi que esto no es adivinar.
+nombre = "Camara o grabador ONVIF"
+categoria = "camara"
+icono = "videocam"
+descripcion = "Contesta el protocolo ONVIF, que es el que hablan las camaras y los grabadores de video."
+
+[coincidencias]
+huella_contiene = ["onvif", "networkvideotransmitter"]

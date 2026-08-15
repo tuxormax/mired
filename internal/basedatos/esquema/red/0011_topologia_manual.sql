@@ -1,14 +1,14 @@
 -- Lo que el usuario sabe y ninguna herramienta puede averiguar.
 --
 -- MiRed ya distinguia el enlace CONFIRMADO (se lo dijo el switch por SNMP, LLDP
--- o CDP) del INFERIDO (varias MAC en la misma boca, o sea algo no administrable
+-- o CDP) del INFERIDO (varias MAC en el mismo puerto, o sea algo no administrable
 -- atras). Falta la tercera fuente: lo que una persona DECLARA porque tiene el
 -- cable delante. Sin esto, la red domestica tipica —modem del ISP, switch tonto,
 -- PC, antena, DVR— se queda sin mapa de puertos aunque su dueno sepa
 -- perfectamente como esta cableada.
 --
 -- No es cosa solo de switches tontos: **cualquier equipo puede necesitar declarar
--- sus bocas a mano**, incluido un modem administrable que no habla SNMP hacia la
+-- sus puertos a mano**, incluido un modem administrable que no habla SNMP hacia la
 -- LAN, que es el caso mas comun en Mexico (Telmex y casi todo ISP). Por eso no
 -- hay una tabla aparte de "equipos manuales": el origen del dato es una columna,
 -- no un mundo paralelo.
@@ -30,9 +30,9 @@ ALTER TABLE equipos ADD COLUMN origen TEXT NOT NULL DEFAULT 'descubierto'
 ALTER TABLE equipos ADD COLUMN conexion TEXT
     CHECK (conexion IS NULL OR conexion IN ('cable', 'wifi'));
 
--- ------------------------------------------------------------ las bocas --
+-- ------------------------------------------------------------ los puertos --
 
--- Las bocas FISICAS de un equipo, tal como se ven por fuera.
+-- Los puertos FISICOS de un equipo, tal como se ven por fuera.
 --
 -- Va aparte de `interfaces` a proposito: `interfaces` son las que el equipo
 -- ANUNCIA por SNMP, con su indice interno, y solo existen si el equipo habla.
@@ -53,7 +53,7 @@ CREATE INDEX ix_puertos_fisicos_equipo ON puertos_fisicos (equipo_id);
 
 -- ------------------------------------------------------------ los cables --
 
--- Un cable entre dos bocas, venga de donde venga el dato.
+-- Un cable entre dos puertos, venga de donde venga el dato.
 --
 -- Se llama `enlaces_fisicos` y no `enlaces` porque `enlaces` ya existe desde
 -- 0004 y es otra cosa: ahi se guarda lo que un switch ANUNCIA de su vecino
@@ -67,9 +67,9 @@ CREATE INDEX ix_puertos_fisicos_equipo ON puertos_fisicos (equipo_id);
 CREATE TABLE enlaces_fisicos (
     id                INTEGER PRIMARY KEY AUTOINCREMENT,
     puerto_origen_id  INTEGER NOT NULL REFERENCES puertos_fisicos (id) ON DELETE CASCADE,
-    -- Boca contra boca: switch tonto con switch tonto, o switch con modem.
+    -- Puerto contra puerto: switch tonto con switch tonto, o switch con modem.
     puerto_destino_id INTEGER REFERENCES puertos_fisicos (id) ON DELETE CASCADE,
-    -- El destino no tiene bocas declaradas —una laptop, un DVR con un solo
+    -- El destino no tiene puertos declarados —una laptop, un DVR con un solo
     -- cable—. Obligar a inventarle un "puerto 1" a un aparato con una sola
     -- salida seria ensuciar la base para cuadrar un modelo.
     equipo_destino_id INTEGER REFERENCES equipos (id) ON DELETE CASCADE,
@@ -78,15 +78,15 @@ CREATE TABLE enlaces_fisicos (
                       ),
     notas             TEXT,
     creado_en         TEXT NOT NULL,
-    -- Una punta y solo una: o boca, o equipo.
+    -- Una punta y solo una: o puerto, o equipo.
     CHECK (
         (puerto_destino_id IS NOT NULL AND equipo_destino_id IS NULL)
         OR
         (puerto_destino_id IS NULL AND equipo_destino_id IS NOT NULL)
     )
 );
--- Una boca lleva UN cable. Si se declara otro, se reemplaza el anterior en vez
--- de dejar dos verdades incompatibles colgando de la misma boca.
+-- Un puerto lleva UN cable. Si se declara otro, se reemplaza el anterior en vez
+-- de dejar dos verdades incompatibles colgando del mismo puerto.
 CREATE UNIQUE INDEX ux_enlaces_fisicos_origen ON enlaces_fisicos (puerto_origen_id);
 CREATE INDEX ix_enlaces_fisicos_destino ON enlaces_fisicos (puerto_destino_id);
 CREATE INDEX ix_enlaces_fisicos_equipo ON enlaces_fisicos (equipo_destino_id);

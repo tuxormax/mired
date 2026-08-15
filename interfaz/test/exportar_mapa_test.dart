@@ -22,19 +22,19 @@ void main() {
           indice: 5, puerto: 'Gi0/5', alias: '', activa: true,
           velocidadMbps: 1000, mac: 'b8:27:eb:1a:2b:3c', equipoId: 1,
           equipoNombre: 'Impresora de contabilidad, planta baja',
-          equipoIp: '192.168.1.47', confirmado: true, cuantosEnBoca: 1,
+          equipoIp: '192.168.1.47', confirmado: true, cuantosEnPuerto: 1,
         ),
         PuertoDeSwitch(
           switchId: 3, switchNombre: 'sw-principal', switchIp: '192.168.1.1',
           indice: 7, puerto: 'Gi0/7', alias: '', activa: true,
           velocidadMbps: 100, mac: 'cc:cc:cc:00:00:20',
-          equipoNombre: '', equipoIp: '', confirmado: false, cuantosEnBoca: 4,
+          equipoNombre: '', equipoIp: '', confirmado: false, cuantosEnPuerto: 4,
         ),
         PuertoDeSwitch(
           switchId: 8, switchNombre: 'sw-bodega', switchIp: '192.168.1.2',
           indice: 3, puerto: 'Fa0/3', alias: '', activa: true,
           velocidadMbps: 100, mac: 'dd:dd:dd:00:00:01',
-          equipoNombre: '', equipoIp: '', confirmado: false, cuantosEnBoca: 9,
+          equipoNombre: '', equipoIp: '', confirmado: false, cuantosEnPuerto: 9,
         ),
       ],
       // Dos switches unidos por un cable, visto por los dos protocolos: es el
@@ -82,7 +82,7 @@ void main() {
 
     expect(renglones.any((r) => r.contains('Gi0/5') && r.contains('confirmado')), isTrue);
     expect(renglones.any((r) => r.contains('Gi0/7') && r.contains('grupo')), isTrue);
-    // El equipo 9 no cuelga de ninguna boca: tiene que salir marcado, no
+    // El equipo 9 no cuelga de ningun puerto: tiene que salir marcado, no
     // desaparecer.
     expect(renglones.any((r) => r.contains('sin ubicar')), isTrue);
     // Un nombre con coma va entrecomillado o parte el renglon en dos columnas.
@@ -119,7 +119,7 @@ void main() {
     // regla de dibujo del proyecto y tiene que sobrevivir a la exportacion.
     expect(svg, contains('stroke-dasharray="6 5"'));
 
-    // La boca con varias MAC dice cuantas conto el servidor, no cuantos
+    // El puerto con varias MAC dice cuantas conto el servidor, no cuantos
     // renglones llegaron.
     expect(svg, contains('>4 equipos<'));
 
@@ -170,7 +170,7 @@ void main() {
             indice: 1, puerto: 'Fa0/1', alias: '', activa: true,
             velocidadMbps: 100, mac: '00:11:22:33:44:55', equipoId: 1,
             equipoNombre: 'Camara ñoña — patio', equipoIp: '10.0.0.9',
-            confirmado: true, cuantosEnBoca: 1,
+            confirmado: true, cuantosEnPuerto: 1,
           ),
         ],
       ),

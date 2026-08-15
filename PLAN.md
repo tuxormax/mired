@@ -17,7 +17,7 @@ a heredar la AGPL de otro.
 
 ## Estado del desarrollo
 
-Actualizado el **2026-08-14**, en **v1.15 Rev 20**.
+Actualizado el **2026-08-15**, en **v1.17 Rev 28**.
 
 | Fase | Estado | Nota |
 |---|---|---|
@@ -25,7 +25,7 @@ Actualizado el **2026-08-14**, en **v1.15 Rev 20**.
 | 2 — Descubrimiento | ✅ terminada | ARP, ICMP y TCP; puertos, DNS inverso y fabricante por OUI |
 | 3 — Presencia en vivo | ✅ terminada | Barrido rapido, historial de conexiones y agenda por red |
 | 4 — SNMP y capa 2 | ⚠️ hecha, sin probar en equipo real | LLDP, CDP, enlaces entre switches dibujados y controladora UniFi. **Falta probarla contra equipo de verdad** |
-| 5 — El mapa | ✅ terminada | Mapa visual, exportacion a PNG, SVG, PDF y CSV, y **edicion manual del cableado** (modulo 15, v1.15): equipos que ningun escaneo ve, bocas declaradas y contradicciones avisadas |
+| 5 — El mapa | ✅ terminada | Mapa visual, exportacion a PNG, SVG, PDF y CSV, y **edicion manual del cableado** (modulo 15, v1.15): equipos que ningun escaneo ve, puertos declarados y contradicciones avisadas |
 | 6 — Catalogo `.toml` | ✅ terminada | Formato, motor de reconocimiento, 15 definiciones semilla, "proponer definicion" y la **lista unica de categorias** que comparten el catalogo y el alta manual |
 | 7 — Alertas | ✅ terminada | Las 6 reglas detectan y los 4 destinos de aviso funcionan |
 | 8 — Ancho de banda | ✅ terminada | Contadores SNMP por puerto y receptor de flujos: NetFlow v5, NetFlow v9, IPFIX y sFlow |
@@ -41,8 +41,8 @@ receptor de flujos, y el `.deb` desempaquetado corriendo desde su propio árbol.
 **NO probado todavía:** que los servicios mueran al cerrar la ventana; un escaneo
 completo lanzado desde el programa; SNMP y CDP contra un switch administrable real; la controladora UniFi
 contra una de verdad (sólo contra un servidor de mentira que imita las dos
-generaciones); la inspección profunda contra un puerto espejo real; y **conectar bocas
-tocándolas con el ratón en la ventana** (la API entera y el dibujo del plano sí
+generaciones); la inspección profunda contra un puerto espejo real; y **conectar puertos
+tocándolos con el ratón en la ventana** (la API entera y el dibujo del plano sí
 están cubiertos por pruebas). El switch administrable sigue siendo el
 riesgo abierto más grande del proyecto.
 
@@ -78,7 +78,7 @@ de darla por buena** no es opcional en este proyecto.
 nunca se reinicia. No es versionado semántico: X no sube porque un cambio sea
 grande, sube cuando hay un módulo más.
 
-Hoy son **15 módulos** → **v1.15**, y la revisión va por la **20**.
+Hoy son **17 módulos** → **v1.17**, y la revisión va por la **28**.
 
 > Redes · Subredes · Equipos · Escaneo y agenda · Presencia · Mapa de puertos ·
 > Mapa visual · Alertas · Consumo · Inspección profunda · Usuarios · Credenciales
@@ -115,7 +115,7 @@ En Go: almacenamiento, agenda, alertas, topologia, catalogo, la lectura de SNMP,
 los cuatro formatos de flujos, la controladora UniFi contra un servidor de
 mentira, y la identificacion de aplicaciones de la inspeccion profunda. Lo que
 mas se cuida es lo que **falla sin dar error**: leer un registro con la plantilla
-de otro router, colgar un vecino de la boca equivocada, o multiplicar mal la tasa
+de otro router, colgar un vecino del puerto equivocado, o multiplicar mal la tasa
 de muestreo de sFlow. Ninguna de esas tres revienta nada; todas dan cifras
 plausibles y falsas.
 
@@ -278,8 +278,8 @@ la topología de capa 3 (subredes, salidas, rutas) y **todas las alertas de
 cambio**. Se pierde el puerto exacto y el consumo por puerto.
 
 **Lo que sí se infiere:** si un switch administrable ve **varias MAC colgando de
-una misma boca**, ahí hay un switch no administrable o un punto de acceso, y todo
-lo que aparece por esa boca está detrás de él. No da el puerto exacto, da el
+un mismo puerto**, ahí hay un switch no administrable o un punto de acceso, y todo
+lo que aparece por ese puerto está detrás de él. No da el puerto exacto, da el
 grupo: «estos nueve equipos cuelgan del puerto 7 a través de un switch tonto».
 Para un plano de sitio eso suele bastar. Y el WiFi nunca tiene puerto de switch:
 ahí la hoja del árbol es el punto de acceso.
@@ -314,8 +314,8 @@ en una red con switches cada equipo solo ve lo suyo. Hay tres formas, de barata 
 cara, y MiRed ofrece las dos primeras en el núcleo:
 
 1. **Contadores SNMP por puerto** (`ifHCInOctets`/`ifHCOutOctets`): el switch ya
-   lleva la cuenta de los bytes de cada boca, solo hay que preguntársela. Como
-   MiRed ya sabe qué aparato cuelga de cada boca, eso da **quién consume sin
+   lleva la cuenta de los bytes de cada puerto, solo hay que preguntársela. Como
+   MiRed ya sabe qué aparato cuelga de cada puerto, eso da **quién consume sin
    capturar un solo paquete**, a costo casi nulo. Da volumen, no aplicaciones.
 2. **Flujos exportados por el router** (NetFlow, sFlow, IPFIX): quién habla con
    quién y cuánto. El trabajo pesado lo hace el router. **Es la salida para los
@@ -422,12 +422,12 @@ Es la fase que da lo que ninguna herramienta gratuita da bien, y la más técnic
 - **Controladora WiFi.** Un punto de acceso no tiene puertos, tiene antenas, y
   quien sabe quien cuelga de cual es la controladora. Lo que contesta se guarda
   por el MISMO camino que SNMP —el punto de acceso es, para el mapa, un switch
-  cuyas bocas son redes WiFi—, y asi hereda gratis el mapa, la exportacion y la
+  cuyos puertos son redes WiFi—, y asi hereda gratis el mapa, la exportacion y la
   alerta de "se movio de lugar" en vez de ser un segundo mapa que mantener
   aparte. Corre en el servidor y no en la sonda: es HTTPS, no necesita
   privilegios.
-- Armado del árbol: qué aparato cuelga de qué boca, distinguiendo **enlace
-  confirmado** de **inferido**, y detectando las bocas con varias MAC como
+- Armado del árbol: qué aparato cuelga de qué puerto, distinguiendo **enlace
+  confirmado** de **inferido**, y detectando los puertos con varias MAC como
   «grupo detrás de un switch no administrable».
 - Perfil de capacidades por red y el informe de qué falta para subir de nivel.
 
@@ -448,10 +448,10 @@ adjunta él, como cualquier otro archivo suyo.
 **Edición manual del cableado (módulo 15, decidido y hecho el 2026-08-14).** El
 mapa tiene un **modo edición** explícito, aparte de solo mirarlo. Ahí se dan de
 alta aparatos que ningún escaneo puede ver —un switch no administrable no tiene
-dirección, no contesta a nada y no existe para ningún barrido—, se declaran las
-bocas de **cualquier** equipo y se conectan a mano tocando una boca libre.
+dirección, no contesta a nada y no existe para ningún barrido—, se declaran los
+puertos de **cualquier** equipo y se conectan a mano tocando un puerto libre.
 
-- La interacción es **clic-clic, no arrastre libre**: tocar la boca y elegir del
+- La interacción es **clic-clic, no arrastre libre**: tocar el puerto y elegir del
   menú («agregar un aparato nuevo» o «conectar uno que ya se descubrió»).
   Arrastrar sobre el lienzo exigiría detección de colisiones en el pintor para un
   beneficio marginal sobre lo mismo.

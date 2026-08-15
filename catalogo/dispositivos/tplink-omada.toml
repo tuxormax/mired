@@ -1,0 +1,9 @@
+# La otra familia de TP-Link: la de oficina (Omada), que no habla el protocolo de
+# los focos Kasa.
+nombre = "Punto de acceso TP-Link Omada"
+categoria = "punto_de_acceso"
+icono = "wifi"
+descripcion = "Punto de acceso EAP de TP-Link, con o sin controladora Omada."
+
+[coincidencias]
+huella_contiene = ["omada"]

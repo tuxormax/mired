@@ -14,15 +14,33 @@ todo, para no prometer cosas que en esta red no se pueden dar.
 
 ## Que hay
 
+Los fabricantes se confirmaron el **2026-08-15** contra el registro de la IEEE:
+
+| Direccion | MAC | Fabricante | Que es |
+|---|---|---|---|
+| 192.168.1.254 | a0:95:7f | SERNET (Suzhou) | **modem Telmex** |
+| 192.168.1.100 | — | — | **esta PC** (la que corre MiRed) |
+| 192.168.1.86 | f4:92:bf | **Ubiquiti** | **el AP** ← era el que salia como "Equipo Linux o Unix" |
+| 192.168.1.74 | 3c:e3:6b | Dahua | DVR / grabador |
+| 192.168.1.65 | a0:d7:f3 | Samsung | probablemente la television |
+| 192.168.1.71 | 08:65:f0 | JM Zengge | foco o enchufe WiFi |
+| 192.168.1.77 | e8:5a:8b | Xiaomi | telefono o aparato de casa |
+| .69 y .70 | MAC aleatoria | — | telefonos con MAC de privacidad |
+
 ```
-Modem (Telmex/Megacable)  192.168.1.254   ← puerta de enlace
-      │ un solo cable a una boca LAN
-   Switch simple  (no administrable)
+Modem Telmex  192.168.1.254   ← puerta de enlace
+      │ un solo cable a un puerto LAN
+   Switch simple  (no administrable, declarado a mano)
       ├── esta PC        192.168.1.100
-      ├── AP Ubiquiti    (direccion por confirmar)
-      ├── DVR
-      └── otra PC        (apagada)
+      ├── AP Ubiquiti    192.168.1.86
+      ├── DVR Dahua      192.168.1.74
+      └── lo demas
 ```
+
+**Aqui NO se puede oir el aire**: esta PC solo tiene tarjeta de cable
+(`enp4s0`). El modulo 17 avisa de eso con todas sus letras en vez de devolver
+una lista vacia. Para ver SSID y BSSID hace falta correr MiRed en una laptop o
+en una Raspberry con WiFi, o poner un adaptador USB.
 
 ## Que contesta SNMP: NADA
 
@@ -49,7 +67,7 @@ No fiarse de las palabras "smart", "gestionable" o "administrable" del nombre.
 
 Verificado el 2026-08-13:
 - `TL-SG1008PE` — TP-Link lo cataloga como **no administrable**. Sin SNMP y sin
-  espejo de puertos. PoE+ en las 8 bocas.
+  espejo de puertos. PoE+ en las 8 puertos.
 - `TL-SG108PE` — linea **Easy Smart**: tiene web y espejo de puertos, pero **no
   SNMP**; se administra solo con la utilidad propietaria de TP-Link.
 - Linea **Smart / JetStream** (`TL-SG2008`, `TL-SG2210P`, `T1500G` y arriba) —

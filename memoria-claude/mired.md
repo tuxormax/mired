@@ -104,14 +104,14 @@ duplique filas.
    su antena), mapa de puertos y perfil de capacidades.
 5. Mapa visual en Flutter con exportacion a **PNG, SVG, PDF y CSV** (cerrada el
    2026-08-13) y **edicion manual del cableado** (modulo 15, 2026-08-14): dar de
-   alta lo que ningun escaneo ve, declarar bocas y conectarlas tocandolas, con
+   alta lo que ningun escaneo ve, declarar puertos y conectarlas tocandolas, con
    modo edicion aparte de solo mirar. Ver [[modulo-topologia-manual]].
 6. Catalogo abierto de dispositivos en `.toml`, con 15 definiciones semilla y el
    boton "proponer definicion" que genera el archivo ya relleno. Desde la Rev 20,
    una **lista unica de categorias** que comparten el catalogo y el alta manual,
    y el **contador de de que esta hecha la red** en la pestana de equipos.
    Ver [[ref-categorias]].
-8. Ancho de banda: contadores SNMP por boca (con tasa calculada entre dos
+8. Ancho de banda: contadores SNMP por puerto (con tasa calculada entre dos
    lecturas) y receptor de flujos **NetFlow v5, NetFlow v9, IPFIX y sFlow** del
    router, que es lo que mide consumo donde no hay switches administrables. El
    formato se reconoce solo.
@@ -139,7 +139,7 @@ detectada.
 **NO probado:** que los servicios mueran al cerrar la ventana; un escaneo
 completo desde el programa; SNMP y CDP contra un switch administrable real; la
 controladora UniFi contra una de verdad; la inspeccion profunda contra un
-puerto espejo; y **conectar bocas tocandolas con el raton en la ventana** (la
+puerto espejo; y **conectar puertos tocandolas con el raton en la ventana** (la
 API entera y el dibujo del plano si estan cubiertos por pruebas). El switch administrable sigue
 siendo el riesgo abierto mas grande.
 
@@ -150,7 +150,7 @@ construye el `.deb`, lo desempaqueta y recorre el flujo completo. Es la unica qu
 prueba lo que de verdad se entrega.
 
 Lo que mas se cuida es **lo que falla sin dar error**: leer un registro de flujos
-con la plantilla de otro router, colgar un vecino de la boca equivocada,
+con la plantilla de otro router, colgar un vecino del puerto equivocado,
 multiplicar mal la tasa de muestreo de sFlow, o desviarse del vector oficial de
 TUXOR. Ninguna de esas revienta nada; todas dan resultados plausibles y falsos.
 
@@ -212,7 +212,7 @@ servicios se maten al cerrar la ventana, y todo lo que dependa de equipo real.
 ### ▶▶ LO SIGUIENTE, ya acordado con el usuario: EL MAPA DE CAPA 3
 
 Es lo mas grande que quedo pendiente y esta decidido, solo falta escribirlo. El
-mapa de hoy solo dibuja capa 2 —quien cuelga de que boca—, que en una red sin
+mapa de hoy solo dibuja capa 2 —quien cuelga de que puerto—, que en una red sin
 switches administrables **no dibuja nada**: todo cae en "sin ubicar". El plan
 prometia capa 2 **y capa 3** desde la fase 5, y la capa 3 nunca se hizo.
 
@@ -220,15 +220,15 @@ Lo acordado, en tres partes:
 
 1. **Detectar la puerta de enlace y dibujar desde ahi.** El modem arriba y todo lo
    descubierto colgando, **diciendo con todas sus letras** que el switch de en
-   medio no puede precisar la boca. MiRed hoy **no detecta el gateway**: no hay
+   medio no puede precisar el puerto. MiRed hoy **no detecta el gateway**: no hay
    una sola linea que lo mire. Es la base; sin eso lo demas no tiene de donde
    colgar.
-2. **Preguntarle a todo el que conteste** cuantas bocas tiene y que hay en cada
+2. **Preguntarle a todo el que conteste** cuantos puertos tiene y que hay en cada
    una. **Ya esta hecho** (revision 17): se prueba la comunidad de fabrica en
    cada escaneo, sin que nadie configure nada.
 3. **Que el usuario pueda declarar "aqui hay un switch"** y colgarle los equipos
    que el ve por el cable. Con **su regla del tamaño minimo**: N equipos + el
-   cable de subida = al menos N+1 bocas, redondeado al siguiente tamaño de
+   cable de subida = al menos N+1 puertos, redondeado al siguiente tamaño de
    fabrica (5, 8, 16, 24, 48). Se dice **"al menos 8 puertos"**, nunca "es de 8":
    un switch con 5 equipos puede ser de 8 con tres libres o de 16 con once. Y lo
    declarado se marca **distinto de lo detectado**, para no confundir lo que se

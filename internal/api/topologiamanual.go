@@ -33,7 +33,7 @@ func (a *API) exigeEscritura(escritor http.ResponseWriter, peticion *http.Reques
 	return false
 }
 
-// verTopologiaManual devuelve las bocas declaradas, sus cables y donde eso no
+// verTopologiaManual devuelve los puertos declarados, sus cables y donde eso no
 // cuadra con lo que reportan los equipos.
 func (a *API) verTopologiaManual(escritor http.ResponseWriter, peticion *http.Request) {
 	clave, _ := autenticacion.RedActivaDe(peticion.Context())
@@ -200,7 +200,7 @@ func (a *API) borrarEquipoManual(escritor http.ResponseWriter, peticion *http.Re
 	responderOk(escritor, map[string]any{"borrado": true})
 }
 
-// ---------------------------------------------------------------- bocas --
+// ---------------------------------------------------------------- puertos --
 
 func (a *API) agregarPuertoFisico(escritor http.ResponseWriter, peticion *http.Request) {
 	if !a.exigeEscritura(escritor, peticion, "Agregar puerto") {
@@ -227,7 +227,7 @@ func (a *API) agregarPuertoFisico(escritor http.ResponseWriter, peticion *http.R
 	})
 	if errors.Is(err, basedatos.ErrPuertoRepetido) {
 		a.errorValidacion(escritor, peticion, "Topologia manual", "Agregar puerto",
-			"Ese equipo ya tiene declarada esa boca.")
+			"Ese equipo ya tiene declarado ese puerto.")
 		return
 	}
 	if err != nil {
@@ -262,7 +262,7 @@ func (a *API) editarPuertoFisico(escritor http.ResponseWriter, peticion *http.Re
 	})
 	if errors.Is(err, basedatos.ErrPuertoRepetido) {
 		a.errorValidacion(escritor, peticion, "Topologia manual", "Editar puerto",
-			"Ese equipo ya tiene declarada esa boca.")
+			"Ese equipo ya tiene declarado ese puerto.")
 		return
 	}
 	if errors.Is(err, basedatos.ErrPuertoNoExiste) {
@@ -335,7 +335,7 @@ func (a *API) crearEnlaceManual(escritor http.ResponseWriter, peticion *http.Req
 	switch {
 	case errors.Is(err, basedatos.ErrPuertoNoExiste):
 		a.errorValidacion(escritor, peticion, "Topologia manual", "Conectar",
-			"Alguna de las dos bocas ya no existe.")
+			"Alguno de los dos puertos ya no existe.")
 		return
 	case errors.Is(err, basedatos.ErrEquipoNoExiste):
 		a.errorValidacion(escritor, peticion, "Topologia manual", "Conectar",
@@ -351,7 +351,7 @@ func (a *API) crearEnlaceManual(escritor http.ResponseWriter, peticion *http.Req
 	}
 
 	a.anotarActividad(peticion, "Topologia manual",
-		fmt.Sprintf("Conectar la boca %d en %s", creado.PuertoOrigenID, clave))
+		fmt.Sprintf("Conectar el puerto %d en %s", creado.PuertoOrigenID, clave))
 	responderOk(escritor, creado)
 }
 

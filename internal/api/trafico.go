@@ -49,7 +49,7 @@ func (a *API) consumoActual(escritor http.ResponseWriter, peticion *http.Request
 	})
 }
 
-// historialTrafico devuelve los puntos de la grafica de una boca.
+// historialTrafico devuelve los puntos de la grafica de un puerto.
 func (a *API) historialTrafico(escritor http.ResponseWriter, peticion *http.Request) {
 	clave, _ := autenticacion.RedActivaDe(peticion.Context())
 
@@ -87,15 +87,15 @@ func explicarTrafico(capacidad string, cuantos, porFlujos int) string {
 			"equipo, aunque no en que puerto esta. Es la medicion que funciona sin switches " +
 			"administrables."
 	case cuantos > 0 && capacidad == basedatos.CapacidadExacta:
-		return "El consumo sale de los contadores de cada boca del switch, cruzados con el equipo " +
+		return "El consumo sale de los contadores de cada puerto del switch, cruzados con el equipo " +
 			"que cuelga de ella. Da volumen, no aplicaciones."
 	case cuantos > 0:
-		return "Hay consumo medido por boca, pero en algunas cuelga mas de un equipo: ahi el " +
+		return "Hay consumo medido por puerto, pero en algunos cuelga mas de un equipo: ahi el " +
 			"numero es del grupo entero, no de un aparato."
 	case capacidad == basedatos.CapacidadNoDisponible:
 		return "En esta red no se puede medir consumo por puerto: ningun switch contesto SNMP. " +
 			"Configure el router para que exporte NetFlow al puerto 2055 de este servidor y " +
-			"MiRed medira igual quien consume, aunque sin decir en que boca esta."
+			"MiRed medira igual quien consume, aunque sin decir en que puerto esta."
 	default:
 		return "Todavia no hay mediciones. Con switches administrables hacen falta al menos dos " +
 			"escaneos completos (el consumo se calcula restando dos lecturas); sin ellos, " +

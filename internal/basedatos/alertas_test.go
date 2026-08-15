@@ -178,7 +178,7 @@ func TestDestinosDeAviso(t *testing.T) {
 	}
 }
 
-func TestAvisaCuandoUnEquipoSeCambiaDeBoca(t *testing.T) {
+func TestAvisaCuandoUnEquipoSeCambiaDePuerto(t *testing.T) {
 	_, base, devolver := conRedDePrueba(t)
 	defer devolver()
 	ctx := context.Background()
@@ -200,7 +200,7 @@ func TestAvisaCuandoUnEquipoSeCambiaDeBoca(t *testing.T) {
 		t.Fatalf("primera consulta: %v", err)
 	}
 
-	// Alguien lo cambio de la boca 5 a la 9.
+	// Alguien lo cambio del puerto 5 al 9.
 	ficha.MacsPorPuerto = map[string][]string{"9": {"bb:bb:bb:00:00:10"}}
 	movimientos, err := base.GuardarSNMP(ctx, []FichaSNMP{ficha})
 	if err != nil {
@@ -222,7 +222,7 @@ func TestAvisaCuandoUnEquipoSeCambiaDeBoca(t *testing.T) {
 		if alerta.Tipo == AlertaCambioPuertoSwitch {
 			encontrada = true
 			if alerta.Detalle == "" {
-				t.Fatal("la alerta deberia decir de que boca a que boca")
+				t.Fatal("la alerta deberia decir de que puerto a que puerto")
 			}
 		}
 	}

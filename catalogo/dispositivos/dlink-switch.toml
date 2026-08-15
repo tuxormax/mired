@@ -1,0 +1,10 @@
+# D-Link nombra por familias: DGS y DES son switches, DAP puntos de acceso y DIR
+# routers de casa. El modelo lo dice el propio aparato por su protocolo de
+# descubrimiento.
+nombre = "Switch D-Link"
+categoria = "switch_administrable"
+icono = "lan"
+descripcion = "Switch D-Link administrable (familias DGS y DES)."
+
+[coincidencias]
+modelo_contiene = ["dgs-", "des-"]

@@ -165,6 +165,14 @@ class Servicios {
       'MIRED_ESCUCHA': '127.0.0.1:$_puerto',
       'MIRED_SOCKET_SONDA': '$datos/sonda.sock',
       'MIRED_SOCKET_DPI': '$datos/dpi.sock',
+      // El catalogo de dispositivos: se LEE lo que instalo el paquete, pero lo
+      // que se declara aqui y lo que se baja de la comunidad se ESCRIBE en la
+      // carpeta del usuario. Corriendo como programa no hay permiso para tocar
+      // /etc ni /var/lib, y sin esto guardar una definicion fallaria siempre.
+      'MIRED_DISPOSITIVOS':
+          '/usr/share/mired/dispositivos:$datos/dispositivos-comunidad:$datos/dispositivos',
+      'MIRED_DISPOSITIVOS_PROPIOS': '$datos/dispositivos',
+      'MIRED_DISPOSITIVOS_COMUNIDAD': '$datos/dispositivos-comunidad',
     };
   }
 

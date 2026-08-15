@@ -60,7 +60,7 @@ var Categorias = []Categoria{
 	{
 		Clave: "switch_administrable", Singular: "Switch administrable", Plural: "Switches administrables",
 		Icono: "settings_ethernet", Automatica: true,
-		Explicacion: "Contesta por SNMP y puede decir que hay enchufado en cada boca.",
+		Explicacion: "Contesta por SNMP y puede decir que hay enchufado en cada puerto.",
 	},
 	{
 		Clave: "switch_simple", Singular: "Switch no administrable", Plural: "Switches no administrables",

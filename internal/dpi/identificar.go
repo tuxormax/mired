@@ -3,7 +3,7 @@
 //
 // Es la fase 10 del plan y va en un paquete aparte (`mired-dpi`) a proposito:
 // mirar todos los paquetes cuesta mucho mas que preguntarle a un switch cuantos
-// bytes paso por una boca, y esa es exactamente la diferencia entre MiRed y las
+// bytes paso por un puerto, y esa es exactamente la diferencia entre MiRed y las
 // herramientas que acaban en "consumo alto". Quien no lo instale no paga nada
 // por ello.
 //

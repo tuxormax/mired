@@ -2,8 +2,8 @@
 --
 -- Escanear NO mide trafico: para saber quien consume hay que ver el trafico, y
 -- con switches cada equipo solo ve lo suyo. Pero el switch YA lleva la cuenta de
--- los bytes que pasan por cada boca; solo hay que preguntarsela. Como MiRed ya
--- sabe que aparato cuelga de cada boca, eso da "quien consume" sin capturar un
+-- los bytes que pasan por cada puerto; solo hay que preguntarsela. Como MiRed ya
+-- sabe que aparato cuelga de cada puerto, eso da "quien consume" sin capturar un
 -- solo paquete y a costo casi nulo.
 
 CREATE TABLE muestras_trafico (

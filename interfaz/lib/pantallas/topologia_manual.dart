@@ -37,7 +37,7 @@ class _DialogoEquipoManualState extends State<DialogoEquipoManual> {
   /// Arranca en el switch no administrable: es la razon numero uno por la que
   /// alguien abre este formulario, porque es lo unico que ningun escaneo ve.
   String _clave = 'switch_simple';
-  int _bocas = 8;
+  int _puertos = 8;
   String _conexion = '';
   bool _guardando = false;
 
@@ -71,7 +71,7 @@ class _DialogoEquipoManualState extends State<DialogoEquipoManual> {
         'notas': _notas.text.trim(),
         'ip': _ip.text.trim(),
         'conexion': _categoria.preguntaConexion ? _conexion : '',
-        'puertos': _categoria.declaraBocas ? _bocas : 0,
+        'puertos': _categoria.declaraPuertos ? _puertos : 0,
       });
       if (mounted) Navigator.of(context).pop(creado);
     } catch (problema, pila) {
@@ -169,22 +169,22 @@ class _DialogoEquipoManualState extends State<DialogoEquipoManual> {
                     counterText: '',
                   ),
                 ),
-                if (_categoria.declaraBocas) ...[
+                if (_categoria.declaraPuertos) ...[
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      const Text('Cuantas bocas tiene'),
+                      const Text('Cuantos puertos fisicos tiene'),
                       const Spacer(),
                       IconButton(
                         icon: const Icon(Icons.remove_circle_outline),
-                        onPressed: _bocas > 0 ? () => setState(() => _bocas--) : null,
+                        onPressed: _puertos > 0 ? () => setState(() => _puertos--) : null,
                       ),
-                      Text('$_bocas', style: Theme.of(contexto).textTheme.titleMedium),
+                      Text('$_puertos', style: Theme.of(contexto).textTheme.titleMedium),
                       IconButton(
                         icon: const Icon(Icons.add_circle_outline),
                         // 512 es el tope de la columna: el formulario no deja
                         // capturar lo que la base va a rechazar.
-                        onPressed: _bocas < 512 ? () => setState(() => _bocas++) : null,
+                        onPressed: _puertos < 512 ? () => setState(() => _puertos++) : null,
                       ),
                     ],
                   ),
@@ -342,21 +342,21 @@ class _DialogoFichaState extends State<DialogoFicha> {
       );
 }
 
-/// DialogoBocas administra las bocas declaradas de un equipo.
+/// DialogoPuertos administra los puertos declarados de un equipo.
 ///
 /// No es solo para switches tontos: un modem administrable sin SNMP hacia la LAN
 /// —el caso mas comun de todos— necesita exactamente lo mismo.
-class DialogoBocas extends StatefulWidget {
-  const DialogoBocas({super.key, required this.clave, required this.equipo});
+class DialogoPuertos extends StatefulWidget {
+  const DialogoPuertos({super.key, required this.clave, required this.equipo});
 
   final String clave;
   final Equipo equipo;
 
   @override
-  State<DialogoBocas> createState() => _DialogoBocasState();
+  State<DialogoPuertos> createState() => _DialogoPuertosState();
 }
 
-class _DialogoBocasState extends State<DialogoBocas> {
+class _DialogoPuertosState extends State<DialogoPuertos> {
   late Future<TopologiaManual> _topologia;
   bool _hubocambios = false;
 
@@ -372,13 +372,13 @@ class _DialogoBocasState extends State<DialogoBocas> {
 
   Future<void> _agregar(List<PuertoFisico> actuales) async {
     final siguiente = actuales
-            .where((boca) => boca.tipo == 'lan')
-            .fold<int>(0, (mayor, boca) => boca.numero > mayor ? boca.numero : mayor) +
+            .where((puerto) => puerto.tipo == 'lan')
+            .fold<int>(0, (mayor, puerto) => puerto.numero > mayor ? puerto.numero : mayor) +
         1;
 
     final nueva = await showDialog<({int numero, String tipo, int? velocidad})>(
       context: context,
-      builder: (_) => _DialogoBoca(numero: siguiente),
+      builder: (_) => _DialogoPuerto(numero: siguiente),
     );
     if (nueva == null) return;
 
@@ -392,9 +392,9 @@ class _DialogoBocasState extends State<DialogoBocas> {
     }
   }
 
-  Future<void> _borrar(PuertoFisico boca) async {
+  Future<void> _borrar(PuertoFisico puerto) async {
     try {
-      await Api.instancia.borrarPuerto(widget.clave, boca.id);
+      await Api.instancia.borrarPuerto(widget.clave, puerto.id);
       _hubocambios = true;
       _recargar();
     } catch (problema, pila) {
@@ -404,7 +404,7 @@ class _DialogoBocasState extends State<DialogoBocas> {
 
   @override
   Widget build(BuildContext contexto) => AlertDialog(
-        title: Text('Bocas de ${widget.equipo.comoSeLlama}'),
+        title: Text('Puertos fisicos de ${widget.equipo.comoSeLlama}'),
         content: SizedBox(
           width: 460,
           height: 380,
@@ -418,50 +418,50 @@ class _DialogoBocasState extends State<DialogoBocas> {
                 return Center(
                   child: TextButton(
                     onPressed: () => mostrarProblema(contexto, resultado.error!),
-                    child: const Text('No se pudieron cargar las bocas. Ver detalles'),
+                    child: const Text('No se pudieron cargar los puertos. Ver detalles'),
                   ),
                 );
               }
 
               final topologia = resultado.data!;
-              final bocas = topologia.puertosDe(widget.equipo.id);
+              final puertos = topologia.puertosDe(widget.equipo.id);
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Cuente las bocas mirando el aparato. Lo que se declare aqui se '
+                    'Cuente los puertos fisicos mirando el aparato. Lo que se declare aqui se '
                     'dibuja punteado en el mapa: es lo que usted sabe, no lo que se midio.',
                     style: Theme.of(contexto).textTheme.bodySmall,
                   ),
                   const SizedBox(height: 8),
                   Expanded(
-                    child: bocas.isEmpty
-                        ? const Center(child: Text('Todavia no hay bocas declaradas.'))
+                    child: puertos.isEmpty
+                        ? const Center(child: Text('Todavia no hay puertos declarados.'))
                         : ListView.builder(
-                            itemCount: bocas.length,
+                            itemCount: puertos.length,
                             itemBuilder: (_, indice) {
-                              final boca = bocas[indice];
-                              final cable = topologia.enlaceDe(boca.id);
+                              final puerto = puertos[indice];
+                              final cable = topologia.enlaceDe(puerto.id);
                               return ListTile(
                                 dense: true,
-                                leading: Icon(boca.tipo == 'wan'
+                                leading: Icon(puerto.tipo == 'wan'
                                     ? Icons.public
                                     : Icons.settings_input_hdmi),
-                                title: Text(boca.tipo == 'wan'
-                                    ? 'Boca WAN'
-                                    : 'Boca ${boca.numero}'),
+                                title: Text(puerto.tipo == 'wan'
+                                    ? 'Puerto WAN'
+                                    : 'Puerto ${puerto.numero}'),
                                 subtitle: Text([
-                                  if (boca.velocidadMbps != null) '${boca.velocidadMbps} Mbps',
+                                  if (puerto.velocidadMbps != null) '${puerto.velocidadMbps} Mbps',
                                   if (cable == null)
                                     'sin conectar'
                                   else
-                                    'a ${cable.puertoOrigenId == boca.id ? cable.destinoNombre : cable.origenNombre}',
+                                    'a ${cable.puertoOrigenId == puerto.id ? cable.destinoNombre : cable.origenNombre}',
                                 ].join(' · ')),
                                 trailing: IconButton(
-                                  tooltip: 'Quitar la boca',
+                                  tooltip: 'Quitar el puerto',
                                   icon: const Icon(Icons.delete_outline),
-                                  onPressed: () => _borrar(boca),
+                                  onPressed: () => _borrar(puerto),
                                 ),
                               );
                             },
@@ -470,8 +470,8 @@ class _DialogoBocasState extends State<DialogoBocas> {
                   const SizedBox(height: 8),
                   OutlinedButton.icon(
                     icon: const Icon(Icons.add),
-                    label: const Text('Agregar boca'),
-                    onPressed: () => _agregar(bocas),
+                    label: const Text('Agregar puerto'),
+                    onPressed: () => _agregar(puertos),
                   ),
                 ],
               );
@@ -486,16 +486,16 @@ class _DialogoBocasState extends State<DialogoBocas> {
       );
 }
 
-class _DialogoBoca extends StatefulWidget {
-  const _DialogoBoca({required this.numero});
+class _DialogoPuerto extends StatefulWidget {
+  const _DialogoPuerto({required this.numero});
 
   final int numero;
 
   @override
-  State<_DialogoBoca> createState() => _DialogoBocaState();
+  State<_DialogoPuerto> createState() => _DialogoPuertoState();
 }
 
-class _DialogoBocaState extends State<_DialogoBoca> {
+class _DialogoPuertoState extends State<_DialogoPuerto> {
   late final TextEditingController _numero;
   String _tipo = 'lan';
   int? _velocidad;
@@ -514,7 +514,7 @@ class _DialogoBocaState extends State<_DialogoBoca> {
 
   @override
   Widget build(BuildContext contexto) => AlertDialog(
-        title: const Text('Nueva boca'),
+        title: const Text('Nuevo puerto fisico'),
         content: SizedBox(
           width: 360,
           child: Column(
@@ -568,7 +568,7 @@ class _DialogoBocaState extends State<_DialogoBoca> {
             onPressed: () {
               final numero = int.tryParse(_numero.text.trim()) ?? 0;
               if (numero < 1 || numero > 512) {
-                mensajeAviso(contexto, 'El numero de boca tiene que estar entre 1 y 512.');
+                mensajeAviso(contexto, 'El numero de puerto tiene que estar entre 1 y 512.');
                 return;
               }
               Navigator.of(contexto).pop((numero: numero, tipo: _tipo, velocidad: _velocidad));
@@ -579,12 +579,75 @@ class _DialogoBocaState extends State<_DialogoBoca> {
       );
 }
 
-/// DialogoElegirEquipo lista los equipos que todavia no estan en ninguna boca,
-/// para colgar uno de la que se toco.
+/// DialogoElegirPuerto pregunta en QUE puerto del otro aparato entra el cable.
 ///
-/// Solo se ofrecen los que no estan ubicados: ofrecer todos dejaria mover por
-/// accidente un equipo que un switch ya reporto, y eso no se corrige tecleando,
-/// se corrige moviendo el cable.
+/// Un cable ocupa un puerto en las dos puntas. Sin esto, un switch de 5 puertos
+/// colgado del modem seguia ofreciendo sus 5 puertos como libres, y el mapa
+/// contaba un lugar que en la realidad ya tiene el cable puesto.
+///
+/// Devuelve el id del puerto elegido, o 0 si el usuario no sabe en cual entra:
+/// eso conecta contra el aparato entero, que es menos preciso pero es la verdad
+/// cuando nadie fue a mirar el cable.
+class DialogoElegirPuerto extends StatelessWidget {
+  const DialogoElegirPuerto({super.key, required this.equipo, required this.puertos});
+
+  final Equipo equipo;
+  final List<PuertoFisico> puertos;
+
+  @override
+  Widget build(BuildContext contexto) {
+    return AlertDialog(
+      title: Text('¿En que puerto de ${equipo.comoSeLlama}?'),
+      content: SizedBox(
+        width: 420,
+        height: 320,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: Text('El cable ocupa un puerto de este lado y otro del otro. '
+                  'Solo se ofrecen los que estan libres.'),
+            ),
+            Expanded(
+              child: ListView.builder(
+                itemCount: puertos.length,
+                itemBuilder: (_, indice) {
+                  final puerto = puertos[indice];
+                  return ListTile(
+                    leading: Icon(puerto.tipo == 'wan' ? Icons.public : Icons.settings_ethernet),
+                    title: Text(puerto.tipo == 'wan' ? 'Puerto WAN' : 'Puerto ${puerto.numero}'),
+                    subtitle: puerto.velocidadMbps != null
+                        ? Text('${puerto.velocidadMbps} Mbps')
+                        : null,
+                    onTap: () => Navigator.of(contexto).pop(puerto.id),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(contexto).pop(0),
+          child: const Text('No se en cual'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(contexto).pop(),
+          child: const Text('Cancelar'),
+        ),
+      ],
+    );
+  }
+}
+
+/// DialogoElegirEquipo lista los equipos a los que se les puede tirar un cable
+/// desde el puerto que se toco.
+///
+/// Se ofrecen los que no cuelgan de ningun sitio y los que tienen algun puerto
+/// declarado libre —un switch con lugar—. Lo que un switch YA reporto no se
+/// mueve desde aqui: eso no se corrige tecleando, se corrige moviendo el cable.
 class DialogoElegirEquipo extends StatefulWidget {
   const DialogoElegirEquipo({super.key, required this.candidatos});
 
@@ -629,8 +692,8 @@ class _DialogoElegirEquipoState extends State<DialogoElegirEquipo> {
                       child: Padding(
                         padding: EdgeInsets.all(24),
                         child: Text(
-                          'No queda ningun equipo sin ubicar. Los que ya cuelgan de una '
-                          'boca no se mueven desde aqui: eso se corrige moviendo el cable.',
+                          'No queda ningun equipo al que conectar. Los que ya cuelgan de un '
+                          'puerto no se mueven desde aqui: eso se corrige moviendo el cable.',
                           textAlign: TextAlign.center,
                         ),
                       ),

@@ -48,7 +48,7 @@ Para saber quien consume hay que **ver** el trafico, y con switches cada equipo
 solo ve lo suyo. Tres capas, de barata a cara:
 
 1. **Contadores SNMP por puerto** (`ifHCInOctets`/`ifHCOutOctets`). El switch ya
-   lleva la cuenta; como MiRed sabe que aparato cuelga de cada boca, eso da
+   lleva la cuenta; como MiRed sabe que aparato cuelga de cada puerto, eso da
    **quien consume sin capturar un solo paquete** y a costo casi nulo. Da
    volumen, no aplicaciones. → **nucleo**
 2. **Flujos del router** (NetFlow/sFlow/IPFIX). El router hace el trabajo pesado.
@@ -75,9 +75,9 @@ quien se acaba de conectar, que es cada aparato, que servicios y puertos expone,
 la topologia de capa 3, y **todas las alertas**. Se pierde: el puerto exacto y el
 consumo por puerto.
 
-**Lo que si se infiere:** si un switch administrable ve **varias MAC en una misma
-boca**, ahi cuelga un switch no administrable o un punto de acceso, y todo lo que
-aparece por esa boca esta detras. Da el grupo ("estos nueve equipos cuelgan del
+**Lo que si se infiere:** si un switch administrable ve **varias MAC en un mismo
+puerto**, ahi cuelga un switch no administrable o un punto de acceso, y todo lo que
+aparece por ese puerto esta detras. Da el grupo ("estos nueve equipos cuelgan del
 puerto 7"), no el puerto exacto — y para un plano de sitio suele bastar. El WiFi
 nunca tiene puerto de switch: ahi la hoja del arbol es el punto de acceso, y con
 controladora (UniFi y similares, ya soportada arriba) se sabe que cliente esta en

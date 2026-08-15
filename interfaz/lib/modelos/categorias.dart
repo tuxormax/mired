@@ -23,7 +23,7 @@ class CategoriaEquipo {
     required this.icono,
     required this.automatica,
     required this.explicacion,
-    this.declaraBocas = false,
+    this.declaraPuertos = false,
     this.preguntaConexion = false,
   });
 
@@ -45,9 +45,9 @@ class CategoriaEquipo {
 
   final String explicacion;
 
-  /// Si al declararlo a mano tiene sentido preguntarle cuantas bocas tiene.
+  /// Si al declararlo a mano tiene sentido preguntarle cuantos puertos tiene.
   /// Un switch si; un celular no.
-  final bool declaraBocas;
+  final bool declaraPuertos;
 
   /// Si tiene sentido preguntar si esta por cable o por WiFi. Solo aplica a
   /// equipos terminales: en un switch no significaria nada.
@@ -67,7 +67,7 @@ const List<CategoriaEquipo> categoriasDeEquipo = [
     icono: Icons.router,
     automatica: true,
     explicacion: 'La caja del proveedor de internet, la que trae el cable de la calle.',
-    declaraBocas: true,
+    declaraPuertos: true,
   ),
   CategoriaEquipo(
     clave: 'router',
@@ -77,7 +77,7 @@ const List<CategoriaEquipo> categoriasDeEquipo = [
     automatica: true,
     explicacion:
         'Reparte entre redes distintas. En una casa suele ser el mismo aparato que el modem.',
-    declaraBocas: true,
+    declaraPuertos: true,
   ),
   CategoriaEquipo(
     clave: 'switch_administrable',
@@ -85,8 +85,8 @@ const List<CategoriaEquipo> categoriasDeEquipo = [
     plural: 'Switches administrables',
     icono: Icons.settings_ethernet,
     automatica: true,
-    explicacion: 'Contesta por SNMP y puede decir que hay enchufado en cada boca.',
-    declaraBocas: true,
+    explicacion: 'Contesta por SNMP y puede decir que hay enchufado en cada puerto.',
+    declaraPuertos: true,
   ),
   CategoriaEquipo(
     clave: 'switch_simple',
@@ -96,7 +96,7 @@ const List<CategoriaEquipo> categoriasDeEquipo = [
     automatica: false,
     explicacion: 'El switch de toda la vida: reparte y calla. No tiene direccion, '
         'asi que ningun escaneo lo ve nunca y solo puede declararse a mano.',
-    declaraBocas: true,
+    declaraPuertos: true,
   ),
   CategoriaEquipo(
     clave: 'punto_de_acceso',
@@ -140,7 +140,7 @@ const List<CategoriaEquipo> categoriasDeEquipo = [
     icono: Icons.videocam,
     automatica: true,
     explicacion: 'Camaras IP y los grabadores DVR o NVR de los que cuelgan.',
-    declaraBocas: true,
+    declaraPuertos: true,
   ),
   CategoriaEquipo(
     clave: 'servidor',

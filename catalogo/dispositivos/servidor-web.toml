@@ -1,7 +1,15 @@
-nombre = "Servidor web"
-categoria = "servidor"
-icono = "dns"
-descripcion = "Equipo que sirve paginas web."
+# Tener una pagina web NO identifica a nadie: un modem, una antena, una camara,
+# una impresora y una television traen todos su panel de administracion. Por eso
+# esta definicion es GENERICA: solo contesta cuando ninguna otra pudo, y dice lo
+# unico que de verdad se sabe.
+#
+# Antes esto se llamaba "Servidor web" y contaba como servidor. En una red de
+# casa eso pintaba de servidor al modem del proveedor y a la television.
+nombre = "Equipo con pagina web"
+categoria = "otro"
+icono = "public"
+descripcion = "Contesta una pagina web. Casi cualquier aparato de red trae panel de administracion, asi que esto no dice que es: para saberlo hace falta leer su pagina o su fabricante."
+generico = true
 
 [coincidencias]
 puertos_alguno = [80, 443, 8080, 8443]

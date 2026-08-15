@@ -1,0 +1,9 @@
+# Ruckus: puntos de acceso de oficina y hoteleria, con o sin controladora
+# (ZoneDirector, SmartZone o Unleashed).
+nombre = "Punto de acceso Ruckus"
+categoria = "punto_de_acceso"
+icono = "wifi"
+descripcion = "Punto de acceso Ruckus. Contesta su protocolo de descubrimiento o se identifica en su panel."
+
+[coincidencias]
+huella_contiene = ["ruckus", "zonedirector", "unleashed", "smartzone"]

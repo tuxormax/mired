@@ -334,7 +334,7 @@ class Api {
   Future<void> borrarPuerto(String clave, int puertoId) =>
       borrar('/api/redes/$clave/puertos/$puertoId');
 
-  /// Conecta una boca. El destino es OTRA boca (switch con switch, switch con
+  /// Conecta un puerto. El destino es OTRO puerto (switch con switch, switch con
   /// modem) o un equipo entero, cuando ese equipo tiene una sola salida de red y
   /// no tiene sentido inventarle un "puerto 1".
   Future<EnlaceFisico> conectar(String clave,
@@ -440,6 +440,36 @@ class Api {
       String clave, int equipoId, String nombre) async {
     final datos = await obtener(
         '/api/redes/$clave/equipos/$equipoId/propuesta?nombre=${Uri.encodeQueryComponent(nombre)}');
+    return datos as Map<String, dynamic>;
+  }
+
+  /// Escucha que redes inalambricas se oyen desde el equipo donde corre MiRed.
+  Future<Map<String, dynamic>> barrerAire(String clave) async {
+    final datos = await obtener('/api/redes/$clave/aire');
+    return datos as Map<String, dynamic>;
+  }
+
+  /// Que aparatos sabe reconocer esta instalacion, y que archivos no se
+  /// pudieron cargar.
+  Future<Map<String, dynamic>> catalogo() async {
+    final datos = await obtener('/api/catalogo');
+    return datos as Map<String, dynamic>;
+  }
+
+  /// Guarda una definicion en el catalogo de ESTA instalacion. El aparato queda
+  /// reconocido desde el proximo escaneo, sin reiniciar nada.
+  Future<Map<String, dynamic>> guardarDefinicion(String archivo, String contenido) async {
+    final datos = await enviar('/api/catalogo/dispositivos', {
+      'archivo': archivo,
+      'contenido': contenido,
+    });
+    return datos as Map<String, dynamic>;
+  }
+
+  /// Trae las definiciones que publico la comunidad. No pisa las propias: se
+  /// guardan en su propia carpeta.
+  Future<Map<String, dynamic>> actualizarCatalogo() async {
+    final datos = await enviar('/api/catalogo/actualizar', {});
     return datos as Map<String, dynamic>;
   }
 

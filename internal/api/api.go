@@ -33,6 +33,15 @@ type API struct {
 	Programador *programador.Servicio
 	// Catalogo reconoce que es cada aparato. Puede ser nil.
 	Catalogo *catalogo.Catalogo
+	// CarpetasCatalogo son las carpetas de donde salio, para poder releerlas al
+	// guardar una definicion o al traer las de la comunidad.
+	CarpetasCatalogo []string
+	// CarpetaPropia es donde se ESCRIBE lo que se declara aqui, y
+	// CarpetaComunidad donde se deja lo que se baja del repositorio. Corriendo
+	// como programa no se puede escribir en /etc ni en /var/lib: van a la
+	// carpeta del usuario.
+	CarpetaPropia    string
+	CarpetaComunidad string
 }
 
 // Rutas arma el enrutador HTTP completo.
@@ -104,8 +113,17 @@ func (a *API) Rutas() http.Handler {
 	mux.Handle("GET /api/redes/{clave}/consumo/{switch}/{puerto}", a.conRed(a.historialTrafico))
 	mux.Handle("GET /api/redes/{clave}/aplicaciones", a.conRed(a.consumoPorAplicacion))
 
+	// El aire: que redes inalambricas se oyen desde este equipo. Va con la red
+	// activa porque el cruce con el inventario —de que aparato es cada antena—
+	// se hace contra los equipos de esa red.
+	mux.Handle("GET /api/redes/{clave}/aire", a.conRed(a.barrerAire))
+
 	// Catalogo abierto de dispositivos.
 	mux.Handle("GET /api/catalogo", a.conSesion(a.listarCatalogo))
+	// Aportar al catalogo cambia como se reconoce a TODA la red, en todas las
+	// redes: por eso lo hace el superadministrador, igual que las credenciales.
+	mux.Handle("POST /api/catalogo/dispositivos", a.conSuperadmin(a.guardarDefinicion))
+	mux.Handle("POST /api/catalogo/actualizar", a.conSuperadmin(a.actualizarCatalogo))
 	mux.Handle("GET /api/redes/{clave}/equipos/{equipo}/propuesta", a.conRed(a.proponerDefinicion))
 
 	// Credenciales SNMP: son secretos compartidos entre redes, asi que las

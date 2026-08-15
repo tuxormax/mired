@@ -19,7 +19,7 @@ func sembrarEquipos(t *testing.T, base *Base, equipos []EquipoDescubierto) {
 	}
 }
 
-func TestUnaBocaConUnaMacEsUnEnlaceConfirmado(t *testing.T) {
+func TestUnPuertoConUnaMacEsUnEnlaceConfirmado(t *testing.T) {
 	_, base, devolver := conRedDePrueba(t)
 	defer devolver()
 	ctx := context.Background()
@@ -48,14 +48,14 @@ func TestUnaBocaConUnaMacEsUnEnlaceConfirmado(t *testing.T) {
 		t.Fatalf("se esperaba un renglon y hay %d", len(mapa))
 	}
 	if !mapa[0].Confirmado {
-		t.Fatal("una boca con una sola MAC deberia ser un enlace confirmado")
+		t.Fatal("un puerto con una sola MAC deberia ser un enlace confirmado")
 	}
 	if mapa[0].Puerto != "Gi0/5" {
 		t.Fatalf("no se uso el nombre de la interfaz: %s", mapa[0].Puerto)
 	}
 	// Y la MAC se enlazo con el equipo que ya se conocia, no quedo suelta.
 	if mapa[0].EquipoID == nil || mapa[0].EquipoIP != "192.168.1.10" {
-		t.Fatalf("la boca no quedo enlazada al equipo: %+v", mapa[0])
+		t.Fatalf("el puerto no quedo enlazada al equipo: %+v", mapa[0])
 	}
 
 	capacidad, err := base.CalcularCapacidades(ctx)
@@ -67,7 +67,7 @@ func TestUnaBocaConUnaMacEsUnEnlaceConfirmado(t *testing.T) {
 	}
 }
 
-func TestVariasMacEnLaMismaBocaSonUnGrupo(t *testing.T) {
+func TestVariasMacEnElMismoPuertoSonUnGrupo(t *testing.T) {
 	// Es el caso del switch no administrable colgado de uno administrable. Lo
 	// honesto es decir "estos cuelgan del puerto 7", no inventarle un puerto a
 	// cada uno.
@@ -99,16 +99,16 @@ func TestVariasMacEnLaMismaBocaSonUnGrupo(t *testing.T) {
 	}
 	for _, renglon := range mapa {
 		if renglon.Confirmado {
-			t.Fatalf("con tres MAC en la boca nada deberia darse por confirmado: %+v", renglon)
+			t.Fatalf("con tres MAC en el puerto nada deberia darse por confirmado: %+v", renglon)
 		}
-		if renglon.CuantosEnBoca != 3 {
-			t.Fatalf("deberia decir que en esa boca hay 3: %+v", renglon)
+		if renglon.CuantosEnPuerto != 3 {
+			t.Fatalf("deberia decir que en ese puerto hay 3: %+v", renglon)
 		}
 	}
 
 	capacidad, _ := base.CalcularCapacidades(ctx)
 	if capacidad != CapacidadPorGrupo {
-		t.Fatalf("sin ninguna boca confirmada la capacidad deberia ser por grupo: %s", capacidad)
+		t.Fatalf("sin ningun puerto confirmado la capacidad deberia ser por grupo: %s", capacidad)
 	}
 }
 
@@ -132,7 +132,7 @@ func TestSinSwitchesNoHayMapaDePuertos(t *testing.T) {
 
 func TestElMapaSeRehaceEnCadaConsulta(t *testing.T) {
 	// La tabla de reenvio del switch es una foto del momento: si un equipo se
-	// cambio de boca, la conexion vieja NO debe quedarse, o el plano mostraria
+	// cambio de puerto, la conexion vieja NO debe quedarse, o el plano mostraria
 	// dos ubicaciones para el mismo aparato.
 	_, base, devolver := conRedDePrueba(t)
 	defer devolver()
@@ -155,7 +155,7 @@ func TestElMapaSeRehaceEnCadaConsulta(t *testing.T) {
 		t.Fatalf("primera consulta: %v", err)
 	}
 
-	// Se movio de la boca 5 a la 9.
+	// Se movio del puerto 5 al 9.
 	ficha.MacsPorPuerto = map[string][]string{"9": {"bb:bb:bb:00:00:10"}}
 	if _, err := base.GuardarSNMP(ctx, []FichaSNMP{ficha}); err != nil {
 		t.Fatalf("segunda consulta: %v", err)
@@ -163,10 +163,10 @@ func TestElMapaSeRehaceEnCadaConsulta(t *testing.T) {
 
 	mapa, _ := base.MapaDePuertos(ctx)
 	if len(mapa) != 1 {
-		t.Fatalf("el equipo aparece en %d bocas a la vez: %+v", len(mapa), mapa)
+		t.Fatalf("el equipo aparece en %d puertos a la vez: %+v", len(mapa), mapa)
 	}
 	if mapa[0].Puerto != "Gi0/9" {
-		t.Fatalf("no se movio de boca: %s", mapa[0].Puerto)
+		t.Fatalf("no se movio de puerto: %s", mapa[0].Puerto)
 	}
 }
 

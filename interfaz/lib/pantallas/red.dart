@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../modelos/categorias.dart';
 import '../modelos/modelos.dart';
 import '../servicios/api.dart';
+import '../servicios/navegador.dart';
 import '../servicios/frescura.dart';
 import '../servicios/trayectoria.dart';
 import '../widgets/mensajes.dart';
@@ -219,10 +220,10 @@ class _PantallaRedState extends State<PantallaRed> {
     if (cambio == true) _recargar();
   }
 
-  Future<void> _editarBocas(Equipo equipo) async {
+  Future<void> _editarPuertos(Equipo equipo) async {
     final cambio = await showDialog<bool>(
       context: context,
-      builder: (_) => DialogoBocas(clave: _red.clave, equipo: equipo),
+      builder: (_) => DialogoPuertos(clave: _red.clave, equipo: equipo),
     );
     if (cambio == true) _recargar();
   }
@@ -236,7 +237,7 @@ class _PantallaRedState extends State<PantallaRed> {
       builder: (contextoModal) => AlertDialog(
         title: Text('Borrar ${equipo.comoSeLlama}'),
         content: const Text(
-            'Se va tambien con sus bocas declaradas y los cables que salian de ellas. '
+            'Se va tambien con sus puertos declarados y los cables que salian de ellas. '
             'Los equipos que colgaban de el vuelven a la zona de los que no estan ubicados.'),
         actions: [
           TextButton(
@@ -261,7 +262,7 @@ class _PantallaRedState extends State<PantallaRed> {
   @override
   Widget build(BuildContext contexto) {
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Scaffold(
         appBar: AppBar(
           title: Column(
@@ -281,6 +282,7 @@ class _PantallaRedState extends State<PantallaRed> {
             Tab(icon: Icon(Icons.devices_other), text: 'Equipos'),
             Tab(icon: Icon(Icons.settings_input_component), text: 'Puertos'),
             Tab(icon: Icon(Icons.speed), text: 'Consumo'),
+            Tab(icon: Icon(Icons.wifi), text: 'WiFi'),
             Tab(icon: Icon(Icons.route_outlined), text: 'Que se revisa'),
           ]),
           actions: [
@@ -376,6 +378,7 @@ class _PantallaRedState extends State<PantallaRed> {
             _pestanaEquipos(contexto),
             _pestanaPuertos(contexto),
             _pestanaConsumo(contexto),
+            const _PestanaAire(),
             _pestanaSubredes(contexto),
           ],
         ),
@@ -477,7 +480,7 @@ class _PantallaRedState extends State<PantallaRed> {
                   clave: _red.clave,
                   alRenombrar: () => _renombrar(equipos[indice]),
                   alEditarFicha: () => _editarFicha(equipos[indice]),
-                  alEditarBocas: () => _editarBocas(equipos[indice]),
+                  alEditarPuertos: () => _editarPuertos(equipos[indice]),
                   alBorrar: () => _borrarManual(equipos[indice]),
                 ),
               );
@@ -502,7 +505,7 @@ class _PantallaRedState extends State<PantallaRed> {
     return donde.contains(_filtro);
   }
 
-  /// _pestanaPuertos es el mapa de puertos: que hay conectado en cada boca.
+  /// _pestanaPuertos es el mapa de puertos: que hay conectado en cada puerto.
   ///
   /// Cuando no hay mapa NO se deja la pantalla vacia: se explica por que no lo
   /// hay y que haria falta para tenerlo. Una pantalla vacia sin explicacion hace
@@ -527,7 +530,7 @@ class _PantallaRedState extends State<PantallaRed> {
         final colores = Theme.of(contexto).colorScheme;
 
         // Los renglones se agrupan por switch, que es como se mira un plano de
-        // sitio: primero el aparato, luego sus bocas.
+        // sitio: primero el aparato, luego sus puertos.
         final porSwitch = <String, List<PuertoDeSwitch>>{};
         for (final renglon in mapa.puertos) {
           porSwitch.putIfAbsent('${renglon.switchNombre}|${renglon.switchIp}', () => []).add(renglon);
@@ -567,7 +570,7 @@ class _PantallaRedState extends State<PantallaRed> {
                   child: Text(
                     mapa.hayMapa
                         ? 'Lo que sus switches no puedan decir, declarelo usted.'
-                        : 'Sus switches no pueden decir que hay en cada boca, pero usted si: '
+                        : 'Sus switches no pueden decir que hay en cada puerto, pero usted si: '
                             'declare sus aparatos y su cableado a mano.',
                     style: Theme.of(contexto).textTheme.bodySmall,
                   ),
@@ -632,22 +635,22 @@ class _PantallaRedState extends State<PantallaRed> {
                           if (renglon.alias.isNotEmpty) renglon.alias,
                         ].join(' · ')),
                         // Se distingue lo confirmado de lo inferido: con varias
-                        // MAC en una boca, atras hay un switch no administrable
+                        // MAC en un puerto, atras hay un switch no administrable
                         // y no se puede decir cual esta en que puerto.
                         trailing: renglon.confirmado
                             ? const Tooltip(
-                                message: 'Unico equipo en esta boca: puerto exacto',
+                                message: 'Unico equipo en este puerto: puerto exacto',
                                 child: Chip(
                                   label: Text('Confirmado'),
                                   visualDensity: VisualDensity.compact,
                                 ),
                               )
                             : Tooltip(
-                                message: 'Hay ${renglon.cuantosEnBoca} equipos en esta boca: '
+                                message: 'Hay ${renglon.cuantosEnPuerto} equipos en este puerto: '
                                     'atras cuelga un switch no administrable o un punto de acceso',
                                 child: Chip(
                                   avatar: const Icon(Icons.hub, size: 16),
-                                  label: Text('Grupo de ${renglon.cuantosEnBoca}'),
+                                  label: Text('Grupo de ${renglon.cuantosEnPuerto}'),
                                   visualDensity: VisualDensity.compact,
                                 ),
                               ),
@@ -666,7 +669,7 @@ class _PantallaRedState extends State<PantallaRed> {
   /// _pestanaConsumo responde "quien se esta comiendo el internet".
   ///
   /// El numero sale de los contadores que el switch ya llevaba, cruzados con el
-  /// mapa de puertos. Cuando la boca tiene varios equipos se dice: ese consumo
+  /// mapa de puertos. Cuando el puerto tiene varios equipos se dice: ese consumo
   /// es del grupo, no de uno.
   Widget _pestanaConsumo(BuildContext contexto) {
     return FutureBuilder<Consumo>(
@@ -711,7 +714,7 @@ class _PantallaRedState extends State<PantallaRed> {
             if (consumo.puertos.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: Text('Medido en las bocas del switch',
+                child: Text('Medido en los puertos del switch',
                     style: Theme.of(contexto).textTheme.titleSmall),
               ),
             for (final puerto in consumo.puertos)
@@ -739,7 +742,7 @@ class _PantallaRedState extends State<PantallaRed> {
                         if (puerto.equipoIp.isNotEmpty) puerto.equipoIp,
                         'baja ${ConsumoDePuerto.enPalabras(puerto.bpsEntrada)}',
                         'sube ${ConsumoDePuerto.enPalabras(puerto.bpsSalida)}',
-                        if (!puerto.confirmado && puerto.cuantosEnBoca > 1)
+                        if (!puerto.confirmado && puerto.cuantosEnPuerto > 1)
                           'del grupo entero',
                       ].join(' · '), style: Theme.of(contexto).textTheme.bodySmall),
                       const SizedBox(height: 8),
@@ -888,7 +891,7 @@ class _TarjetaEquipo extends StatelessWidget {
     required this.clave,
     required this.alRenombrar,
     required this.alEditarFicha,
-    required this.alEditarBocas,
+    required this.alEditarPuertos,
     required this.alBorrar,
   });
 
@@ -896,7 +899,7 @@ class _TarjetaEquipo extends StatelessWidget {
   final String clave;
   final VoidCallback alRenombrar;
   final VoidCallback alEditarFicha;
-  final VoidCallback alEditarBocas;
+  final VoidCallback alEditarPuertos;
   final VoidCallback alBorrar;
 
   @override
@@ -911,6 +914,12 @@ class _TarjetaEquipo extends StatelessWidget {
           size: 14,
           color: equipo.presente ? Colors.green : colores.outline,
         ),
+        // La IP va del tamano del renglon de abajo, no en gris chiquito: en una
+        // red es LO que identifica a un aparato —el nombre puede faltar, estar
+        // repetido o ser el que alguien le puso—, asi que tiene que leerse.
+        //
+        // Si el equipo todavia no tiene nombre, el titulo ya es su IP: repetirla
+        // al lado no agrega nada.
         title: Row(
           children: [
             Flexible(
@@ -918,15 +927,21 @@ class _TarjetaEquipo extends StatelessWidget {
                   style: const TextStyle(fontWeight: FontWeight.w600),
                   overflow: TextOverflow.ellipsis),
             ),
-            const SizedBox(width: 10),
-            Text(equipo.ip,
-                style: TextStyle(
-                    fontFamily: 'monospace', fontSize: 12, color: colores.outline)),
+            if (equipo.ip.isNotEmpty && equipo.comoSeLlama != equipo.ip) ...[
+              const SizedBox(width: 10),
+              Text(equipo.ip,
+                  style: Theme.of(contexto).textTheme.bodyMedium?.copyWith(
+                      fontFamily: 'monospace', color: colores.onSurfaceVariant)),
+            ],
           ],
         ),
         subtitle: Text([
           if (equipo.tipo.isNotEmpty) equipo.tipo,
           if (equipo.modelo.isNotEmpty) equipo.modelo,
+          // El modelo que dijo el propio aparato, cuando nadie tecleo uno. Es
+          // mas util que la MAC para saber que es esa caja.
+          if (equipo.modelo.isEmpty && equipo.modeloDicho.isNotEmpty) equipo.modeloDicho,
+          if (equipo.redQueEmite.isNotEmpty) 'WiFi ${equipo.redQueEmite}',
           if (equipo.fabricante.isNotEmpty) equipo.fabricante,
           if (equipo.mac.isNotEmpty) equipo.mac,
           if (equipo.puertos.isNotEmpty) '${equipo.puertos.length} puertos abiertos',
@@ -996,6 +1011,41 @@ class _TarjetaEquipo extends StatelessWidget {
                 _Renglon(etiqueta: 'Certeza', valor: equipo.certeza),
                 _Renglon(etiqueta: 'Visto por primera vez', valor: equipo.primeraVez),
                 _Renglon(etiqueta: 'Visto por ultima vez', valor: equipo.ultimaVez),
+
+                // Lo que el aparato conto DE SI MISMO. Va con la fuente de cada
+                // dato: no vale lo mismo un modelo firmado en un certificado que
+                // uno sacado del titulo de una pagina, y juntarlo todo en un
+                // renglon "modelo" haria pasar lo segundo por lo primero.
+                if (equipo.huella.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text('Lo que dice de si mismo',
+                      style: Theme.of(contexto)
+                          .textTheme
+                          .titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  for (final dato in equipo.huella)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            width: 170,
+                            child: Text(dato.comoSeLlamaLaClave,
+                                style: TextStyle(color: colores.outline)),
+                          ),
+                          Expanded(child: Text(dato.valor)),
+                          const SizedBox(width: 8),
+                          Text('segun ${dato.comoSeLlamaLaFuente}',
+                              style: Theme.of(contexto)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(color: colores.outline)),
+                        ],
+                      ),
+                    ),
+                ],
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
@@ -1013,13 +1063,13 @@ class _TarjetaEquipo extends StatelessWidget {
                       label: const Text('Ficha'),
                       onPressed: alEditarFicha,
                     ),
-                    // Las bocas se declaran en CUALQUIER equipo, no solo en un
+                    // Los puertos se declaran en CUALQUIER equipo, no solo en un
                     // switch tonto: un modem administrable que no habla SNMP
                     // hacia la LAN es el caso mas comun de todos.
                     TextButton.icon(
                       icon: const Icon(Icons.settings_input_hdmi),
-                      label: const Text('Bocas'),
-                      onPressed: alEditarBocas,
+                      label: const Text('Puertos'),
+                      onPressed: alEditarPuertos,
                     ),
                     // Solo se ofrece cuando nadie lo reconocio: es exactamente
                     // ahi donde el catalogo necesita crecer.
@@ -1654,22 +1704,79 @@ class _DialogoPropuestaState extends State<_DialogoPropuesta> {
           ),
         ),
         actions: [
-          if (_propuesta != null)
-            FilledButton.icon(
+          if (_propuesta != null) ...[
+            TextButton.icon(
               icon: Icon(_copiado ? Icons.check : Icons.copy),
-              label: Text(_copiado ? 'Copiado' : 'Copiar archivo'),
+              label: Text(_copiado ? 'Copiado' : 'Copiar'),
               onPressed: () async {
                 await Clipboard.setData(
                     ClipboardData(text: _propuesta!['contenido'] as String));
                 if (contexto.mounted) setState(() => _copiado = true);
               },
             ),
+            // Compartirlo es un acto de una PERSONA, con su cuenta: MiRed deja
+            // el aporte escrito y quien decide publicarlo es quien lo abre.
+            TextButton.icon(
+              icon: const Icon(Icons.ios_share),
+              label: const Text('Compartir con la comunidad'),
+              onPressed: _ocupado ? null : _compartir,
+            ),
+            FilledButton.icon(
+              icon: const Icon(Icons.save_outlined),
+              label: const Text('Guardar en mi catalogo'),
+              onPressed: _ocupado ? null : _guardar,
+            ),
+          ],
           TextButton(
             onPressed: () => Navigator.of(contexto).pop(),
             child: const Text('Cerrar'),
           ),
         ],
       );
+
+  /// _guardar deja la definicion en el catalogo de esta instalacion.
+  Future<void> _guardar() async {
+    final propuesta = _propuesta;
+    if (propuesta == null) return;
+
+    setState(() => _ocupado = true);
+    try {
+      final guardado = await Api.instancia.guardarDefinicion(
+        propuesta['archivo'] as String,
+        propuesta['contenido'] as String,
+      );
+      if (!mounted) return;
+      mensajeExito(context,
+          'Guardado en ${guardado['ruta']}. El catalogo ya tiene '
+          '${guardado['definiciones']} definiciones; este aparato se reconoce '
+          'desde el proximo escaneo.');
+    } catch (problema, pila) {
+      if (mounted) await mostrarProblema(context, problema, pila: pila.toString());
+    } finally {
+      if (mounted) setState(() => _ocupado = false);
+    }
+  }
+
+  /// _compartir abre el aporte ya escrito contra el repositorio del proyecto.
+  Future<void> _compartir() async {
+    final propuesta = _propuesta;
+    if (propuesta == null) return;
+
+    final direccion = propuesta['urlAporte'] as String? ?? '';
+    if (direccion.isEmpty) return;
+
+    // Si no se puede abrir el navegador —un equipo sin escritorio—, al menos
+    // queda la direccion en el portapapeles: quedarse callado seria peor.
+    final abierto = await abrirEnElNavegador(direccion);
+    if (!mounted) return;
+    if (!abierto) {
+      await Clipboard.setData(ClipboardData(text: direccion));
+      if (mounted) {
+        mensajeAviso(context,
+            'No se pudo abrir el navegador. La direccion del aporte quedo copiada.');
+      }
+    }
+  }
 }
 
 /// _EnQueSeGasta responde "en que" se va el ancho de banda, no solo "cuanto".
@@ -1841,5 +1948,134 @@ class _DialogoBorrarRedState extends State<_DialogoBorrarRed> {
         ),
       ],
     );
+  }
+}
+
+/// _PestanaAire muestra que redes inalambricas se oyen desde este equipo.
+///
+/// Es la unica medicion de MiRed que no pasa por un cable, y contesta lo que
+/// ningun barrido de IP puede: que SSID emite cada antena y con que **MAC de
+/// radio**, que no es la misma que la del cable.
+///
+/// No se barre solo al abrir la pestana: recorrer los canales corta el WiFi de
+/// este equipo unos segundos, y hacerlo sin que nadie lo pida seria cortarle la
+/// conexion a alguien por dibujar una lista.
+class _PestanaAire extends StatefulWidget {
+  const _PestanaAire();
+
+  @override
+  State<_PestanaAire> createState() => _PestanaAireState();
+}
+
+class _PestanaAireState extends State<_PestanaAire> {
+  Map<String, dynamic>? _resultado;
+  bool _barriendo = false;
+
+  Future<void> _barrer() async {
+    setState(() => _barriendo = true);
+    try {
+      final clave = ModalRoute.of(context)?.settings.arguments as String? ?? '';
+      final datos = await Api.instancia.barrerAire(clave.isEmpty ? _claveDeLaRuta() : clave);
+      if (mounted) setState(() => _resultado = datos);
+    } catch (problema, pila) {
+      if (mounted) await mostrarProblema(context, problema, pila: pila.toString());
+    } finally {
+      if (mounted) setState(() => _barriendo = false);
+    }
+  }
+
+  /// La clave de la red se saca de la pantalla que contiene esta pestana.
+  String _claveDeLaRuta() {
+    final pantalla = context.findAncestorStateOfType<_PantallaRedState>();
+    return pantalla?.widget.red.clave ?? '';
+  }
+
+  @override
+  Widget build(BuildContext contexto) {
+    final colores = Theme.of(contexto).colorScheme;
+    final redes = (_resultado?['redes'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+    final explicacion = _resultado?['explicacion'] as String? ?? '';
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('El aire', style: Theme.of(contexto).textTheme.titleMedium),
+                const SizedBox(height: 6),
+                const Text(
+                  'Que redes inalambricas se oyen desde este equipo: el nombre que emite '
+                  'cada antena, la MAC de su radio —que no es la del cable—, en que canal '
+                  'esta y con que fuerza llega. Hace falta una tarjeta WiFi en este equipo: '
+                  'una PC conectada solo por cable no puede oir nada.',
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    FilledButton.icon(
+                      icon: _barriendo
+                          ? const SizedBox(
+                              width: 16, height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.wifi_find),
+                      label: Text(_barriendo ? 'Escuchando...' : 'Escuchar el aire'),
+                      onPressed: _barriendo ? null : _barrer,
+                    ),
+                    if (_resultado != null) ...[
+                      const SizedBox(width: 12),
+                      Text('${redes.length} redes · ${_resultado!['duracionMs']} ms',
+                          style: TextStyle(color: colores.outline)),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Cuando no se puede oir nada se DICE por que. Una lista vacia sin
+        // explicacion se leeria como "aqui no hay redes WiFi".
+        if (explicacion.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Card(
+              color: colores.secondaryContainer,
+              child: Padding(padding: const EdgeInsets.all(16), child: Text(explicacion)),
+            ),
+          ),
+
+        for (final red in redes)
+          Card(
+            margin: const EdgeInsets.only(top: 8),
+            child: ListTile(
+              leading: Icon(_iconoDeSenal(red['senal'] as int? ?? -100)),
+              title: Text((red['ssid'] as String? ?? '').isEmpty
+                  ? 'Red oculta'
+                  : red['ssid'] as String),
+              subtitle: Text([
+                red['bssid'] as String? ?? '',
+                if ((red['banda'] as String? ?? '').isNotEmpty)
+                  '${red['banda']} canal ${red['canal']}',
+                '${red['senal']} dBm',
+                if ((red['seguridad'] as String? ?? '').isNotEmpty) red['seguridad'] as String,
+                // De quien es la antena, y COMO se supo: medido no es lo mismo
+                // que deducido por la cercania de la MAC.
+                if (red['equipoNombre'] != null)
+                  'es ${red['equipoNombre']} (${red['comoSeSupo']})',
+              ].join(' · ')),
+            ),
+          ),
+      ],
+    );
+  }
+
+  IconData _iconoDeSenal(int dbm) {
+    if (dbm >= -55) return Icons.wifi;
+    if (dbm >= -70) return Icons.wifi_2_bar;
+    return Icons.wifi_1_bar;
   }
 }

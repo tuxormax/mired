@@ -11,7 +11,7 @@ nada que descargar aparte. Pero **el servicio no se enciende solo**.
 Es a propósito, y por la misma razón por la que antes iba en un paquete
 separado: es el **único proceso de MiRed que trabaja todo el tiempo**. Mirar
 todos los paquetes cuesta mucho más que preguntarle a un switch cuántos bytes
-pasó por una boca, y ésa es exactamente la diferencia entre MiRed y las
+pasó por un puerto, y ésa es exactamente la diferencia entre MiRed y las
 herramientas que acaban en «consumo alto». Encenderlo sin que nadie lo pida
 sería cobrarle ese coste a todo el mundo — y además no serviría de nada, porque
 sin puerto espejo no hay nada que capturar.
@@ -22,11 +22,11 @@ que funcionan desde el primer momento y cuestan casi cero.
 
 ## Qué necesita: un puerto espejo
 
-Un switch le manda a cada boca sólo lo suyo. Un equipo conectado normalmente ve
+Un switch le manda a cada puerto sólo lo suyo. Un equipo conectado normalmente ve
 su propio tráfico y poco más, así que **sin un puerto espejo esto no mide casi
 nada**.
 
-Hay que decirle al switch que copie hacia la boca donde está MiRed todo lo que
+Hay que decirle al switch que copie hacia el puerto donde está MiRed todo lo que
 pasa por otra. Según la marca se llama **puerto espejo**, **SPAN** o **port
 mirroring**, y está en el menú de administración del switch.
 

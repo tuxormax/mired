@@ -1,0 +1,12 @@
+# Televisiones, consolas y aparatos para transmitir a la pantalla.
+#
+# Se reconocen por lo que ANUNCIAN en la red: un Chromecast dice _googlecast, un
+# Apple TV dice _airplay, una television inteligente se ofrece como
+# MediaRenderer. Antes todos estos salian como "servidor web" por tener su panel.
+nombre = "TV o aparato multimedia"
+categoria = "multimedia"
+icono = "tv"
+descripcion = "Se anuncia en la red para recibir video o audio: Chromecast, AirPlay, Roku o una television inteligente."
+
+[coincidencias]
+huella_contiene = ["googlecast", "_airplay", "mediarenderer", "dial-multiscreen", "roku", "webos", "tizen"]

@@ -105,7 +105,7 @@ class _PantallaCredencialesState extends State<PantallaCredenciales> {
                         Expanded(
                           child: Text(
                             'Con estas credenciales MiRed le pregunta a los switches que hay '
-                            'conectado en cada boca. Se prueban en orden contra cada equipo y se '
+                            'conectado en cada puerto. Se prueban en orden contra cada equipo y se '
                             'usa la primera que conteste, asi que no hace falta decir cual va con '
                             'cual switch.',
                             style: Theme.of(contexto).textTheme.bodyMedium,

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -100,12 +101,104 @@ func (a *API) proponerDefinicion(escritor http.ResponseWriter, peticion *http.Re
 		Puertos:    encontrado.Puertos,
 		Banners:    encontrado.Banners,
 		SnmpDescr:  encontrado.SnmpDescr,
+		Huella:     encontrado.Huella,
+		Modelo:     encontrado.Modelo,
 	}, nombre)
 
+	archivo := sugerirNombreArchivo(encontrado)
 	responderOk(escritor, map[string]any{
-		"archivo":   sugerirNombreArchivo(encontrado),
+		"archivo":   archivo,
 		"contenido": propuesta,
+		// La direccion donde aportarlo, ya escrita. Aportar es un acto de una
+		// PERSONA con su cuenta: el servicio no publica por su cuenta, prepara
+		// el aporte y quien decide es quien lo abre.
+		"urlAporte": catalogo.URLParaAportar(nombre, archivo, propuesta),
 	})
+}
+
+// guardarDefinicion deja una definicion en el catalogo DE ESTA instalacion.
+//
+// Es el primer paso del catalogo comunitario y el que sirve aunque nunca se
+// comparta nada: el aparato queda reconocido aqui desde el proximo escaneo.
+func (a *API) guardarDefinicion(escritor http.ResponseWriter, peticion *http.Request) {
+	var cuerpo struct {
+		Archivo   string `json:"archivo"`
+		Contenido string `json:"contenido"`
+	}
+	if !a.leerCuerpo(escritor, peticion, &cuerpo, "Catalogo", "Guardar definicion") {
+		return
+	}
+
+	carpeta := a.CarpetaPropia
+	if carpeta == "" {
+		carpeta = catalogo.CarpetaPropia
+	}
+	guardado, err := catalogo.Guardar(carpeta, cuerpo.Archivo, cuerpo.Contenido)
+	if err != nil {
+		a.errorValidacion(escritor, peticion, "Catalogo", "Guardar definicion", err.Error())
+		return
+	}
+
+	recargado, problemas := a.recargarCatalogo()
+	a.anotarActividad(peticion, "Catalogo", "Guardar la definicion "+guardado.Archivo)
+	responderOk(escritor, map[string]any{
+		"archivo":      guardado.Archivo,
+		"ruta":         guardado.Ruta,
+		"definiciones": recargado,
+		"problemas":    problemas,
+	})
+}
+
+// actualizarCatalogo trae las definiciones que publico la comunidad.
+//
+// Se guardan en su propia carpeta: actualizar NUNCA pisa una definicion escrita
+// aqui, porque quien tiene el aparato delante sabe mas que el repositorio.
+func (a *API) actualizarCatalogo(escritor http.ResponseWriter, peticion *http.Request) {
+	carpeta := a.CarpetaComunidad
+	if carpeta == "" {
+		carpeta = catalogo.CarpetaComunidad
+	}
+	traidas, err := catalogo.Actualizar(peticion.Context(), carpeta)
+	if err != nil {
+		a.responderError(escritor, peticion, contextoError{
+			Modulo: "Catalogo", Accion: "Actualizar catalogo", Causa: CausaRed,
+			Codigo: http.StatusBadGateway,
+		}, "No se pudieron traer las definiciones de la comunidad.", err)
+		return
+	}
+
+	recargado, problemas := a.recargarCatalogo()
+	a.anotarActividad(peticion, "Catalogo",
+		fmt.Sprintf("Actualizar el catalogo de la comunidad (%d definiciones)", traidas.Bajadas))
+	responderOk(escritor, map[string]any{
+		"bajadas":      traidas.Bajadas,
+		"nuevas":       traidas.Nuevas,
+		"fallos":       traidas.Fallos,
+		"definiciones": recargado,
+		"problemas":    problemas,
+	})
+}
+
+// recargarCatalogo vuelve a leer las tres carpetas sin reiniciar el servicio.
+//
+// Se reemplaza el CONTENIDO del catalogo y no el puntero: el servidor y el
+// programador guardan el suyo por separado, y cambiar uno solo dejaria los
+// escaneos reconociendo con el catalogo viejo.
+func (a *API) recargarCatalogo() (int, []string) {
+	if a.Catalogo == nil {
+		return 0, []string{}
+	}
+	nuevo, err := catalogo.Cargar(a.CarpetasCatalogo)
+	if err != nil || nuevo == nil {
+		return len(a.Catalogo.Definiciones()), a.Catalogo.Problemas()
+	}
+	a.Catalogo.Reemplazar(nuevo)
+
+	problemas := a.Catalogo.Problemas()
+	if problemas == nil {
+		problemas = []string{}
+	}
+	return len(a.Catalogo.Definiciones()), problemas
 }
 
 // sugerirNombreArchivo propone como llamar al `.toml`, para que quien aporte no

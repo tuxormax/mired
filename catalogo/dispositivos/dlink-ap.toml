@@ -1,0 +1,7 @@
+nombre = "Punto de acceso D-Link"
+categoria = "punto_de_acceso"
+icono = "wifi"
+descripcion = "Punto de acceso D-Link (familia DAP)."
+
+[coincidencias]
+modelo_contiene = ["dap-"]

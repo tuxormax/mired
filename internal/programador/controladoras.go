@@ -13,7 +13,7 @@ import (
 // colgado de que antena, y lo guarda como si fuera un mapa de puertos mas.
 //
 // **Por que se guarda por el mismo camino que SNMP:** un punto de acceso es, para
-// el mapa, un switch cuyas bocas son redes WiFi en vez de puertos. Metiendo el
+// el mapa, un switch cuyos puertos son redes WiFi en vez de puertos. Metiendo el
 // dato por GuardarSNMP se hereda gratis todo lo que ya funciona —el mapa, la
 // exportacion, la alerta de "se movio de lugar", el perfil de capacidades— en
 // vez de escribir un segundo mapa que habria que mantener en paralelo.
@@ -93,16 +93,16 @@ func (s *Servicio) consultarControladoras(ctx context.Context, clave string) {
 // que la controladora administra pero que el barrido nunca vio es, casi siempre,
 // uno de otra subred que esta red no escanea.
 func fichasDeControladora(lectura controladora.Lectura, nombreControladora string) []basedatos.FichaSNMP {
-	// Que cuelga de cada boca de cada aparato.
+	// Que cuelga de cada puerto de cada aparato.
 	porAparato := map[string]map[string][]string{}
 	for _, conectado := range lectura.Conectados {
-		bocas, hay := porAparato[conectado.AparatoMAC]
+		puertos, hay := porAparato[conectado.AparatoMAC]
 		if !hay {
-			bocas = map[string][]string{}
-			porAparato[conectado.AparatoMAC] = bocas
+			puertos = map[string][]string{}
+			porAparato[conectado.AparatoMAC] = puertos
 		}
-		clave := fmt.Sprintf("%d", conectado.Boca)
-		bocas[clave] = append(bocas[clave], conectado.MAC)
+		clave := fmt.Sprintf("%d", conectado.Puerto)
+		puertos[clave] = append(puertos[clave], conectado.MAC)
 	}
 
 	fichas := make([]basedatos.FichaSNMP, 0, len(lectura.Aparatos))
@@ -111,21 +111,21 @@ func fichasDeControladora(lectura controladora.Lectura, nombreControladora strin
 			continue
 		}
 
-		bocas := aparato.Bocas
+		puertos := aparato.Puertos
 		if aparato.EsPuntoDeAcceso {
 			// Un punto de acceso no tiene una lista de puertos que consultar: sus
-			// bocas son las redes WiFi, y solo se sabe cuales estan en uso
+			// puertos son las redes WiFi, y solo se sabe cuales estan en uso
 			// mirando quien esta conectado.
-			bocas = controladora.BocasDeRedes(lectura.Conectados, aparato.MAC)
+			puertos = controladora.PuertosDeRedes(lectura.Conectados, aparato.MAC)
 		}
 
-		interfaces := make([]basedatos.InterfazSNMP, 0, len(bocas))
-		for _, boca := range bocas {
+		interfaces := make([]basedatos.InterfazSNMP, 0, len(puertos))
+		for _, puerto := range puertos {
 			interfaces = append(interfaces, basedatos.InterfazSNMP{
-				Indice:        boca.Indice,
-				Nombre:        boca.Nombre,
-				Activa:        boca.Activa,
-				VelocidadMbps: boca.VelocidadMbps,
+				Indice:        puerto.Indice,
+				Nombre:        puerto.Nombre,
+				Activa:        puerto.Activa,
+				VelocidadMbps: puerto.VelocidadMbps,
 			})
 		}
 
@@ -134,7 +134,7 @@ func fichasDeControladora(lectura controladora.Lectura, nombreControladora strin
 			Nombre:      aparato.Nombre,
 			Descripcion: aparato.Modelo,
 			// Se marca como switch tambien a los puntos de acceso: para el mapa
-			// lo son —tienen bocas de las que cuelgan equipos—, y llamarlos de
+			// lo son —tienen puertos de las que cuelgan equipos—, y llamarlos de
 			// otra forma obligaria a duplicar toda la logica del dibujo.
 			EsSwitch:      true,
 			Credencial:    "controladora " + nombreControladora,

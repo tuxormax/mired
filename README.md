@@ -9,7 +9,7 @@ base de datos ni Docker: se instala el `.deb` y aparece en el menú.
 
 > **Estado: en construcción (fases 1 a 10, falta publicar).** Ya descubre los equipos de la
 > red, guarda quién está encendido en cada momento, escanea solo con la
-> periodicidad que se le diga, le pregunta a los switches por SNMP en qué boca
+> periodicidad que se le diga, le pregunta a los switches por SNMP en qué puerto
 > está cada aparato, dibuja el mapa y lo exporta, avisa de lo que cambia y mide
 > el consumo. Falta probarlo contra un switch administrable de verdad y publicar
 > los paquetes. El plan y el avance por fase están en [PLAN.md](PLAN.md).
@@ -71,10 +71,29 @@ Hay paquete para `amd64` y para `arm64`, que es lo que necesita una Raspberry Pi
 - **El cableado que ninguna herramienta puede ver, se declara a mano.** Un switch
   no administrable no tiene dirección y no existe para ningún escaneo; un módem
   de ISP casi nunca habla SNMP hacia la LAN. El mapa tiene un modo edición donde
-  se dan de alta esos aparatos, se declaran sus bocas y se conectan tocándolas.
+  se dan de alta esos aparatos, se declaran sus puertos y se conectan tocándolos.
   Lo declarado se dibuja **punteado** —en pantalla y en los cuatro formatos
   exportados—, y si el equipo acaba contestando algo distinto se avisa con las
   dos versiones a la vista, sin pisar ninguna.
+- **A cada aparato se le pregunta qué es, en vez de adivinarlo.** El fabricante
+  sale de la lista completa de la IEEE que instala el paquete; y después se le
+  pregunta a él: el título y el encabezado de su página, el nombre de su
+  certificado, lo que anuncia por mDNS/Bonjour, UPnP y ONVIF, y los protocolos
+  propios de las marcas que más se venden aquí —Ubiquiti, MikroTik, TP-Link,
+  Hikvision, Roku, televisiones Samsung, impresoras por IPP—. Cada dato se guarda
+  **con la fuente de donde salió**: no vale lo mismo un modelo firmado en un
+  certificado que uno sacado del título de una página. Una regla genérica —«tiene
+  el 80 abierto»— nunca le gana a una identificación de verdad.
+- **El catálogo lo escribe la comunidad.** Las definiciones son archivos `.toml`,
+  no código. Un aparato que MiRed no reconoció se guarda en el catálogo de aquí
+  —queda reconocido desde el siguiente escaneo, sin reiniciar nada— y se comparte
+  con un aporte ya escrito contra este repositorio. Y al revés: se traen las
+  definiciones que publicaron los demás. Las propias mandan siempre: quien tiene
+  el aparato delante sabe más que ningún repositorio.
+- **También escucha el aire**, si el equipo tiene tarjeta WiFi: qué SSID emite
+  cada antena y con qué MAC de radio, en qué canal y con qué fuerza llega. Cuando
+  no hay tarjeta se dice con esas palabras, en vez de una lista vacía que se
+  leería como que no hay redes.
 - Dos procesos separados a propósito: el que está expuesto a la red no tiene
   privilegios, y el que los tiene no toca la base de datos.
 

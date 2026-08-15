@@ -1,0 +1,13 @@
+# El mismo aparato, reconocido por el nombre que tiene en la red.
+#
+# Va en archivo aparte porque las condiciones de una definicion se SUMAN: pedir
+# huella Y nombre dejaria fuera al que solo cumple una. En una instalacion de
+# verdad los AP suelen llamarse "RuckusAP", "AP-recepcion" o parecido, y eso
+# aparece por DNS aunque el aparato no conteste nada mas.
+nombre = "Punto de acceso Ruckus"
+categoria = "punto_de_acceso"
+icono = "wifi"
+descripcion = "Se llama a si mismo Ruckus en la red."
+
+[coincidencias]
+nombre_contiene = ["ruckus"]

@@ -70,7 +70,7 @@ func (a *API) borrarCredencial(escritor http.ResponseWriter, peticion *http.Requ
 	responderOk(escritor, map[string]any{"borrada": true})
 }
 
-// mapaDePuertos devuelve que hay conectado en cada boca de cada switch, y que
+// mapaDePuertos devuelve que hay conectado en cada puerto de cada switch, y que
 // tan seguro es ese dato en esta red.
 func (a *API) mapaDePuertos(escritor http.ResponseWriter, peticion *http.Request) {
 	clave, _ := autenticacion.RedActivaDe(peticion.Context())
@@ -133,16 +133,16 @@ func explicarCapacidad(capacidad string) string {
 		return "En esta red se sabe el puerto exacto de cada equipo: sus switches son " +
 			"administrables y contestaron."
 	case basedatos.CapacidadPorGrupo:
-		return "Se sabe en que boca cuelga cada grupo de equipos, pero no el puerto exacto de " +
-			"cada uno: detras de esas bocas hay switches simples, que no pueden decir mas."
+		return "Se sabe en que puerto cuelga cada grupo de equipos, pero no el puerto exacto de " +
+			"cada uno: detras de esos puertos hay switches simples, que no pueden decir mas."
 	case basedatos.CapacidadNoDisponible:
-		return "Sus switches son simples: no pueden decir que hay enchufado en cada boca, y por " +
+		return "Sus switches son simples: no pueden decir que hay enchufado en cada puerto, y por " +
 			"eso no hay mapa de puertos. Es lo normal en una red de casa o de una oficina " +
 			"chica. Todo lo demas de MiRed funciona igual: el inventario, quien esta " +
 			"encendido, los puertos de cada equipo, las alertas y el consumo."
 	default:
 		return "Todavia no se ha escaneado esta red. Al escanear, MiRed averigua solo si sus " +
-			"switches pueden decir que hay en cada boca."
+			"switches pueden decir que hay en cada puerto."
 	}
 }
 

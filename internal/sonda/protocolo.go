@@ -12,6 +12,7 @@ package sonda
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"time"
@@ -27,6 +28,10 @@ const (
 	OrdenEscanear = "escanear"
 	// OrdenSNMP le pide interrogar por SNMP a una lista de equipos.
 	OrdenSNMP = "snmp"
+	// OrdenAire le pide escuchar que redes inalambricas se oyen desde ahi. Es la
+	// unica medicion que no pasa por un cable, y la unica forma de saber que
+	// SSID emite cada antena y con que MAC de radio.
+	OrdenAire = "aire"
 )
 
 // PeticionSNMP es la lista de equipos a interrogar y con que credenciales.
@@ -102,6 +107,22 @@ type EquipoVisto struct {
 	Metodo  string        `json:"metodo"`
 	Subred  string        `json:"subred,omitempty"`
 	Puertos []PuertoVisto `json:"puertos,omitempty"`
+
+	// Huella es lo que el aparato dijo de si mismo: el titulo de su pagina, su
+	// certificado, lo que anuncia por mDNS o por UPnP, y lo que contesta al
+	// protocolo propio de su fabricante. Es lo que distingue un modem de una
+	// television cuando los dos tienen el puerto 80 abierto.
+	Huella []DatoHuella `json:"huella,omitempty"`
+}
+
+// DatoHuella es una cosa que el aparato dijo de si mismo, y de donde se supo.
+//
+// Se guarda la fuente para poder decirlo en la interfaz: no vale lo mismo un
+// modelo que vino firmado en un certificado que uno adivinado de un titulo.
+type DatoHuella struct {
+	Fuente string `json:"fuente"`
+	Clave  string `json:"clave"`
+	Valor  string `json:"valor"`
 }
 
 // PuertoVisto es un puerto abierto en un equipo.
@@ -205,4 +226,21 @@ func PedirEstado(socket string, espera time.Duration) (Estado, error) {
 		return Estado{}, fmt.Errorf("no se pudo interpretar el estado de la sonda: %w", err)
 	}
 	return estado, nil
+}
+
+// PedirAire le pide a la sonda que escuche el aire.
+//
+// Devuelve el resultado en crudo: quien llama decide como presentarlo. La sonda
+// contesta con una explicacion cuando no puede oir nada —no hay tarjeta WiFi, o
+// falta la herramienta del sistema— en vez de una lista vacia, que se leeria
+// como "aqui no hay redes".
+func PedirAire(socket string, espera time.Duration) (json.RawMessage, error) {
+	respuesta, err := Preguntar(socket, Orden{Tipo: OrdenAire}, espera)
+	if err != nil {
+		return nil, err
+	}
+	if !respuesta.Ok {
+		return nil, errors.New(respuesta.Error)
+	}
+	return respuesta.Datos, nil
 }

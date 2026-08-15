@@ -1,0 +1,9 @@
+# Dahua por su propio protocolo, que da el modelo, la serie y el firmware
+# exactos. ONVIF ya la identifica como camara; esto agrega el detalle fino.
+nombre = "Camara o grabador Dahua"
+categoria = "camara"
+icono = "videocam"
+descripcion = "Camara o grabador Dahua, reconocido por su protocolo DHDiscover."
+
+[coincidencias]
+huella_contiene = ["dahua", "dhdiscover", "xvr", "nvr"]

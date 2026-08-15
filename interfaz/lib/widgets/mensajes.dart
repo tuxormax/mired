@@ -98,6 +98,18 @@ void mensajeAviso(BuildContext contexto, String texto) {
   );
 }
 
+/// mensajeExito confirma algo que salio bien. Va como aviso corto por la misma
+/// razon que [mensajeAviso]: no hay nada que decidir, solo que enterarse.
+void mensajeExito(BuildContext contexto, String texto) {
+  ScaffoldMessenger.of(contexto).showSnackBar(
+    SnackBar(
+      content: Text(texto),
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 5),
+    ),
+  );
+}
+
 /// mostrarProblema decide sola: aviso corto si el usuario puede corregirlo,
 /// modal completo si es una falla de verdad.
 Future<void> mostrarProblema(BuildContext contexto, Object problema, {String? pila}) async {

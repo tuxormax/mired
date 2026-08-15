@@ -2,7 +2,7 @@
 
 Proyecto en `/home/tuxor/www/mired`. Descubre los equipos de una red, dibuja el
 mapa y dice en que puerto de que switch esta cada aparato.
-En **v1.15 Rev 20** (2026-08-14).
+En **v1.17 Rev 28** (2026-08-15).
 **PROGRAMA DE ESCRITORIO en Flutter + tres binarios en Go + SQLite, una base por
 red, entregado en un `.deb`.** No hay interfaz web: el programa arranca sus
 servicios al abrirse y los mata al cerrarse.
@@ -57,7 +57,7 @@ Para probar una instalacion **en limpio**: `sudo ./herramientas/desinstalar.sh`.
 - [modulo-topologia](modulo-topologia.md) — SNMP, mapa de puertos, confirmado
   contra grupo, y el perfil de capacidades por red.
 - [modulo-topologia-manual](modulo-topologia-manual.md) — el modulo 15: declarar
-  a mano equipos, bocas y cables que ningun escaneo ve, sin que se confundan con
+  a mano equipos, puertos y cables que ningun escaneo ve, sin que se confundan con
   lo medido. **Leer antes de tocar el mapa o el escaneo de presencia.**
 - [modulo-alertas](modulo-alertas.md) — que se vigila, la huella que evita
   repetir avisos, y los cuatro destinos de aviso.
@@ -65,6 +65,13 @@ Para probar una instalacion **en limpio**: `sudo ./herramientas/desinstalar.sh`.
   y por flujos del router; por que la resta es el dato.
 - [modulo-inspeccion](modulo-inspeccion.md) — la inspeccion profunda opcional
   (`mired-dpi`): que aplicacion consume, sin descifrar nada. Fase 10.
+- [modulo-reconocimiento](modulo-reconocimiento.md) — **como se averigua QUE es
+  cada aparato**: fabricante por MAC (lista IEEE completa), huellas activas (su
+  pagina, su certificado, mDNS, UPnP y los protocolos de cada marca), reglas
+  genericas degradadas y el catalogo comunitario. **Leer antes de tocar el
+  catalogo o el escaneo profundo.**
+- [modulo-aire](modulo-aire.md) — el modulo 17: escuchar el aire para saber que
+  SSID emite cada antena y con que MAC de radio. Hace falta tarjeta WiFi.
 - [modulo-programa](modulo-programa.md) — MiRed como programa de escritorio:
   como arranca y mata sus servicios, y por que ya no hay web.
 

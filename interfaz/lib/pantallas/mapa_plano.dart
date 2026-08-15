@@ -23,7 +23,7 @@ class DatosMapa {
   final MapaPuertos mapa;
   final List<Equipo> equipos;
 
-  /// Lo declarado a mano: las bocas que alguien conto mirando el aparato y los
+  /// Lo declarado a mano: los puertos que alguien conto mirando el aparato y los
   /// cables que declaro. Es la tercera fuente del mapa, junto al enlace
   /// confirmado por SNMP y al inferido por conteo de MAC.
   final TopologiaManual topologia;
@@ -36,16 +36,38 @@ class DatosMapa {
     return null;
   }
 
-  /// Los equipos que tienen bocas declaradas: se dibujan como cabecera de su
+  /// Los equipos que tienen puertos declarados: se dibujan como cabecera de su
   /// propio bloque, igual que un switch administrable.
-  List<Equipo> get conBocasDeclaradas {
+  List<Equipo> get conPuertosDeclarados {
     final ids = topologia.puertos.map((puerto) => puerto.equipoId).toSet();
     final lista = equipos.where((equipo) => ids.contains(equipo.id)).toList();
     lista.sort((uno, otro) => uno.comoSeLlama.compareTo(otro.comoSeLlama));
     return lista;
   }
 
-  /// Los equipos que ningun switch reporto en ninguna boca y que tampoco
+  /// Los equipos a los que tiene sentido tirar un cable desde este puerto: los
+  /// que no cuelgan de ningun sitio, mas los que tienen algun puerto declarado
+  /// libre —un switch al que todavia le queda lugar—. Nunca el propio aparato
+  /// del que sale el cable.
+  ///
+  /// Sin la segunda mitad no se podia conectar un switch con otro sin inventar
+  /// aparatos: los que ya tenian puertos declarados desaparecian de la lista.
+  List<Equipo> conectablesDesde(int puertoOrigenId) {
+    final duenoDelOrigen = topologia.equipoDelPuerto(puertoOrigenId);
+    final ids = <int>{};
+    final lista = <Equipo>[];
+
+    for (final equipo in [...sinUbicar, ...conPuertosDeclarados]) {
+      if (equipo.id == duenoDelOrigen || !ids.add(equipo.id)) continue;
+      final tienePuertos = topologia.puertosDe(equipo.id).isNotEmpty;
+      if (tienePuertos && topologia.puertosLibresDe(equipo.id).isEmpty) continue;
+      lista.add(equipo);
+    }
+    lista.sort((uno, otro) => uno.comoSeLlama.compareTo(otro.comoSeLlama));
+    return lista;
+  }
+
+  /// Los equipos que ningun switch reporto en ningun puerto y que tampoco
   /// aparecen en lo declarado a mano. Se muestran aparte: esconderlos daria un
   /// plano incompleto sin avisar.
   List<Equipo> get sinUbicar {
@@ -54,7 +76,7 @@ class DatosMapa {
         .map((puerto) => puerto.equipoId)
         .toSet();
     final switches = mapa.puertos.map((puerto) => puerto.switchId).toSet();
-    // Lo declarado tambien ubica: un equipo colgado a mano de la boca 3 del
+    // Lo declarado tambien ubica: un equipo colgado a mano del puerto 3 del
     // modem ya no esta "sin ubicar", aunque ningun switch lo haya reportado.
     final declarados = topologia.puertos.map((puerto) => puerto.equipoId).toSet();
     for (final enlace in topologia.enlaces) {
@@ -80,7 +102,7 @@ class CajaPlano {
     this.equipoId,
     this.puertoFisicoId,
     this.enlaceId,
-    this.bocaLibre = false,
+    this.puertoLibre = false,
     this.declarada = false,
   });
 
@@ -94,15 +116,15 @@ class CajaPlano {
   /// para saber en que se hizo clic; el plano exportado lo ignora.
   final int? equipoId;
 
-  /// La boca declarada que representa esta caja, si es una boca.
+  /// El puerto declarado que representa esta caja, si es un puerto.
   final int? puertoFisicoId;
 
   /// El cable declarado que la ocupa, si hay alguno.
   final int? enlaceId;
 
-  /// Una boca declarada sin nada conectado. Es donde el modo edicion ofrece
+  /// Un puerto declarado sin nada conectado. Es donde el modo edicion ofrece
   /// conectar algo.
-  final bool bocaLibre;
+  final bool puertoLibre;
 
   /// La caja sale de lo que tecleo una persona, no de lo que se midio. Se dibuja
   /// con borde punteado para que no se confunda con lo confirmado.
@@ -196,14 +218,196 @@ const double altoEnlaces = 90;
 final ColorScheme coloresParaExportar =
     ColorScheme.fromSeed(seedColor: const Color(0xFF1565C0), brightness: Brightness.light);
 
+/// _ArbolDeclarado ordena lo que se declaro a mano como lo que es: un arbol.
+///
+/// El cable que alguien tecleo dice quien cuelga de quien. **El padre es el
+/// aparato del que SALE el cable**, que es como lo declaro la persona: se para
+/// en el modem, toca su puerto y elige el switch. Con eso alcanza para dibujar
+/// cada aparato una sola vez, y para que el puerto por donde sube el cable se
+/// vea ocupado en los dos extremos.
+class _ArbolDeclarado {
+  _ArbolDeclarado(this.datos) {
+    final conPuertos = datos.conPuertosDeclarados;
+    for (final equipo in conPuertos) {
+      _tienePuertos.add(equipo.id);
+    }
+
+    for (final cable in datos.topologia.enlaces) {
+      final padre = datos.topologia.equipoDelPuerto(cable.puertoOrigenId);
+      final hijo = cable.puertoDestinoId != null
+          ? datos.topologia.equipoDelPuerto(cable.puertoDestinoId!)
+          : cable.equipoDestinoId;
+      if (padre == null || hijo == null || padre == hijo) continue;
+      if (!_tienePuertos.contains(hijo)) continue; // sin puertos es una hoja
+      if (_padreDe.containsKey(hijo)) continue; // ya cuelga de otro
+      if (_desciendeDe(padre, hijo)) continue; // cerraria un circulo
+      _padreDe[hijo] = padre;
+    }
+
+    raices = conPuertos.where((equipo) => !_padreDe.containsKey(equipo.id)).toList();
+  }
+
+  final DatosMapa datos;
+  final Map<int, int> _padreDe = {};
+  final Set<int> _tienePuertos = {};
+  final Map<int, double> _anchos = {};
+  late final List<Equipo> raices;
+
+  bool _desciendeDe(int posibleHijo, int posibleAncestro) {
+    var actual = _padreDe[posibleHijo];
+    var vueltas = 0;
+    while (actual != null && vueltas < 64) {
+      if (actual == posibleAncestro) return true;
+      actual = _padreDe[actual];
+      vueltas++;
+    }
+    return false;
+  }
+
+  /// El equipo que cuelga de este puerto, si es un aparato con puertos propios.
+  Equipo? hijoEn(int equipoId, PuertoFisico puerto) {
+    final cable = datos.topologia.enlaceDe(puerto.id);
+    if (cable == null) return null;
+    final otro = _otroExtremo(cable, equipoId);
+    if (otro == null || _padreDe[otro] != equipoId) return null;
+    return datos.equipoPorId(otro);
+  }
+
+  int? _otroExtremo(EnlaceFisico cable, int equipoId) {
+    final origen = datos.topologia.equipoDelPuerto(cable.puertoOrigenId);
+    if (origen == equipoId) {
+      return cable.puertoDestinoId != null
+          ? datos.topologia.equipoDelPuerto(cable.puertoDestinoId!)
+          : cable.equipoDestinoId;
+    }
+    return origen;
+  }
+
+  /// Cuanto mide en horizontal el bloque de un aparato con todo lo que le
+  /// cuelga. Se mide antes de colocar nada: sin esto los subarboles se pisan.
+  double medir(Equipo equipo) {
+    final guardado = _anchos[equipo.id];
+    if (guardado != null) return guardado;
+    _anchos[equipo.id] = anchoCaja + separacionX; // provisional, corta circulos
+
+    double total = 0;
+    for (final puerto in datos.topologia.puertosDe(equipo.id)) {
+      final hijo = hijoEn(equipo.id, puerto);
+      total += hijo == null ? anchoCaja + separacionX : medir(hijo);
+    }
+
+    final ancho = matematicas.max(total, anchoCaja + separacionX);
+    _anchos[equipo.id] = ancho;
+    return ancho;
+  }
+
+  /// colocar dibuja el aparato, sus puertos y todo lo que cuelga de ellos.
+  /// Devuelve cuanto ocupo de ancho.
+  double colocar({
+    required Equipo equipo,
+    required double x,
+    required double y,
+    required ColorScheme colores,
+    required List<CajaPlano> cajas,
+    required List<LineaPlano> lineas,
+    required void Function(double) alBajar,
+  }) {
+    alBajar(y);
+    final anchoBloque = medir(equipo);
+    final centroEquipo = Offset(x + anchoBloque / 2, y);
+
+    cajas.add(CajaPlano(
+      rectangulo: Rect.fromCenter(center: centroEquipo, width: anchoCaja, height: altoCaja),
+      titulo: equipo.comoSeLlama,
+      subtitulo: equipo.modelo.isNotEmpty
+          ? equipo.modelo
+          : (equipo.ip.isNotEmpty ? equipo.ip : 'declarado a mano'),
+      color: colores.secondaryContainer,
+      icono: Icons.settings_ethernet,
+      equipoId: equipo.id,
+      declarada: equipo.esManual,
+    ));
+
+    double xPuerto = x;
+    for (final puerto in datos.topologia.puertosDe(equipo.id)) {
+      final hijo = hijoEn(equipo.id, puerto);
+      final cable = datos.topologia.enlaceDe(puerto.id);
+      final anchoPuerto = hijo == null ? anchoCaja + separacionX : medir(hijo);
+      final centroPuerto = Offset(xPuerto + anchoPuerto / 2, y + separacionY);
+
+      if (hijo != null) {
+        // Lo que cuelga de este puerto es otro aparato con puertos propios: se
+        // dibuja aqui mismo, con los suyos debajo. Es la unica vez que sale.
+        colocar(
+          equipo: hijo,
+          x: xPuerto,
+          y: y + separacionY,
+          colores: colores,
+          cajas: cajas,
+          lineas: lineas,
+          alBajar: alBajar,
+        );
+      } else if (cable == null) {
+        // Un puerto libre NO se esconde: es justo donde el modo edicion ofrece
+        // conectar algo, y verlo vacio dice cuanto falta por declarar.
+        cajas.add(CajaPlano(
+          rectangulo: Rect.fromCenter(center: centroPuerto, width: anchoCaja, height: altoCaja),
+          titulo: 'Puerto ${puerto.etiqueta} libre',
+          subtitulo:
+              puerto.velocidadMbps != null ? '${puerto.velocidadMbps} Mbps' : 'sin conectar',
+          color: colores.surfaceContainerLow,
+          icono: Icons.add_circle_outline,
+          equipoId: equipo.id,
+          puertoFisicoId: puerto.id,
+          puertoLibre: true,
+          declarada: true,
+        ));
+      } else {
+        // Hay cable, pero el otro extremo no cuelga de aqui: o es una hoja sin
+        // puertos declarados, o es el aparato de arriba y el cable SUBE. En los
+        // dos casos el puerto esta ocupado, y eso es justo lo que hay que ver.
+        final otro = _otroExtremo(cable, equipo.id);
+        final sube = otro != null && _padreDe[equipo.id] == otro;
+        final soyOrigen = cable.puertoOrigenId == puerto.id;
+        final nombreOtro = soyOrigen ? cable.destinoNombre : cable.origenNombre;
+
+        cajas.add(CajaPlano(
+          rectangulo: Rect.fromCenter(center: centroPuerto, width: anchoCaja, height: altoCaja),
+          titulo: nombreOtro.isEmpty ? 'Conectado' : (sube ? '↑ $nombreOtro' : nombreOtro),
+          subtitulo: sube ? 'sube al aparato de arriba' : 'declarado a mano',
+          color: colores.surfaceContainerHighest,
+          icono: sube ? Icons.arrow_upward : Icons.devices,
+          equipoId: otro,
+          puertoFisicoId: puerto.id,
+          enlaceId: cable.id,
+          declarada: true,
+        ));
+      }
+
+      lineas.add(LineaPlano(
+        desde: centroEquipo + const Offset(0, altoCaja / 2),
+        hasta: centroPuerto - const Offset(0, altoCaja / 2),
+        confirmada: false,
+        declarada: true,
+        etiqueta: puerto.tipo == 'wan' ? 'WAN' : 'puerto ${puerto.numero}',
+      ));
+
+      xPuerto += anchoPuerto;
+    }
+
+    alBajar(y + separacionY);
+    return anchoBloque;
+  }
+}
+
 /// armarPlano coloca todo: una columna por switch, y debajo de cada uno sus
-/// bocas con lo que cuelga. Es un arbol por niveles, que para un plano de sitio
+/// puertos con lo que cuelga. Es un arbol por niveles, que para un plano de sitio
 /// se lee mucho mejor que una maraña de nodos flotando.
 Plano armarPlano(DatosMapa datos, ColorScheme colores) {
   final cajas = <CajaPlano>[];
   final lineas = <LineaPlano>[];
 
-  // Agrupar por switch y, dentro, por boca.
+  // Agrupar por switch y, dentro, por puerto.
   final porSwitch = <int, Map<int, List<PuertoDeSwitch>>>{};
   for (final puerto in datos.mapa.puertos) {
     porSwitch
@@ -229,10 +433,10 @@ Plano armarPlano(DatosMapa datos, ColorScheme colores) {
   double altoMaximo = 0;
   final centrosDeSwitch = <int, Offset>{};
 
-  porSwitch.forEach((switchId, bocas) {
-    final ejemplo = bocas.values.first.first;
+  porSwitch.forEach((switchId, puertos) {
+    final ejemplo = puertos.values.first.first;
     final anchoBloque =
-        matematicas.max(bocas.length * (anchoCaja + separacionX), anchoCaja + separacionX);
+        matematicas.max(puertos.length * (anchoCaja + separacionX), anchoCaja + separacionX);
 
     final centroSwitch = Offset(x + anchoBloque / 2, arriba + separacionY / 2);
     centrosDeSwitch[switchId] = centroSwitch;
@@ -246,16 +450,16 @@ Plano armarPlano(DatosMapa datos, ColorScheme colores) {
       equipoId: switchId,
     ));
 
-    double xBoca = x;
-    bocas.forEach((indice, enLaBoca) {
-      final confirmado = enLaBoca.length == 1 && enLaBoca.first.confirmado;
-      final centroBoca = Offset(xBoca + anchoCaja / 2, arriba + separacionY / 2 + separacionY);
+    double xPuerto = x;
+    puertos.forEach((indice, enElPuerto) {
+      final confirmado = enElPuerto.length == 1 && enElPuerto.first.confirmado;
+      final centroPuerto = Offset(xPuerto + anchoCaja / 2, arriba + separacionY / 2 + separacionY);
 
       if (confirmado) {
-        final unico = enLaBoca.first;
+        final unico = enElPuerto.first;
         cajas.add(CajaPlano(
           rectangulo:
-              Rect.fromCenter(center: centroBoca, width: anchoCaja, height: altoCaja),
+              Rect.fromCenter(center: centroPuerto, width: anchoCaja, height: altoCaja),
           titulo: unico.quienEs,
           subtitulo: unico.equipoIp.isNotEmpty ? unico.equipoIp : unico.mac,
           color: colores.surfaceContainerHighest,
@@ -267,13 +471,13 @@ Plano armarPlano(DatosMapa datos, ColorScheme colores) {
         // lo que se sabe, ni mas ni menos.
         //
         // La cuenta buena es la que trae el servidor, no la de renglones que le
-        // llegaron a esta pantalla: el servidor conto las MAC de la boca, y el
+        // llegaron a esta pantalla: el servidor conto las MAC del puerto, y el
         // dia que la respuesta venga resumida o recortada, contar renglones
         // diria "1 equipos" donde hay nueve.
-        final cuantos = matematicas.max(enLaBoca.length, enLaBoca.first.cuantosEnBoca);
+        final cuantos = matematicas.max(enElPuerto.length, enElPuerto.first.cuantosEnPuerto);
         cajas.add(CajaPlano(
           rectangulo:
-              Rect.fromCenter(center: centroBoca, width: anchoCaja, height: altoCaja),
+              Rect.fromCenter(center: centroPuerto, width: anchoCaja, height: altoCaja),
           titulo: '$cuantos ${cuantos == 1 ? 'equipo' : 'equipos'}',
           subtitulo: 'tras algo no administrable',
           color: colores.tertiaryContainer,
@@ -283,12 +487,12 @@ Plano armarPlano(DatosMapa datos, ColorScheme colores) {
 
       lineas.add(LineaPlano(
         desde: centroSwitch + const Offset(0, altoCaja / 2),
-        hasta: centroBoca - const Offset(0, altoCaja / 2),
+        hasta: centroPuerto - const Offset(0, altoCaja / 2),
         confirmada: confirmado,
-        etiqueta: enLaBoca.first.puerto,
+        etiqueta: enElPuerto.first.puerto,
       ));
 
-      xBoca += anchoCaja + separacionX;
+      xPuerto += anchoCaja + separacionX;
     });
 
     x += anchoBloque + separacionX * 2;
@@ -322,89 +526,36 @@ Plano armarPlano(DatosMapa datos, ColorScheme colores) {
   // ------------------------------------------- lo que se declaro a mano ---
   //
   // Va en su propia franja, debajo de lo que dijeron los switches, y con el
-  // mismo reparto: el aparato arriba y sus bocas debajo. Se dibuja punteado de
+  // mismo reparto: el aparato arriba y sus puertos debajo. Se dibuja punteado de
   // punta a punta —caja y cable— porque es lo que alguien TECLEO, y presentarlo
   // igual que lo confirmado seria hacer pasar una declaracion por una medicion.
-  final conBocas = datos.conBocasDeclaradas;
-  if (conBocas.isNotEmpty) {
+  // **Cada aparato se dibuja UNA vez.** Un switch colgado del modem es hijo del
+  // modem: va debajo de su puerto, con sus propios puertos debajo. Antes salia
+  // dos veces —una como caja bajo el puerto del modem y otra como bloque suelto
+  // con sus puertos—, y el cable que sube al modem no ocupaba ninguno de sus
+  // puertos, asi que un switch de 5 con el uplink puesto seguia ofreciendo 5.
+  final arbol = _ArbolDeclarado(datos);
+  if (arbol.raices.isNotEmpty) {
     if (altoMaximo == 0) altoMaximo = arriba + separacionY / 2;
     double xManual = separacionX;
     final yCabecera = altoMaximo + separacionY / 2;
+    double fondo = yCabecera;
 
-    for (final equipo in conBocas) {
-      final bocas = datos.topologia.puertosDe(equipo.id);
-      final anchoBloque = matematicas.max(
-          bocas.length * (anchoCaja + separacionX), anchoCaja + separacionX);
-      final centroEquipo = Offset(xManual + anchoBloque / 2, yCabecera);
-
-      cajas.add(CajaPlano(
-        rectangulo: Rect.fromCenter(
-            center: centroEquipo, width: anchoCaja, height: altoCaja),
-        titulo: equipo.comoSeLlama,
-        subtitulo: equipo.modelo.isNotEmpty
-            ? equipo.modelo
-            : (equipo.ip.isNotEmpty ? equipo.ip : 'declarado a mano'),
-        color: colores.secondaryContainer,
-        icono: Icons.settings_ethernet,
-        equipoId: equipo.id,
-        declarada: equipo.esManual,
-      ));
-
-      double xBoca = xManual;
-      for (final boca in bocas) {
-        final centroBoca = Offset(xBoca + anchoCaja / 2, yCabecera + separacionY);
-        final cable = datos.topologia.enlaceDe(boca.id);
-
-        if (cable == null) {
-          // Una boca libre NO se esconde: es justo donde el modo edicion
-          // ofrece conectar algo, y verla vacia dice cuanto falta por declarar.
-          cajas.add(CajaPlano(
-            rectangulo:
-                Rect.fromCenter(center: centroBoca, width: anchoCaja, height: altoCaja),
-            titulo: 'Boca ${boca.etiqueta} libre',
-            subtitulo: boca.velocidadMbps != null ? '${boca.velocidadMbps} Mbps' : 'sin conectar',
-            color: colores.surfaceContainerLow,
-            icono: Icons.add_circle_outline,
-            equipoId: equipo.id,
-            puertoFisicoId: boca.id,
-            bocaLibre: true,
-            declarada: true,
-          ));
-        } else {
-          // El nombre del otro extremo, mirado desde ESTA boca: un cable
-          // declarado desde la otra punta apunta hacia aca.
-          final soyOrigen = cable.puertoOrigenId == boca.id;
-          final otroLado = soyOrigen ? cable.destinoNombre : cable.origenNombre;
-          cajas.add(CajaPlano(
-            rectangulo:
-                Rect.fromCenter(center: centroBoca, width: anchoCaja, height: altoCaja),
-            titulo: otroLado.isEmpty ? 'Conectado' : otroLado,
-            subtitulo: 'declarado a mano',
-            color: colores.surfaceContainerHighest,
-            icono: Icons.devices,
-            equipoId: soyOrigen ? cable.equipoDestinoId : cable.equipoOrigenId,
-            puertoFisicoId: boca.id,
-            enlaceId: cable.id,
-            declarada: true,
-          ));
-        }
-
-        lineas.add(LineaPlano(
-          desde: centroEquipo + const Offset(0, altoCaja / 2),
-          hasta: centroBoca - const Offset(0, altoCaja / 2),
-          confirmada: false,
-          declarada: true,
-          etiqueta: boca.tipo == 'wan' ? 'WAN' : 'boca ${boca.numero}',
-        ));
-
-        xBoca += anchoCaja + separacionX;
-      }
-
-      xManual += anchoBloque + separacionX * 2;
+    for (final raiz in arbol.raices) {
+      final ancho = arbol.colocar(
+        equipo: raiz,
+        x: xManual,
+        y: yCabecera,
+        colores: colores,
+        cajas: cajas,
+        lineas: lineas,
+        alBajar: (y) => fondo = matematicas.max(fondo, y),
+      );
+      xManual += ancho + separacionX * 2;
       anchoMaximo = matematicas.max(anchoMaximo, xManual);
     }
 
-    altoMaximo = matematicas.max(altoMaximo, yCabecera + separacionY + altoCaja);
+    altoMaximo = matematicas.max(altoMaximo, fondo + altoCaja);
   }
 
   // Los que no cuelgan de ningun switch conocido: en su propia zona, abajo.
@@ -425,7 +576,11 @@ Plano armarPlano(DatosMapa datos, ColorScheme colores) {
       cajas.add(CajaPlano(
         rectangulo: Rect.fromLTWH(xSuelto, filaY, anchoCaja, altoCaja),
         titulo: equipo.comoSeLlama,
-        subtitulo: equipo.ip,
+        // Sin nombre, el titulo YA es la IP: repetirla debajo desperdicia el
+        // unico renglon que queda para decir algo del aparato.
+        subtitulo: equipo.comoSeLlama == equipo.ip
+            ? (equipo.fabricante.isNotEmpty ? equipo.fabricante : equipo.tipo)
+            : equipo.ip,
         color: colores.surfaceContainerLow,
         icono: equipo.presente ? Icons.help_outline : Icons.power_off,
         equipoId: equipo.id,

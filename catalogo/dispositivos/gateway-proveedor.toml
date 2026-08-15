@@ -1,0 +1,13 @@
+# El modem del proveedor: Telmex, Totalplay, Izzi, Megacable.
+#
+# Todos son de marcas distintas —Huawei, ZTE, Askey, Technicolor, Sernet— y casi
+# ninguno esta en las listas de prefijos de MAC como "modem". Lo que si tienen
+# todos es que se anuncian por UPnP como InternetGatewayDevice: eso lo dice el
+# propio aparato, y es lo que de verdad significa "por aqui sale internet".
+nombre = "Modem o gateway de internet"
+categoria = "gateway"
+icono = "router"
+descripcion = "Se anuncia como la puerta de salida a internet de esta red. Es el modem del proveedor."
+
+[coincidencias]
+huella_contiene = ["internetgatewaydevice", "wanipconnection", "wanpppconnection"]

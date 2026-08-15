@@ -49,15 +49,36 @@ valida renueva el vencimiento.
 ### Topologia declarada a mano (modulo 15, v1.15)
 | Metodo y ruta | Quien puede | Que hace |
 |---|---|---|
-| `GET /api/redes/{clave}/topologia-manual` | lectura | bocas, cables y **contradicciones** contra lo medido |
+| `GET /api/redes/{clave}/topologia-manual` | lectura | puertos, cables y **contradicciones** contra lo medido |
 | `GET /api/redes/{clave}/composicion` | lectura | de que esta hecha la red: `{total, presentes, declarados, categorias[]}` |
 | `POST /api/redes/{clave}/equipos` | escritura | dar de alta un aparato que ningun escaneo ve |
 | `PUT /api/redes/{clave}/equipos/{equipo}` | escritura | ficha: `modelo`, `notas`, `conexion` |
 | `DELETE /api/redes/{clave}/equipos/{equipo}` | escritura | **solo si `origen = 'manual'`** |
-| `POST /api/redes/{clave}/equipos/{equipo}/puertos` | escritura | declarar una boca |
-| `PUT/DELETE /api/redes/{clave}/puertos/{puerto}` | escritura | editar o quitar la boca |
+| `POST /api/redes/{clave}/equipos/{equipo}/puertos` | escritura | declarar un puerto |
+| `PUT/DELETE /api/redes/{clave}/puertos/{puerto}` | escritura | editar o quitar el puerto |
 | `POST /api/redes/{clave}/enlaces` | escritura | conectar; **siempre entra con `origen_dato = 'manual'`** |
 | `DELETE /api/redes/{clave}/enlaces/{enlace}` | escritura | desconectar |
+
+## Reconocer que es cada aparato, y el aire
+
+| Metodo y ruta | Quien puede | Que hace |
+|---|---|---|
+| `GET /api/catalogo` | con sesion | que sabe reconocer esta instalacion + los archivos que no cargaron |
+| `POST /api/catalogo/dispositivos` | **superadmin** | guarda una definicion propia y **recarga el catalogo en caliente** |
+| `POST /api/catalogo/actualizar` | **superadmin** | baja las definiciones publicadas por la comunidad |
+| `GET /api/redes/{clave}/equipos/{equipo}/propuesta` | lectura | el `.toml` ya relleno + `urlAporte`, la direccion del aporte ya escrito |
+| `GET /api/redes/{clave}/aire` | lectura | escucha el aire: SSID, BSSID, canal, banda, senal, y de que equipo es cada antena |
+
+- **El catalogo lo cambia el superadministrador**, no quien tenga escritura en
+  una red: una definicion cambia como se reconoce en TODAS las redes.
+- El equipo devuelto en `/equipos` trae ahora `huella[]`, con `{fuente, clave,
+  valor}`: **la fuente viaja con el dato**, porque no vale lo mismo un modelo
+  firmado en un certificado que uno sacado del titulo de una pagina.
+- En `/aire`, cada antena que se pudo atribuir trae `comoSeSupo`: `medido`
+  (la MAC del radio ES la del equipo) o `deducido por cercania de MAC`. La
+  interfaz **tiene que mostrar cual de los dos es**.
+- Si no se puede oir el aire, la respuesta trae `explicacion` con el motivo. Una
+  lista vacia sin explicacion se leeria como "aqui no hay redes WiFi".
 
 Dos cosas del diseno de estas rutas:
 

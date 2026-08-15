@@ -1,0 +1,8 @@
+# El punto de acceso de Fortinet, que cuelga del FortiGate por CAPWAP.
+nombre = "FortiAP"
+categoria = "punto_de_acceso"
+icono = "wifi"
+descripcion = "Punto de acceso Fortinet administrado por un FortiGate."
+
+[coincidencias]
+huella_contiene = ["fortiap"]

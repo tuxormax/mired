@@ -1,0 +1,10 @@
+# Los EAP se reconocen por el modelo, que es donde el aparato lo dice. Buscar
+# "eap" en toda la huella daria falsos positivos: aparece en cualquier
+# certificado que mencione EAP-TLS.
+nombre = "Punto de acceso TP-Link EAP"
+categoria = "punto_de_acceso"
+icono = "wifi"
+descripcion = "Punto de acceso EAP de TP-Link."
+
+[coincidencias]
+modelo_contiene = ["eap"]
