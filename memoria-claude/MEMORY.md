@@ -87,6 +87,9 @@ Para probar una instalacion **en limpio**: `sudo ./herramientas/desinstalar.sh`.
 ### 🐛 Deteccion y correccion de bugs
 - [gotchas](gotchas.md) — **leer siempre antes de tocar codigo**: reglas
   transversales (fechas, borrado suave, prestamo de bases, formularios).
+- [ref-herramientas-debug](ref-herramientas-debug.md) — con que se diagnostica:
+  donde vive cada base, como se mira quien esta gastando el equipo y la
+  grabadora `herramientas/medir.sh` para los tirones que duran dos segundos.
 - [historial-bugs](historial-bugs.md) — cronica de cada problema: que paso, por
   que y como se corrigio.
 
