@@ -499,19 +499,29 @@ class _ArbolDeclarado {
   ///
   /// Antes decia solo "puerto 2", que es la mitad del dato: en un modem con LAN,
   /// WAN y DMZ ni siquiera se sabia de que fila salia el cable, y del otro
-  /// extremo —en que puerto del switch entra— no se decia nada. Cuando el otro
-  /// extremo no tiene puertos declarados —una laptop, un DVR de un solo cable—
-  /// se dice solo el de salida: inventarle un "LAN 1" seria escribir en el mapa
-  /// algo que nadie conto.
+  /// extremo —en que puerto del switch entra— no se decia nada.
+  ///
+  /// Cuando el otro extremo no declaro puertos es un aparato de punta —una
+  /// laptop, una TV, un grabador— y entra por su unica toma, LAN 1. Eso no es
+  /// suponer: un aparato asi se conecta por UN cable. Lo que no se hace es
+  /// senalar un puerto al azar de un aparato que si tiene varios declarados.
   String comoSeLlamaElCable(PuertoFisico puerto, EnlaceFisico? cable) {
     if (cable == null) return puerto.etiqueta;
 
-    final otroId = cable.puertoOrigenId == puerto.id
-        ? cable.puertoDestinoId
-        : cable.puertoOrigenId;
-    final otro = datos.topologia.puertoPorId(otroId);
-    if (otro == null || otro.id == puerto.id) return puerto.etiqueta;
-    return '${puerto.etiqueta} → ${otro.etiqueta}';
+    final soyOrigen = cable.puertoOrigenId == puerto.id;
+    final otro = datos.topologia
+        .puertoPorId(soyOrigen ? cable.puertoDestinoId : cable.puertoOrigenId);
+    if (otro != null && otro.id != puerto.id) {
+      return '${puerto.etiqueta} → ${otro.etiqueta}';
+    }
+
+    // Sin puerto al otro lado: si es un aparato de punta, se sabe igual por
+    // donde entra.
+    final otroEquipo = soyOrigen ? cable.equipoDestinoId : cable.equipoOrigenId;
+    final entraPor =
+        otroEquipo == null ? null : datos.topologia.puertoUnicoDe(otroEquipo);
+    if (entraPor == null) return puerto.etiqueta;
+    return '${puerto.etiqueta} → $entraPor';
   }
 
   /// subePorAqui dice si ese puerto es por el que el aparato cuelga del de la

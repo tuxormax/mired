@@ -14,6 +14,7 @@ void main() {
     required String nombre,
     String ip = '',
     String categoria = '',
+    String conexion = '',
     List<CredencialEquipo> credenciales = const [],
   }) =>
       Equipo(
@@ -29,6 +30,7 @@ void main() {
         presente: true,
         origen: 'manual',
         categoria: categoria,
+        conexion: conexion,
         primeraVez: '',
         ultimaVez: '',
         puertos: const [],
@@ -38,6 +40,14 @@ void main() {
   Future<void> abrir(WidgetTester probador, Equipo aparato,
       {TopologiaManual topologia = const TopologiaManual(),
       List<Equipo> equipos = const []}) async {
+    // Ventana alta: la ficha lleva varias secciones y con la de serie —600 de
+    // alto— lo de mas abajo no se llega a construir y las pruebas fallarian por
+    // el tamano de la ventana, no por lo que se quiere comprobar.
+    probador.view.physicalSize = const Size(1200, 2000);
+    probador.view.devicePixelRatio = 1;
+    addTearDown(probador.view.resetPhysicalSize);
+    addTearDown(probador.view.resetDevicePixelRatio);
+
     await probador.pumpWidget(MaterialApp(
       home: Scaffold(
         body: DialogoEquipo(
@@ -132,5 +142,90 @@ void main() {
 
     expect(find.textContaining('usuario: admin'), findsOneWidget);
     expect(find.text('Ver clave'), findsOneWidget);
+  });
+
+  testWidgets('un aparato de punta muestra su LAN 1 y de que cuelga', (probador) async {
+    // Antes, la ficha de un grabador colgado del switch decia "no tiene puertos
+    // declarados" y nada mas: ni siquiera que estaba conectado. El dato existia
+    // —el cable lo declaro el switch— pero solo se veia desde el otro lado.
+    const topologia = TopologiaManual(
+      puertos: [PuertoFisico(id: 20, equipoId: 2, numero: 1, tipo: 'lan')],
+      enlaces: [
+        EnlaceFisico(
+          id: 100,
+          puertoOrigenId: 20,
+          equipoOrigenId: 2,
+          numeroOrigen: 1,
+          origenNombre: 'switch',
+          equipoDestinoId: 3,
+          destinoNombre: 'dvr',
+          origenDato: 'manual',
+        ),
+      ],
+    );
+
+    await abrir(probador, equipo(id: 3, nombre: 'dvr'),
+        topologia: topologia, equipos: [equipo(id: 2, nombre: 'switch')]);
+
+    await probador.tap(find.text('Conexiones'));
+    await probador.pumpAndSettle();
+
+    expect(find.text('LAN 1 → switch'), findsOneWidget);
+    expect(find.textContaining('desde su LAN 1'), findsOneWidget);
+  });
+
+  testWidgets('un aparato de punta sin cable dice que le falta declararlo', (probador) async {
+    await abrir(probador, equipo(id: 3, nombre: 'pc tuxor'));
+
+    await probador.tap(find.text('Conexiones'));
+    await probador.pumpAndSettle();
+
+    expect(find.text('LAN 1'), findsOneWidget);
+    expect(find.text('sin cable declarado'), findsOneWidget);
+  });
+
+  testWidgets('a una laptop de solo WiFi no se le supone toma de red', (probador) async {
+    // Muchas laptops y tabletas ya no traen conector de red. Dibujarles un
+    // LAN 1 seria inventarles un agujero que no tienen.
+    await abrir(probador,
+        equipo(id: 4, nombre: 'laptop', categoria: 'computadora', conexion: 'wifi'));
+
+    await probador.tap(find.text('Conexiones'));
+    await probador.pumpAndSettle();
+
+    expect(find.text('LAN 1'), findsNothing);
+    expect(find.textContaining('entra por el aire'), findsOneWidget);
+  });
+
+  testWidgets('con un cable declarado si hay toma, diga lo que diga la ficha',
+      (probador) async {
+    // Alguien enchufo un cable: entonces hay donde enchufarlo. El dato duro
+    // manda sobre el campo de la ficha.
+    const topologia = TopologiaManual(
+      puertos: [PuertoFisico(id: 20, equipoId: 2, numero: 3, tipo: 'lan')],
+      enlaces: [
+        EnlaceFisico(
+          id: 100,
+          puertoOrigenId: 20,
+          equipoOrigenId: 2,
+          numeroOrigen: 3,
+          origenNombre: 'switch',
+          equipoDestinoId: 4,
+          destinoNombre: 'laptop',
+          origenDato: 'manual',
+        ),
+      ],
+    );
+
+    await abrir(
+        probador,
+        equipo(id: 4, nombre: 'laptop', categoria: 'computadora', conexion: 'wifi'),
+        topologia: topologia,
+        equipos: [equipo(id: 2, nombre: 'switch')]);
+
+    await probador.tap(find.text('Conexiones'));
+    await probador.pumpAndSettle();
+
+    expect(find.text('LAN 1 → switch'), findsOneWidget);
   });
 }

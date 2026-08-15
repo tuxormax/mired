@@ -418,3 +418,11 @@ fecha = "2026-08-15"
 tipo = "change"
 modulo = "Mapa"
 notas = "Un puerto se llama por su tipo y su numero —LAN 3, WAN 1, DMZ 1—, como esta rotulado en el aparato, y el mapa dice las DOS puntas del cable: «LAN 4 → LAN 5». Antes decia «PUERTO 4», que es la mitad del dato: en un modem con LAN, WAN y DMZ ni siquiera se sabia de que fila salia, y del otro extremo no se decia nada. Cuando la otra punta no tiene puertos declarados —una laptop, un DVR de un solo cable— se dice solo la de salida: inventarle un LAN 1 seria escribir en el mapa algo que nadie conto. Ademas, cada aparato se dibuja a la MISMA ALTURA que su primer hijo, no centrado en su franja: el modem quedaba flotando en medio de un hueco. Cada rama sigue reservando su franja entera, asi que dos ramas no se enciman nunca."
+
+[[sistema]]
+version = "1.19"
+revision = 37
+fecha = "2026-08-15"
+tipo = "change"
+modulo = "Mapa"
+notas = "Todo aparato de punta —PC, TV, grabador, impresora— tiene su toma LAN 1, y el mapa la usa: «LAN 4 → LAN 1» en vez de media etiqueta. No es suponer, es como se conecta un aparato que no tiene mas que un cable; en cuanto alguien le declara puertos propios se deja de suponer y mandan los declarados. Dos limites: a un aparato que va por el aire NO se le supone toma —muchas laptops y tabletas ya ni traen conector de red, y dibujarles una LAN 1 seria inventarles un agujero— salvo que haya un cable declarado, que manda sobre la ficha; y a uno con varios puertos declarados no se le senala ninguno al azar. Ademas, la pestana Conexiones de un equipo de punta ya muestra esa toma con de que cuelga y por que puerto del otro lado: antes decia «no tiene puertos declarados» y nada mas, aunque el cable estuviera declarado desde el switch."

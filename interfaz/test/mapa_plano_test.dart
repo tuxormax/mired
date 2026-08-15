@@ -239,11 +239,30 @@ void main() {
     final etiquetas = plano.lineas.map((linea) => linea.etiqueta).toList();
     expect(etiquetas, contains('LAN 4 → LAN 5'),
         reason: 'del puerto 4 del modem al 5 del switch, con las dos puntas');
-    // Al grabador, que no tiene puertos declarados, se dice solo por donde sale:
-    // inventarle un "LAN 1" seria escribir algo que nadie conto.
-    expect(etiquetas, contains('LAN 1'));
     expect(etiquetas.any((etiqueta) => etiqueta.startsWith('puerto ')), isFalse,
         reason: 'ya no se nombra un puerto sin decir de que tipo es');
+  });
+
+  test('un aparato de punta entra por su LAN 1 aunque no declare puertos', () {
+    // Una PC, una TV, un grabador: se conectan por UN cable, y ese cable entra
+    // por su unica toma. Decir solo "LAN 1" —el puerto del switch— dejaba el
+    // dato a medias en el extremo que mas se mira.
+    final plano = armarPlano(armarCasa(cableEntrePuertos: true), colores);
+
+    final etiquetas = plano.lineas.map((linea) => linea.etiqueta).toList();
+    expect(etiquetas, contains('LAN 1 → LAN 1'),
+        reason: 'del puerto 1 del switch a la unica toma del grabador');
+  });
+
+  test('a un aparato con puertos declarados no se le senala ninguno al azar', () {
+    // Aqui si hay datos contados mirando el aparato, y mandan: el switch tiene
+    // cinco puertos y decir "entra por su LAN 1" seria inventar cual.
+    final plano = armarPlano(armarCasa(cableEntrePuertos: false), colores);
+
+    final etiquetas = plano.lineas.map((linea) => linea.etiqueta).toList();
+    expect(etiquetas, contains('LAN 4'));
+    expect(etiquetas.any((etiqueta) => etiqueta.startsWith('LAN 4 →')), isFalse,
+        reason: 'sin puerto de destino declarado no se supone cual de los cinco es');
   });
 
   test('un puerto se llama por su tipo y su numero', () {

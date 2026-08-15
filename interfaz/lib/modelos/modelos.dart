@@ -1022,6 +1022,28 @@ class TopologiaManual {
     return null;
   }
 
+  /// Como se llama el puerto por el que un aparato se conecta a la red, cuando
+  /// se puede saber sin suponer de mas.
+  ///
+  /// Un aparato que no declaro ningun puerto es de punta —PC, laptop, TV,
+  /// grabador— y entra a la red por su unica toma: [puertoUnicoDeUnEquipoFinal].
+  /// Uno que SI declaro puertos tiene varios y hay que mirar cable por cable:
+  /// ahi se devuelve vacio en vez de senalar uno al azar.
+  String? puertoUnicoDe(int equipoId) =>
+      puertosDe(equipoId).isEmpty ? puertoUnicoDeUnEquipoFinal : null;
+
+  /// El cable que llega a un aparato que no tiene puertos declarados.
+  ///
+  /// Es como cuelga de la red un equipo de punta: el cable lo declaro el del
+  /// otro lado —el switch— apuntando al aparato entero, porque este no tiene
+  /// puertos que senalar.
+  EnlaceFisico? cableHaciaElEquipo(int equipoId) {
+    for (final enlace in enlaces) {
+      if (enlace.equipoDestinoId == equipoId) return enlace;
+    }
+    return null;
+  }
+
   /// De que equipo es un puerto.
   int? equipoDelPuerto(int puertoId) {
     for (final puerto in puertos) {

@@ -118,9 +118,28 @@ por donde sale el cable.
   ficha y las listas: si cada pantalla lo armara, el mismo puerto se llamaria de
   dos maneras.
 - La etiqueta del cable en el mapa lleva **las dos puntas**: `LAN 4 → LAN 5`.
-  Cuando el otro extremo no tiene puertos declarados —una laptop, un DVR de un
-  solo cable— se dice solo la de salida: inventarle un `LAN 1` seria escribir en
-  el mapa algo que nadie conto.
+
+### La toma unica de un aparato de punta (Rev 37)
+
+Un aparato que **no declaro ningun puerto** es de punta —PC, TV, grabador,
+impresora— y se conecta por UN cable: esa toma se llama **LAN 1** en todas las
+pantallas (`puertoUnicoDeUnEquipoFinal`). No es suponer: es como se conecta un
+aparato asi. En cuanto alguien le declara puertos, se deja de suponer.
+
+Dos limites, los dos con prueba:
+
+- **A un aparato que va por el aire NO se le supone toma.** Muchas laptops y
+  tabletas ya no traen conector de red, y dibujarles un LAN 1 seria inventarles
+  un agujero que no tienen. Se mira si cuelga de una antena o si su ficha dice
+  `conexion = wifi`. **Un cable declarado manda sobre eso**: si alguien dijo que
+  hay cable, hay donde enchufarlo.
+- **A un aparato CON puertos declarados no se le senala ninguno al azar.** Ahi
+  hay datos contados mirando el aparato y esos mandan: el mapa dice solo la punta
+  que sabe.
+
+En la ficha, la pestana **Conexiones** de un equipo de punta muestra ese LAN 1
+con de que cuelga. Antes decia «no tiene puertos declarados» y nada mas: el dato
+existia —el cable lo declaro el switch— pero solo se veia desde el otro lado.
 - **Rehacer `puertos_fisicos` es peligroso**: `enlaces_fisicos` cuelga de ella
   con `ON DELETE CASCADE`, y soltar la tabla vieja con el hijo colgando borra
   todos los cables sin avisar. Orden obligado: copiar las dos nuevas → soltar el

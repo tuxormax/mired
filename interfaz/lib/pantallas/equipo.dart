@@ -364,12 +364,32 @@ class _ConexionesState extends State<_Conexiones> {
                 ),
               ],
             ),
-            if (puertos.isEmpty)
+            // Sin puertos declarados es un aparato de punta: tiene UNA toma de
+            // red y por ahi entra. Se muestra igual que un puerto declarado
+            // —con lo que lleva conectado— porque para quien mira es lo mismo.
+            //
+            // **Salvo que vaya por el aire.** Hay laptops, tabletas y telefonos
+            // que ya ni traen toma de red: suponerles una LAN 1 seria dibujar un
+            // conector que ese aparato no tiene.
+            if (puertos.isEmpty && !_soloPorElAire)
+              _renglonDeLaTomaUnica(contexto),
+            if (puertos.isEmpty && !_soloPorElAire)
+              Padding(
+                padding: const EdgeInsets.only(top: 4, bottom: 8),
+                child: Text(
+                  'Se le supone una sola toma de red, que es como se conecta un '
+                  'aparato de punta. Si tiene mas de una —un servidor, un grabador '
+                  'con sus camaras— declare sus puertos y se deja de suponer.',
+                  style: Theme.of(contexto).textTheme.bodySmall?.copyWith(color: colores.outline),
+                ),
+              ),
+            if (puertos.isEmpty && _soloPorElAire)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(
-                  'Este aparato no tiene puertos declarados. Cuentelos mirandolo y '
-                  'declarelos para poder decir que entra por cada uno.',
+                  'Este aparato entra por el aire. No se le supone ninguna toma de '
+                  'red: hay laptops y tabletas que ya ni la traen. Si en realidad '
+                  'tiene una, declare sus puertos.',
                   style: Theme.of(contexto).textTheme.bodySmall?.copyWith(color: colores.outline),
                 ),
               ),
@@ -431,6 +451,58 @@ class _ConexionesState extends State<_Conexiones> {
             ),
           ),
       ],
+    );
+  }
+
+  /// _soloPorElAire dice si a este aparato NO hay que suponerle toma de red.
+  ///
+  /// Muchas laptops y tabletas ya no traen conector de red: solo WiFi. A esas
+  /// dibujarles un LAN 1 seria inventarles un agujero que no tienen.
+  ///
+  /// Un cable declarado manda sobre todo lo demas: si alguien dijo que hay un
+  /// cable, hay toma donde enchufarlo, diga lo que diga la ficha.
+  bool get _soloPorElAire {
+    if (_topologia.cableHaciaElEquipo(widget.equipo.id) != null) return false;
+    return _topologia.antenaDe(widget.equipo.id) != null ||
+        widget.equipo.conexion == 'wifi';
+  }
+
+  /// _renglonDeLaTomaUnica dibuja el LAN 1 de un aparato de punta.
+  ///
+  /// Antes, la ficha de un grabador colgado del switch decia «no tiene puertos
+  /// declarados» y **nada mas**: ni siquiera que estaba conectado, ni de que.
+  /// El dato existia —el cable lo declaro el switch— pero solo se veia desde el
+  /// otro lado.
+  Widget _renglonDeLaTomaUnica(BuildContext contexto) {
+    final cable = _topologia.cableHaciaElEquipo(widget.equipo.id);
+    if (cable == null) {
+      return ListTile(
+        dense: true,
+        leading: Icon(iconoDePuerto('lan')),
+        title: Text(puertoUnicoDeUnEquipoFinal),
+        subtitle: const Text('sin cable declarado'),
+      );
+    }
+
+    final origen = _equipoPorId(cable.equipoOrigenId);
+    final nombre = origen?.comoSeLlama ??
+        (cable.origenNombre.isEmpty ? 'otro aparato' : cable.origenNombre);
+    final puertoDeAlla = _topologia.puertoPorId(cable.puertoOrigenId);
+
+    return ListTile(
+      dense: true,
+      leading: Icon(iconoDePuerto('lan')),
+      title: Text('$puertoUnicoDeUnEquipoFinal → $nombre'),
+      subtitle: Text([
+        'por cable',
+        if (puertoDeAlla != null) 'desde su ${puertoDeAlla.etiqueta}',
+        if (cable.origenDato == 'manual') 'declarado a mano' else cable.origenDato,
+      ].join(' · ')),
+      trailing: IconButton(
+        tooltip: 'Quitar el cable',
+        icon: const Icon(Icons.link_off, size: 18),
+        onPressed: () => _quitarCable(cable),
+      ),
     );
   }
 

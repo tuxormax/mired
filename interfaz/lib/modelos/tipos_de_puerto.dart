@@ -81,6 +81,19 @@ String nombreDePuerto(String tipo, int numero) {
   return '${conocido?.nombre ?? tipo.toUpperCase()} $numero';
 }
 
+/// El puerto que tiene TODO aparato de punta: una PC, una laptop, una TV, un
+/// grabador, una impresora.
+///
+/// No es un invento del programa: un aparato de esos se conecta a la red por un
+/// cable, y ese cable entra por su unica toma. Mientras no declare puertos
+/// propios, esa toma se llama LAN 1 en todas las pantallas, y el mapa puede
+/// decir las dos puntas del cable —`LAN 4 → LAN 1`— en vez de media verdad.
+///
+/// En cuanto alguien le declara puertos —un servidor con cuatro tomas, un
+/// grabador con las suyas para las camaras— **se deja de suponer**: ahi ya hay
+/// datos contados mirando el aparato, y esos mandan.
+String get puertoUnicoDeUnEquipoFinal => nombreDePuerto('lan', 1);
+
 /// iconoDePuerto es el dibujito del tipo. Lo desconocido va con el generico: un
 /// icono inventado sugeriria algo que no se sabe.
 IconData iconoDePuerto(String tipo) =>
