@@ -69,6 +69,29 @@ Un panel lista las dos cosas juntas, pero no valen lo mismo:
 Por eso lo de cable no arma topologia: se aprovecha solo para poner **nombre** a
 los equipos (el que el propio equipo pidio al conectarse), como una huella mas.
 
+## Como se administra todo esto en la interfaz
+
+Tocar un aparato —en la lista o en el mapa— abre **su ficha**, nunca un menu de
+acciones: en el mapa un clic es para MIRAR, y quitar un cable por accidente
+mientras se consulta la red estaba a un toque de distancia.
+
+La ficha (`interfaz/lib/pantallas/equipo.dart`) tiene pestanas:
+
+1. **Propiedades** — lo que se sabe del aparato, incluida su huella. Lo dibuja
+   `PropiedadesDelEquipo`, que comparten la ficha y la tarjeta de la lista: un
+   solo sitio donde se decide como se ve un aparato.
+2. **Conexiones** — que cuelga de el y **por que medio**. Por cable va puerto por
+   puerto, porque un puerto lleva un cable; por WiFi va una lista sin numeros, a
+   la que se le agregan uno o VARIOS equipos de una vez. Arriba del todo, de que
+   cuelga EL, que es lo que orienta.
+3. **Credenciales** — **solo si el aparato se puede administrar**. Un switch no
+   administrable no tiene direccion, asi que no hay panel al que entrar:
+   ofrecerle un formulario de usuario y clave seria ofrecer algo que no existe.
+   La regla vive en `Equipo.puedeAdministrarse`.
+
+En el mapa, tocar un **puerto libre** sigue ofreciendo conectar algo: es el
+camino corto y no borra nada.
+
 ## Las credenciales — modulo 19
 
 - Se guardan por equipo y por tipo (`web`, `ssh`, `consola`, `app`, `otro`).

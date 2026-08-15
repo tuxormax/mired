@@ -270,6 +270,14 @@ tipo = "feature"
 modulo = "Credenciales de equipo"
 notas = "El modulo 19: como se entra a cada aparato, guardado en el aparato. Usuario, clave, direccion del panel y notas en la ficha, para no buscarlos en un papel. La clave se guarda CIFRADA y la llave del cifrado vive con la configuracion, no con los datos: un respaldo de la base copiado a cualquier lado no trae con que abrirse. La clave no viaja en ningun listado —solo cuando alguien la pide, y queda anotado quien fue— y NUNCA sale en un mapa exportado. La misma credencial es la que MiRed usa para entrar al panel del aparato y leer su tabla de conectados: AirOS de Ubiquiti, RouterOS de MikroTik, TR-064 para los modems de Telmex, Totalplay e izzi, y un lector generico que saca las MAC de cualquier panel. De ahi, lo INALAMBRICO cuelga en el mapa; lo de cable no, porque el modem ve toda su LAN y colgarlo de el dibujaria una red plana donde hay un arbol."
 
+[[sistema]]
+version = "1.19"
+revision = 31
+fecha = "2026-08-15"
+tipo = "change"
+modulo = "Ficha del equipo"
+notas = "Tocar un aparato —en la lista o en el mapa— abre SU FICHA, no un menu de acciones: en el mapa un clic es para mirar, y quitar un cable por accidente mientras se consulta la red estaba a un toque de distancia. La ficha tiene pestanas: Propiedades, Conexiones y —solo si el aparato se puede administrar— Credenciales. En Conexiones se ve que cuelga de el y POR QUE MEDIO: por cable, puerto por puerto, y por WiFi, en una lista sin numeros a la que se le agregan uno o varios equipos de una vez, porque el aire no tiene puertos. Un switch no administrable no muestra la pestana de credenciales: no tiene direccion, asi que no hay panel al que entrar, y ofrecer ese formulario seria ofrecer algo que no existe."
+
 # ----------------------------------------------------------------- la base --
 #
 # Cada entrada apunta al numero de migracion que la trae. El esquema de las bases

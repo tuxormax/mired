@@ -11,7 +11,9 @@ import '../servicios/frescura.dart';
 import '../servicios/trayectoria.dart';
 import '../widgets/mensajes.dart';
 import 'alertas.dart';
+import 'equipo.dart';
 import 'mapa.dart';
+import 'propiedades_equipo.dart';
 import 'topologia_manual.dart';
 
 /// PantallaRed es lo de un sitio: sus equipos y las subredes que se escanean.
@@ -216,6 +218,25 @@ class _PantallaRedState extends State<PantallaRed> {
     final cambio = await showDialog<bool>(
       context: context,
       builder: (_) => DialogoFicha(clave: _red.clave, equipo: equipo),
+    );
+    if (cambio == true) _recargar();
+  }
+
+  /// _verFicha abre la ficha completa del aparato: sus propiedades, lo que
+  /// tiene conectado y —si se puede administrar— sus credenciales.
+  Future<void> _verFicha(Equipo equipo) async {
+    final topologia = await Api.instancia.topologiaManual(_red.clave);
+    final equipos = await Api.instancia.listarEquipos(_red.clave);
+    if (!mounted) return;
+
+    final cambio = await showDialog<bool>(
+      context: context,
+      builder: (_) => DialogoEquipo(
+        clave: _red.clave,
+        equipo: equipo,
+        topologia: topologia,
+        equipos: equipos,
+      ),
     );
     if (cambio == true) _recargar();
   }
@@ -481,6 +502,7 @@ class _PantallaRedState extends State<PantallaRed> {
                   alRenombrar: () => _renombrar(equipos[indice]),
                   alEditarFicha: () => _editarFicha(equipos[indice]),
                   alEditarPuertos: () => _editarPuertos(equipos[indice]),
+                  alVerFicha: () => _verFicha(equipos[indice]),
                   alBorrar: () => _borrarManual(equipos[indice]),
                 ),
               );
@@ -892,6 +914,7 @@ class _TarjetaEquipo extends StatelessWidget {
     required this.alRenombrar,
     required this.alEditarFicha,
     required this.alEditarPuertos,
+    required this.alVerFicha,
     required this.alBorrar,
   });
 
@@ -900,6 +923,8 @@ class _TarjetaEquipo extends StatelessWidget {
   final VoidCallback alRenombrar;
   final VoidCallback alEditarFicha;
   final VoidCallback alEditarPuertos;
+  /// Abre la ficha completa: propiedades, conexiones y credenciales.
+  final VoidCallback alVerFicha;
   final VoidCallback alBorrar;
 
   @override
@@ -960,101 +985,20 @@ class _TarjetaEquipo extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (equipo.puertos.isNotEmpty) ...[
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      for (final puerto in equipo.puertos)
-                        Tooltip(
-                          message: puerto.banner.isEmpty ? puerto.etiqueta : puerto.banner,
-                          child: Chip(
-                            label: Text(puerto.etiqueta),
-                            visualDensity: VisualDensity.compact,
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                ],
-                _Renglon(etiqueta: 'Reconocido como', valor: equipo.tipo),
-                // La categoria es con la que cuenta el contador de arriba. Se
-                // muestra para que se pueda ver POR QUE un aparato cae en un
-                // cubo y no en otro, en vez de tener que adivinarlo.
-                _Renglon(
-                    etiqueta: 'Cuenta como',
-                    valor: equipo.categoria.isEmpty
-                        ? 'Sin reconocer'
-                        : nombreDeCategoria(equipo.categoria)),
-                _Renglon(etiqueta: 'Modelo', valor: equipo.modelo),
-                _Renglon(etiqueta: 'Nombre descubierto', valor: equipo.nombre),
-                _Renglon(etiqueta: 'MAC', valor: equipo.mac),
-                _Renglon(etiqueta: 'Fabricante', valor: equipo.fabricante),
-                _Renglon(etiqueta: 'Subred', valor: equipo.subred),
-                _Renglon(
-                    etiqueta: 'Como se conecta',
-                    valor: switch (equipo.conexion) {
-                      'cable' => 'Por cable',
-                      'wifi' => 'Por WiFi',
-                      _ => '',
-                    }),
-                _Renglon(etiqueta: 'Notas', valor: equipo.notas),
-                // De donde salio este renglon. Un equipo declarado no se midio, y
-                // el que lo lea tiene que poder saberlo sin preguntar.
-                _Renglon(
-                    etiqueta: 'De donde salio',
-                    valor: equipo.esManual
-                        ? 'Lo declaro una persona; ningun escaneo lo vio'
-                        : 'Lo encontro un barrido'),
-                // Se dice como se vio: no es lo mismo "esta" que "algo contesto
-                // en esa direccion", y ocultarlo seria mentir sobre la certeza.
-                _Renglon(etiqueta: 'Certeza', valor: equipo.certeza),
-                _Renglon(etiqueta: 'Visto por primera vez', valor: equipo.primeraVez),
-                _Renglon(etiqueta: 'Visto por ultima vez', valor: equipo.ultimaVez),
-
-                // Lo que el aparato conto DE SI MISMO. Va con la fuente de cada
-                // dato: no vale lo mismo un modelo firmado en un certificado que
-                // uno sacado del titulo de una pagina, y juntarlo todo en un
-                // renglon "modelo" haria pasar lo segundo por lo primero.
-                if (equipo.huella.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Text('Lo que dice de si mismo',
-                      style: Theme.of(contexto)
-                          .textTheme
-                          .titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 4),
-                  for (final dato in equipo.huella)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 2),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(
-                            width: 170,
-                            child: Text(dato.comoSeLlamaLaClave,
-                                style: TextStyle(color: colores.outline)),
-                          ),
-                          Expanded(child: Text(dato.valor)),
-                          const SizedBox(width: 8),
-                          Text('segun ${dato.comoSeLlamaLaFuente}',
-                              style: Theme.of(contexto)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(color: colores.outline)),
-                        ],
-                      ),
-                    ),
-                ],
-                // Como se entra a este aparato. La clave NO se muestra sola:
-                // hay que pedirla, y el servidor anota quien la pidio.
-                const SizedBox(height: 12),
-                _Credenciales(clave: clave, equipo: equipo, alCambiar: alEditarFicha),
+                // Lo mismo que muestra la ficha que abre el mapa: un solo sitio
+                // donde se decide como se ve un aparato.
+                PropiedadesDelEquipo(
+                    clave: clave, equipo: equipo, alCambiar: alEditarFicha),
 
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
                   children: [
+                    TextButton.icon(
+                      icon: const Icon(Icons.hub_outlined),
+                      label: const Text('Conexiones y credenciales'),
+                      onPressed: alVerFicha,
+                    ),
                     TextButton.icon(
                       icon: const Icon(Icons.history),
                       label: const Text('Historial de conexiones'),
@@ -1203,30 +1147,6 @@ class _Composicion extends StatelessWidget {
   }
 }
 
-class _Renglon extends StatelessWidget {
-  const _Renglon({required this.etiqueta, required this.valor});
-
-  final String etiqueta;
-  final String valor;
-
-  @override
-  Widget build(BuildContext contexto) {
-    if (valor.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 2),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 170,
-            child: Text(etiqueta, style: Theme.of(contexto).textTheme.labelMedium),
-          ),
-          Expanded(child: SelectableText(valor)),
-        ],
-      ),
-    );
-  }
-}
 
 class _SinEquipos extends StatelessWidget {
   const _SinEquipos({required this.escaneando});
@@ -2082,160 +2002,5 @@ class _PestanaAireState extends State<_PestanaAire> {
     if (dbm >= -55) return Icons.wifi;
     if (dbm >= -70) return Icons.wifi_2_bar;
     return Icons.wifi_1_bar;
-  }
-}
-
-/// _Credenciales muestra como se entra a un aparato, y deja guardarlo.
-///
-/// **La clave no se muestra sola.** Se ve el usuario y la direccion del panel
-/// —que es lo que se quiere de un vistazo— y la clave hay que pedirla: el
-/// servidor la manda solo entonces, y deja anotado quien la pidio. Tampoco sale
-/// nunca en un mapa exportado.
-class _Credenciales extends StatefulWidget {
-  const _Credenciales({required this.clave, required this.equipo, required this.alCambiar});
-
-  final String clave;
-  final Equipo equipo;
-  final VoidCallback alCambiar;
-
-  @override
-  State<_Credenciales> createState() => _CredencialesState();
-}
-
-class _CredencialesState extends State<_Credenciales> {
-  /// La clave que se pidio, por tipo. Se olvida al cerrar la ficha: no se queda
-  /// en memoria mas de lo necesario ni se guarda en ningun lado del programa.
-  final Map<String, String> _vistas = {};
-  bool _pidiendo = false;
-
-  Future<void> _ver(CredencialEquipo credencial) async {
-    setState(() => _pidiendo = true);
-    try {
-      final abierta = await Api.instancia
-          .verClave(widget.clave, widget.equipo.id, tipo: credencial.tipo);
-      if (mounted) setState(() => _vistas[credencial.tipo] = abierta.clave);
-    } catch (problema, pila) {
-      if (mounted) await mostrarProblema(context, problema, pila: pila.toString());
-    } finally {
-      if (mounted) setState(() => _pidiendo = false);
-    }
-  }
-
-  Future<void> _editar([CredencialEquipo? credencial]) async {
-    final cambio = await showDialog<bool>(
-      context: context,
-      builder: (_) => DialogoCredencial(
-          clave: widget.clave, equipo: widget.equipo, credencial: credencial),
-    );
-    if (cambio == true) widget.alCambiar();
-  }
-
-  Future<void> _borrar(CredencialEquipo credencial) async {
-    final quitar = await showDialog<bool>(
-      context: context,
-      builder: (contextoModal) => AlertDialog(
-        title: const Text('Borrar la credencial'),
-        content: Text('Se pierde el usuario y la clave guardados para '
-            '${credencial.comoSeLlamaElTipo.toLowerCase()} de este aparato. '
-            'Esto no cambia nada en el equipo: solo se olvida aqui.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.of(contextoModal).pop(false),
-              child: const Text('Cancelar')),
-          FilledButton(
-              onPressed: () => Navigator.of(contextoModal).pop(true),
-              child: const Text('Borrar')),
-        ],
-      ),
-    );
-    if (quitar != true) return;
-
-    try {
-      await Api.instancia.borrarCredencialDeEquipo(widget.clave, credencial.id);
-      widget.alCambiar();
-    } catch (problema, pila) {
-      if (mounted) await mostrarProblema(context, problema, pila: pila.toString());
-    }
-  }
-
-  @override
-  Widget build(BuildContext contexto) {
-    final colores = Theme.of(contexto).colorScheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text('Como se entra',
-                style: Theme.of(contexto)
-                    .textTheme
-                    .titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w600)),
-            const SizedBox(width: 8),
-            IconButton(
-              tooltip: 'Guardar una credencial',
-              icon: const Icon(Icons.add_circle_outline, size: 18),
-              visualDensity: VisualDensity.compact,
-              onPressed: () => _editar(),
-            ),
-          ],
-        ),
-        if (widget.equipo.credenciales.isEmpty)
-          Text('Sin credenciales guardadas.',
-              style: Theme.of(contexto).textTheme.bodySmall?.copyWith(color: colores.outline)),
-        for (final credencial in widget.equipo.credenciales)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: 170,
-                  child: Text(credencial.comoSeLlamaElTipo,
-                      style: TextStyle(color: colores.outline)),
-                ),
-                Expanded(
-                  child: SelectableText([
-                    if (credencial.usuario.isNotEmpty) credencial.usuario,
-                    if (_vistas[credencial.tipo] != null) _vistas[credencial.tipo]!,
-                    if (credencial.direccion.isNotEmpty) credencial.direccion,
-                    if (credencial.notas.isNotEmpty) credencial.notas,
-                  ].join(' · ')),
-                ),
-                if (credencial.tieneClave && _vistas[credencial.tipo] == null)
-                  TextButton.icon(
-                    icon: const Icon(Icons.visibility_outlined, size: 16),
-                    label: const Text('Ver clave'),
-                    onPressed: _pidiendo ? null : () => _ver(credencial),
-                  ),
-                if (_vistas[credencial.tipo] != null)
-                  IconButton(
-                    tooltip: 'Copiar la clave',
-                    icon: const Icon(Icons.copy, size: 16),
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () async {
-                      await Clipboard.setData(
-                          ClipboardData(text: _vistas[credencial.tipo]!));
-                      if (contexto.mounted) mensajeAviso(contexto, 'Clave copiada.');
-                    },
-                  ),
-                IconButton(
-                  tooltip: 'Corregir',
-                  icon: const Icon(Icons.edit_outlined, size: 16),
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () => _editar(credencial),
-                ),
-                IconButton(
-                  tooltip: 'Borrar',
-                  icon: const Icon(Icons.delete_outline, size: 16),
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () => _borrar(credencial),
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
   }
 }

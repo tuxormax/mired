@@ -230,6 +230,16 @@ class Equipo {
   /// Lo declaro una persona, no lo encontro ningun barrido.
   bool get esManual => origen == 'manual';
 
+  /// Si tiene sentido guardarle credenciales de administracion.
+  ///
+  /// **Sin direccion no hay panel al que entrar.** Un switch no administrable no
+  /// tiene direccion —por eso hay que declararlo a mano— y ofrecerle un
+  /// formulario de usuario y clave seria ofrecer algo que no existe. Lo mismo
+  /// con cualquier aparato que solo se vio de pasada y no contesta en ningun
+  /// lado.
+  bool get puedeAdministrarse =>
+      ip.isNotEmpty && categoria != 'switch_simple';
+
   /// El modelo que dijo el propio aparato, si alguna fuente lo dijo. Se prefiere
   /// al que teclee una persona solo para MOSTRARLO: el tecleado sigue mandando
   /// en la ficha, porque quien tiene el aparato delante sabe mas.

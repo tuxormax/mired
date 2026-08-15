@@ -9,6 +9,7 @@ import '../servicios/descarga.dart';
 import '../servicios/exportar_mapa.dart';
 import '../servicios/frescura.dart';
 import '../widgets/mensajes.dart';
+import 'equipo.dart';
 import 'mapa_plano.dart';
 import 'topologia_manual.dart';
 
@@ -83,17 +84,12 @@ class _PantallaMapaState extends State<PantallaMapa> {
         await _conectarPuerto(caja.puertoFisicoId!, datos);
         return;
       }
-      if (caja.enlaceInalambricoId != null) {
-        await _menuDeWiFi(caja.enlaceInalambricoId!, caja.titulo);
-        return;
-      }
-      if (caja.enlaceId != null) {
-        await _menuDeCable(caja.enlaceId!);
-        return;
-      }
-      if (caja.equipoId != null) {
-        final equipo = datos.equipoPorId(caja.equipoId);
-        if (equipo != null) await _menuDeEquipo(equipo, datos);
+      // Tocar un aparato abre SU FICHA. Los enlaces —el cable que lo trae, lo
+      // que le cuelga por WiFi— se administran ahi dentro, en la pestana de
+      // conexiones.
+      final equipo = datos.equipoPorId(caja.equipoId);
+      if (equipo != null) {
+        await _abrirFicha(equipo, datos);
         return;
       }
       return;
@@ -165,119 +161,29 @@ class _PantallaMapaState extends State<PantallaMapa> {
     }
   }
 
-  Future<void> _menuDeCable(int enlaceId) async {
-    final quitar = await showDialog<bool>(
-      context: context,
-      builder: (contextoModal) => AlertDialog(
-        title: const Text('Quitar el cable'),
-        content: const Text(
-            'Se borra solo lo que se declaro a mano. El puerto queda libre y el equipo '
-            'vuelve a la zona de los que no cuelgan de ningun sitio conocido.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.of(contextoModal).pop(false),
-              child: const Text('Cancelar')),
-          FilledButton(
-              onPressed: () => Navigator.of(contextoModal).pop(true),
-              child: const Text('Quitar')),
-        ],
-      ),
-    );
-    if (quitar != true) return;
 
-    try {
-      await Api.instancia.desconectar(widget.red.clave, enlaceId);
-      _recargar();
-    } catch (problema, pila) {
-      if (mounted) await mostrarProblema(context, problema, pila: pila.toString());
-    }
-  }
-
-  /// _menuDeEquipo ofrece las dos formas de colgar algo de un aparato: por
-  /// cable, declarando sus puertos, y por el aire.
+  /// _abrirFicha muestra las propiedades del aparato y sus conexiones.
   ///
-  /// El WiFi no tiene puertos, asi que no se declara ninguno: se eligen los
-  /// equipos —uno o VARIOS de una vez— y se cuelgan.
-  Future<void> _menuDeEquipo(Equipo equipo, DatosMapa datos) async {
-    final eleccion = await showModalBottomSheet<String>(
+  /// **Un clic en el mapa es para MIRAR.** Antes salia un menu de acciones, y
+  /// con el, quitar un cable por accidente mientras se consulta la red estaba a
+  /// un toque de distancia. Los enlaces se administran dentro de la ficha, en la
+  /// pestana de conexiones, donde ademas se ve por que medio entra cada uno.
+  Future<void> _abrirFicha(Equipo equipo, DatosMapa datos) async {
+    final cambio = await showDialog<bool>(
       context: context,
-      builder: (contextoHoja) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.settings_ethernet),
-              title: const Text('Puertos fisicos'),
-              subtitle: const Text('Declarar los puertos que tiene el aparato'),
-              onTap: () => Navigator.of(contextoHoja).pop('puertos'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.wifi),
-              title: const Text('Colgar equipos por WiFi'),
-              subtitle: const Text('Uno o varios a la vez; el WiFi no tiene puertos'),
-              onTap: () => Navigator.of(contextoHoja).pop('wifi'),
-            ),
-          ],
-        ),
+      builder: (_) => DialogoEquipo(
+        clave: widget.red.clave,
+        equipo: equipo,
+        topologia: datos.topologia,
+        equipos: datos.equipos,
+        // Quien toca un aparato en el mapa casi siempre viene a ver como esta
+        // conectado.
+        enConexiones: _editando,
       ),
     );
-    if (eleccion == null || !mounted) return;
-
-    if (eleccion == 'puertos') {
-      final cambio = await showDialog<bool>(
-        context: context,
-        builder: (_) => DialogoPuertos(clave: widget.red.clave, equipo: equipo),
-      );
-      if (cambio == true) _recargar();
-      return;
-    }
-
-    final elegidos = await showDialog<List<int>>(
-      context: context,
-      builder: (_) => DialogoColgarPorWiFi(antena: equipo, candidatos: datos.sinUbicar),
-    );
-    if (elegidos == null || elegidos.isEmpty) return;
-
-    try {
-      final resultado = await Api.instancia.colgarPorWiFi(widget.red.clave,
-          antenaId: equipo.id, equipos: elegidos);
-      final rechazados = (resultado['rechazados'] as List<dynamic>? ?? []);
-      if (mounted && rechazados.isNotEmpty) {
-        mensajeAviso(context, 'No se pudieron colgar: ${rechazados.join('; ')}');
-      }
-      _recargar();
-    } catch (problema, pila) {
-      if (mounted) await mostrarProblema(context, problema, pila: pila.toString());
-    }
+    if (cambio == true) _recargar();
   }
 
-  /// _menuDeWiFi descuelga un equipo de su antena.
-  Future<void> _menuDeWiFi(int enlaceId, String nombre) async {
-    final quitar = await showDialog<bool>(
-      context: context,
-      builder: (contextoModal) => AlertDialog(
-        title: const Text('Descolgar del WiFi'),
-        content: Text('$nombre deja de colgar de esta antena y vuelve a la zona de '
-            'los que no cuelgan de ningun sitio conocido. El equipo no se borra.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.of(contextoModal).pop(false),
-              child: const Text('Cancelar')),
-          FilledButton(
-              onPressed: () => Navigator.of(contextoModal).pop(true),
-              child: const Text('Descolgar')),
-        ],
-      ),
-    );
-    if (quitar != true) return;
-
-    try {
-      await Api.instancia.descolgarDeWiFi(widget.red.clave, enlaceId);
-      _recargar();
-    } catch (problema, pila) {
-      if (mounted) await mostrarProblema(context, problema, pila: pila.toString());
-    }
-  }
 
   Future<void> _agregarAparato() async {
     final creado = await showDialog<Equipo>(
