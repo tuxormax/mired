@@ -152,13 +152,29 @@ String svgDelPlano(Plano plano, EncabezadoMapa encabezado) {
     // Cada enlace lleva SU color, igual que en pantalla: de un switch salen
     // tantas lineas como puertos, y todas del mismo gris no se pueden seguir.
     final tinte = linea.color ?? plano.colorLinea;
-    salida.writeln('<line x1="${_n(linea.desde.dx)}" y1="${_n(linea.desde.dy)}" '
-        'x2="${_n(linea.hasta.dx)}" y2="${_n(linea.hasta.dy)}" '
-        'stroke="${_color(tinte)}" stroke-width="2"$punteado/>');
-    salida.writeln('<text x="${_n((linea.desde.dx + linea.hasta.dx) / 2 - 40)}" '
-        'y="${_n((linea.desde.dy + linea.hasta.dy) / 2 - 8)}" font-size="13" '
-        'font-weight="600" '
-        'fill="${_color(tinte)}">${_xml(linea.etiqueta.toUpperCase())}</text>');
+
+    // El mismo recorrido en codo que dibuja la pantalla, sacado de la misma
+    // funcion: si aqui se trazara una recta, el archivo exportado no seria el
+    // mapa que se vio.
+    final camino = StringBuffer('M ${_n(linea.desde.dx)} ${_n(linea.desde.dy)}');
+    for (final tramo in recorridoDeEnlace(linea)) {
+      camino.write(tramo.control == null
+          ? ' L ${_n(tramo.hasta.dx)} ${_n(tramo.hasta.dy)}'
+          : ' Q ${_n(tramo.control!.dx)} ${_n(tramo.control!.dy)} '
+              '${_n(tramo.hasta.dx)} ${_n(tramo.hasta.dy)}');
+    }
+    salida.writeln('<path d="$camino" fill="none" stroke="${_color(tinte)}" '
+        'stroke-width="2"$punteado/>');
+
+    // La etiqueta termina pegada a la caja a la que entra el cable. El SVG sabe
+    // alinear por la derecha el solo, asi que aqui no hace falta estimar cuanto
+    // mide el texto.
+    final fin = finDeEtiqueta(linea);
+    salida.writeln('<text x="${_n(fin.dx)}" y="${_n(fin.dy + 13)}" font-size="13" '
+        'font-weight="600" text-anchor="end" '
+        'fill="${_color(tinte)}">'
+        '${_xml(_recortar(linea.etiqueta.toUpperCase(), anchoEtiquetaEnlace, 13, true))}'
+        '</text>');
   }
 
   for (final caja in plano.cajas) {
@@ -252,17 +268,36 @@ Uint8List pdfDelPlano(Plano plano, EncabezadoMapa encabezado) {
       // mano, continuo para lo confirmado. Los mismos tres trazos de pantalla.
       ..writeln(linea.confirmada
           ? '[] 0 d'
-          : (linea.declarada ? '[12 5] 0 d' : '[6 5] 0 d'))
-      ..writeln('${_n(linea.desde.dx)} ${_n(linea.desde.dy + desplazamiento)} m '
-          '${_n(linea.hasta.dx)} ${_n(linea.hasta.dy + desplazamiento)} l S');
-    _textoPdf(
-        contenido,
-        linea.etiqueta.toUpperCase(),
-        (linea.desde.dx + linea.hasta.dx) / 2 - 40,
-        (linea.desde.dy + linea.hasta.dy) / 2 - 8 + desplazamiento,
-        13,
-        true,
-        tinte);
+          : (linea.declarada ? '[12 5] 0 d' : '[6 5] 0 d'));
+
+    // El recorrido en codo, el mismo que la pantalla. El PDF no tiene curva
+    // cuadratica: cada esquina se pasa a cubica con la conversion exacta de dos
+    // tercios, igual que los arcos de arriba.
+    var pluma = linea.desde.translate(0, desplazamiento);
+    contenido.write('${_n(pluma.dx)} ${_n(pluma.dy)} m ');
+    for (final tramo in recorridoDeEnlace(linea)) {
+      final hasta = tramo.hasta.translate(0, desplazamiento);
+      if (tramo.control == null) {
+        contenido.write('${_n(hasta.dx)} ${_n(hasta.dy)} l ');
+      } else {
+        final control = tramo.control!.translate(0, desplazamiento);
+        final uno = Offset(pluma.dx + 2 / 3 * (control.dx - pluma.dx),
+            pluma.dy + 2 / 3 * (control.dy - pluma.dy));
+        final dos = Offset(hasta.dx + 2 / 3 * (control.dx - hasta.dx),
+            hasta.dy + 2 / 3 * (control.dy - hasta.dy));
+        contenido.write('${_n(uno.dx)} ${_n(uno.dy)} ${_n(dos.dx)} ${_n(dos.dy)} '
+            '${_n(hasta.dx)} ${_n(hasta.dy)} c ');
+      }
+      pluma = hasta;
+    }
+    contenido.writeln('S');
+
+    // Aqui no hay quien alinee por la derecha: se recorta primero y se estima
+    // cuanto mide para restarlo del borde de la caja.
+    final etiqueta = _recortar(linea.etiqueta.toUpperCase(), anchoEtiquetaEnlace, 13, true);
+    final fin = finDeEtiqueta(linea);
+    _textoPdf(contenido, etiqueta, fin.dx - etiqueta.length * 13 * 0.56,
+        fin.dy + desplazamiento, 13, true, tinte);
   }
   contenido.writeln('${_colorPdf(plano.colorLinea)} RG');
   contenido.writeln('[] 0 d');

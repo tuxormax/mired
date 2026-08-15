@@ -394,3 +394,11 @@ fecha = "2026-08-15"
 tipo = "feature"
 modulo = "Enlaces inalambricos y credenciales"
 notas = "Red 0016: tabla enlaces_inalambricos, con quien cuelga de que antena, el SSID, la senal y de donde salio el dato. Va aparte de enlaces_fisicos porque un enlace por el aire NO tiene puerto, y meterlo ahi obligaria a inventarle uno a cada telefono. Red 0017: tabla credenciales_equipo, con la clave cifrada; la llave vive con la configuracion, no con los datos."
+
+[[sistema]]
+version = "1.19"
+revision = 35
+fecha = "2026-08-15"
+tipo = "change"
+modulo = "Mapa"
+notas = "Los cables van en CODO y no en diagonal: salen horizontales del aparato, bajan por su propio canal con la esquina redondeada y entran horizontales al de la derecha. En diagonal, un switch con varios puertos daba un abanico de rectas cruzadas donde no se podia seguir ninguna con la vista, y las etiquetas se juntaban todas en el mismo trozo del dibujo. La etiqueta del puerto pasa a ir pegada a la caja a la que entra el cable —alineada por la derecha, a su altura— asi que cada una queda junto a lo que nombra y dos nunca caen en el mismo renglon. El hueco entre columnas se ensancho para que quepan la bajada y el texto. El mismo recorrido lo dibujan la pantalla, el SVG y el PDF, sacado de una sola funcion: si cada uno lo calculara por su cuenta, el archivo exportado no seria el mapa que se vio."

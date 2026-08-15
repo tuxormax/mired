@@ -199,8 +199,10 @@ void main() {
     expect(plano.enlaces.first.porAmbos, isTrue);
 
     final svg = svgDelPlano(plano, encabezado);
-    expect(RegExp('<path ').allMatches(svg).length, 1);
-    expect(svg, contains('stroke-width="3"'));
+    // Se cuenta por el trazo grueso y no por el numero de `<path>`: desde que
+    // los cables van en codo, cada cable es tambien un `<path>`, y contarlos
+    // todos ya no dice nada de este.
+    expect(RegExp('stroke-width="3"').allMatches(svg).length, 1);
     expect(svg, contains('Gi0/1 ↔ Gi0/24'));
 
     // Y en el PDF, una sola curva cubica. La flecha, que no existe en la fuente

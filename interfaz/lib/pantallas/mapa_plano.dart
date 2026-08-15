@@ -153,10 +153,22 @@ class LineaPlano {
     this.declarada = false,
     this.inalambrica = false,
     this.color,
+    this.canalX,
   });
 
   final Offset desde;
   final Offset hasta;
+
+  /// Por donde BAJA el enlace: la x del tramo vertical.
+  ///
+  /// Un cable no va en diagonal de un aparato a otro: sale del padre en
+  /// horizontal, baja por su canal y entra al hijo tambien en horizontal, con
+  /// las esquinas redondeadas. En diagonal, ocho puertos daban ocho rectas
+  /// cruzadas y ocho etiquetas encimadas en el mismo trozo de dibujo.
+  ///
+  /// Cada hermano usa un canal ligeramente distinto para que dos bajadas no se
+  /// pisen. Vacio —o a la misma altura— es una recta y ya.
+  final double? canalX;
   final bool confirmada;
   final String etiqueta;
 
@@ -237,7 +249,10 @@ const double altoCaja = 54;
 /// entrada a la izquierda y lo que cuelga, a su derecha.
 
 /// separacionX es el hueco entre una columna y la siguiente.
-const double separacionX = 70;
+///
+/// Es ancho a proposito: por ahi pasan la bajada del cable Y su etiqueta, y con
+/// el hueco justo la etiqueta se montaba encima de la caja de al lado.
+const double separacionX = 165;
 
 /// separacionY es el hueco entre dos hermanos de la misma columna.
 const double separacionY = 18;
@@ -272,6 +287,78 @@ const List<Color> coloresDeEnlace = [
 /// colorDeEnlace reparte la paleta. Se pide por numero de enlace, no al azar:
 /// el mismo mapa tiene que salir igual dos veces seguidas.
 Color colorDeEnlace(int cual) => coloresDeEnlace[cual % coloresDeEnlace.length];
+
+/// radioDeCodo es lo redondeada que va la esquina donde el cable dobla.
+///
+/// Redondeada y no en angulo recto porque con diez enlaces saliendo del mismo
+/// switch el dibujo se vuelve una reja; la curva deja seguir cada uno con la
+/// vista.
+const double radioDeCodo = 12;
+
+/// canalDeEnlace dice por que x baja cada cable.
+///
+/// Se separan unos de otros: si todos bajaran por la misma vertical, diez
+/// cables de diez colores se veria como una sola linea gorda y no se sabria cual
+/// va a donde.
+double canalDeEnlace(double xSalida, int cual) => xSalida + 18 + (cual % 4) * 9;
+
+/// anchoEtiquetaEnlace es lo que se le deja al texto del puerto.
+///
+/// Cabe entre el canal mas lejano y la caja del aparato, que es donde va la
+/// etiqueta: pegada a lo que nombra.
+const double anchoEtiquetaEnlace = separacionX - 62;
+
+/// SegmentoPlano es un tramo del recorrido de un cable: una recta, o una curva
+/// si trae punto de control.
+class SegmentoPlano {
+  const SegmentoPlano(this.hasta, [this.control]);
+
+  final Offset hasta;
+  final Offset? control;
+}
+
+/// recorridoDeEnlace arma el camino de un cable, empezando en `linea.desde`.
+///
+/// Sale horizontal del aparato, baja por su canal con las esquinas redondeadas y
+/// entra horizontal al de la derecha. Vive aqui —y no en el pintor— porque el
+/// mismo recorrido lo dibujan tres: la pantalla, el SVG y el PDF. Si cada uno lo
+/// calculara por su cuenta, el archivo exportado acabaria distinto de lo que se
+/// ve.
+List<SegmentoPlano> recorridoDeEnlace(LineaPlano linea) {
+  final desde = linea.desde;
+  final hasta = linea.hasta;
+  final canal = linea.canalX;
+  final desnivel = hasta.dy - desde.dy;
+
+  // A la misma altura no hay nada que doblar.
+  if (canal == null || desnivel.abs() < 1) {
+    return [SegmentoPlano(hasta)];
+  }
+
+  final haciaAbajo = desnivel > 0 ? 1.0 : -1.0;
+  final radio = matematicas.min(
+      radioDeCodo,
+      matematicas.min(desnivel.abs() / 2,
+          matematicas.min((canal - desde.dx).abs(), (hasta.dx - canal).abs())));
+
+  return [
+    SegmentoPlano(Offset(canal - radio, desde.dy)),
+    SegmentoPlano(
+        Offset(canal, desde.dy + radio * haciaAbajo), Offset(canal, desde.dy)),
+    SegmentoPlano(Offset(canal, hasta.dy - radio * haciaAbajo)),
+    SegmentoPlano(Offset(canal + radio, hasta.dy), Offset(canal, hasta.dy)),
+    SegmentoPlano(hasta),
+  ];
+}
+
+/// finDeEtiqueta es donde TERMINA el texto del puerto: pegado al aparato al que
+/// entra el cable, sobre el ultimo tramo horizontal.
+///
+/// Se alinea por la derecha y no por el centro del cable porque el centro es
+/// justo donde se juntan todas las bajadas: ahi las etiquetas se encimaban unas
+/// con otras y con las cajas.
+Offset finDeEtiqueta(LineaPlano linea) =>
+    Offset(linea.hasta.dx - 10, linea.hasta.dy - 19);
 
 /// coloresParaExportar son los que usa todo archivo exportado, sin importar si
 /// la pantalla esta en claro o en oscuro.
@@ -452,16 +539,22 @@ class _ArbolDeclarado {
     final xHijos = x + anchoColumna;
     double yHijo = y;
 
+    // Cuantos cables llevan salidos de ESTE aparato. Con eso se reparte el canal
+    // por donde baja cada uno: dos hermanos no bajan por la misma vertical.
+    var cuantosSalen = 0;
+
     void tirarLinea(Offset centroHijo, String etiqueta,
         {bool inalambrica = false, bool declarada = true}) {
+      final salida = centroEquipo + const Offset(anchoCaja / 2, 0);
       lineas.add(LineaPlano(
-        desde: centroEquipo + const Offset(anchoCaja / 2, 0),
+        desde: salida,
         hasta: centroHijo - const Offset(anchoCaja / 2, 0),
         confirmada: false,
         declarada: declarada,
         inalambrica: inalambrica,
         etiqueta: etiqueta,
         color: siguienteColor(),
+        canalX: canalDeEnlace(salida.dx, cuantosSalen++),
       ));
     }
 
@@ -630,6 +723,7 @@ Plano armarPlano(DatosMapa datos, ColorScheme colores) {
     alCrecer(margen + anchoCaja, y + altoBloque);
 
     double yPuerto = y;
+    var cuantosSalen = 0;
     puertos.forEach((indice, enElPuerto) {
       final confirmado = enElPuerto.length == 1 && enElPuerto.first.confirmado;
       final centroPuerto =
@@ -663,12 +757,14 @@ Plano armarPlano(DatosMapa datos, ColorScheme colores) {
         ));
       }
 
+      final salida = centroSwitch + const Offset(anchoCaja / 2, 0);
       lineas.add(LineaPlano(
-        desde: centroSwitch + const Offset(anchoCaja / 2, 0),
+        desde: salida,
         hasta: centroPuerto - const Offset(anchoCaja / 2, 0),
         confirmada: confirmado,
         etiqueta: enElPuerto.first.puerto,
         color: siguienteColor(),
+        canalX: canalDeEnlace(salida.dx, cuantosSalen++),
       ));
       alCrecer(margen + anchoColumna + anchoCaja, yPuerto + altoFila);
       yPuerto += altoFila;
@@ -816,27 +912,39 @@ class PintorMapa extends CustomPainter {
       final tinte = linea.color ?? plano.colorLinea;
       trazo.color = tinte;
 
+      // El cable va en codo, no en diagonal: sale horizontal, baja por su canal
+      // y entra horizontal. Se dibuja de una pieza para que el punteado siga la
+      // curva en vez de cortarse en cada esquina.
+      final camino = Path()..moveTo(linea.desde.dx, linea.desde.dy);
+      for (final tramo in recorridoDeEnlace(linea)) {
+        if (tramo.control == null) {
+          camino.lineTo(tramo.hasta.dx, tramo.hasta.dy);
+        } else {
+          camino.quadraticBezierTo(tramo.control!.dx, tramo.control!.dy,
+              tramo.hasta.dx, tramo.hasta.dy);
+        }
+      }
+
       if (linea.inalambrica) {
         // Puntos finos: por el aire no hay cable ni puerto que senalar.
-        _lineaPunteada(lienzo, linea.desde, linea.hasta, trazo, largo: 2, hueco: 4);
+        _caminoPunteado(lienzo, camino, trazo, largo: 2, hueco: 4);
       } else if (linea.confirmada) {
-        lienzo.drawLine(linea.desde, linea.hasta, trazo);
+        lienzo.drawPath(camino, trazo);
       } else if (linea.declarada) {
         // Guion largo: se distingue a simple vista del punteado corto del grupo
         // inferido. Son tres cosas distintas —medido, deducido y tecleado— y el
         // plano tiene que dejar ver cual es cual sin leer la leyenda.
-        _lineaPunteada(lienzo, linea.desde, linea.hasta, trazo, largo: 12, hueco: 5);
+        _caminoPunteado(lienzo, camino, trazo, largo: 12, hueco: 5);
       } else {
-        _lineaPunteada(lienzo, linea.desde, linea.hasta, trazo);
+        _caminoPunteado(lienzo, camino, trazo);
       }
-      // La etiqueta va EN MAYUSCULAS, del tamano del nombre del aparato y del
-      // color de su enlace: antes era un gris de 11 puntos que apenas se veia,
-      // y es justo el dato que dice por donde entra cada cosa.
-      _texto(lienzo, linea.etiqueta.toUpperCase(),
-          Offset((linea.desde.dx + linea.hasta.dx) / 2 - 40,
-              (linea.desde.dy + linea.hasta.dy) / 2 - 20),
-          13, tinte,
-          negrita: true, ancho: separacionX + 20);
+
+      // La etiqueta va EN MAYUSCULAS, del tamano del nombre del aparato, del
+      // color de su enlace y pegada al aparato al que entra el cable: antes era
+      // un gris de 11 puntos en mitad del cruce, donde apenas se veia y se
+      // encimaba con las demas.
+      _textoALaDerecha(lienzo, linea.etiqueta.toUpperCase(), finDeEtiqueta(linea),
+          13, tinte);
     }
     trazo.color = plano.colorLinea;
 
@@ -883,6 +991,23 @@ class PintorMapa extends CustomPainter {
     }
   }
 
+  /// _caminoPunteado reparte el punteado a lo largo de un recorrido con curvas.
+  ///
+  /// Se mide sobre el camino y no tramo a tramo: si cada tramo empezara su
+  /// propio punteado, las esquinas saldrian con un guion partido y el cable
+  /// pareceria cortado justo donde dobla.
+  void _caminoPunteado(Canvas lienzo, Path camino, Paint trazo,
+      {double largo = 6, double hueco = 5}) {
+    for (final medida in camino.computeMetrics()) {
+      var recorrido = 0.0;
+      while (recorrido < medida.length) {
+        final fin = matematicas.min(recorrido + largo, medida.length);
+        lienzo.drawPath(medida.extractPath(recorrido, fin), trazo);
+        recorrido = fin + hueco;
+      }
+    }
+  }
+
   void _lineaPunteada(Canvas lienzo, Offset desde, Offset hasta, Paint trazo,
       {double largo = 6, double hueco = 5}) {
     final total = (hasta - desde).distance;
@@ -913,6 +1038,25 @@ class PintorMapa extends CustomPainter {
       ellipsis: '…',
     )..layout(maxWidth: ancho ?? 200);
     pintor.paint(lienzo, donde);
+  }
+
+  /// _textoALaDerecha escribe terminando en `donde`, no empezando ahi.
+  ///
+  /// La etiqueta del cable se alinea contra la caja a la que entra: asi queda
+  /// siempre junto a lo que nombra, mida lo que mida el texto.
+  void _textoALaDerecha(
+      Canvas lienzo, String contenido, Offset donde, double tamano, Color color) {
+    final pintor = TextPainter(
+      text: TextSpan(
+        text: contenido,
+        style: TextStyle(
+            color: color, fontSize: tamano, fontWeight: FontWeight.w600),
+      ),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+      ellipsis: '…',
+    )..layout(maxWidth: anchoEtiquetaEnlace);
+    pintor.paint(lienzo, Offset(donde.dx - pintor.width, donde.dy));
   }
 
   void _icono(Canvas lienzo, IconData icono, Offset donde, Color color) {

@@ -231,6 +231,80 @@ void main() {
     expect(television.subtitulo, contains('-62 dBm'));
   });
 
+  test('el cable va en codo: sale horizontal, baja y entra horizontal', () {
+    // En diagonal, un switch de varios puertos daba un abanico de rectas
+    // cruzadas donde no se podia seguir ninguna con la vista.
+    final plano = armarPlano(armarCasa(cableEntrePuertos: true), colores);
+
+    final torcida = plano.lineas.firstWhere(
+        (linea) => (linea.hasta.dy - linea.desde.dy).abs() > 1,
+        orElse: () => throw StateError('ninguna linea cambia de altura'));
+
+    final recorrido = recorridoDeEnlace(torcida);
+    expect(recorrido.length, 5, reason: 'dos rectas, dos esquinas y la entrada');
+    expect(recorrido.first.hasta.dy, torcida.desde.dy,
+        reason: 'el primer tramo sale horizontal del aparato');
+    expect(recorrido.last.hasta, torcida.hasta,
+        reason: 'y el ultimo entra horizontal al de la derecha');
+    expect(recorrido.where((tramo) => tramo.control != null).length, 2,
+        reason: 'las dos esquinas van redondeadas');
+  });
+
+  test('a la misma altura el cable es una recta y ya', () {
+    final plano = armarPlano(armarCasa(cableEntrePuertos: true), colores);
+
+    final derecha = plano.lineas.firstWhere(
+        (linea) => (linea.hasta.dy - linea.desde.dy).abs() < 1,
+        orElse: () => throw StateError('ninguna linea va derecha'));
+
+    expect(recorridoDeEnlace(derecha).length, 1);
+  });
+
+  test('dos hermanos no bajan por la misma vertical', () {
+    // Con todos los cables por el mismo canal, diez enlaces de diez colores se
+    // veian como una sola linea gorda.
+    final plano = armarPlano(armarCasa(cableEntrePuertos: true), colores);
+
+    final delSwitch = plano.lineas
+        .where((linea) => linea.canalX != null && (linea.hasta.dy - linea.desde.dy).abs() > 1)
+        .toList();
+    final canales = delSwitch.map((linea) => linea.canalX).toSet();
+    expect(canales.length, delSwitch.length,
+        reason: 'cada cable que dobla baja por su propio canal');
+  });
+
+  test('la etiqueta del puerto va pegada al aparato al que entra el cable', () {
+    // En mitad del cruce se encimaban unas con otras y con las cajas. Ahi
+    // tampoco cabian: el hueco entre columnas se lo comia la propia bajada.
+    final plano = armarPlano(armarCasa(cableEntrePuertos: true), colores);
+
+    final cajas = {for (final caja in plano.cajas) caja.rectangulo.center: caja};
+
+    for (final linea in plano.lineas) {
+      final fin = finDeEtiqueta(linea);
+      expect(fin.dx, lessThan(linea.hasta.dx),
+          reason: 'la etiqueta termina antes de la caja, nunca encima');
+      expect(fin.dx - anchoEtiquetaEnlace, greaterThan(linea.desde.dx),
+          reason: 'y empieza despues del aparato del que sale');
+      expect((fin.dy - linea.hasta.dy).abs(), lessThan(altoFila / 2),
+          reason: 'va a la altura de lo que nombra');
+    }
+    expect(cajas, isNotEmpty);
+  });
+
+  test('dos etiquetas nunca caen en el mismo renglon', () {
+    final plano = armarPlano(armarCasaConWiFi(), colores);
+
+    final vistas = <String>{};
+    for (final linea in plano.lineas) {
+      final fin = finDeEtiqueta(linea);
+      // Misma columna y misma altura seria una encima de la otra.
+      final sitio = '${fin.dx.round()}:${fin.dy.round()}';
+      expect(vistas.add(sitio), isTrue,
+          reason: 'dos etiquetas en $sitio se taparian');
+    }
+  });
+
   test('una antena sin puertos declarados igual es cabecera de su bloque', () {
     // El AP no tiene ni un puerto declarado y aun asi le cuelgan dos equipos:
     // el WiFi no tiene puertos.

@@ -103,6 +103,28 @@ El servidor valida **lo mismo** y contesta con mensaje de negocio, no con un 500
   `origen_del_dato`. Tres trazos para tres cosas: continuo = medido, punteado
   corto = deducido, punteado largo = tecleado.
 
+### Como se dibuja un cable (Rev 35)
+
+El plano crece hacia la **derecha**: una columna por nivel, los hermanos en lista
+hacia abajo. Y el cable **va en codo, nunca en diagonal**:
+
+1. Sale horizontal del aparato.
+2. Baja por **su propio canal** (`canalDeEnlace`), separado del de sus hermanos:
+   con todos por la misma vertical, diez enlaces de diez colores se ven como una
+   sola linea gorda.
+3. Dobla con la esquina redondeada (`radioDeCodo`) y entra horizontal al de la
+   derecha.
+
+La **etiqueta del puerto** va pegada a la caja a la que ENTRA el cable, alineada
+por la derecha y a su altura (`finDeEtiqueta`). En el centro del enlace —donde
+estaba— caian todas encima unas de otras y de las cajas, porque el centro es
+justo donde se juntan las bajadas.
+
+**El recorrido lo calcula una sola funcion, `recorridoDeEnlace`**, y la usan los
+tres que dibujan: pantalla, SVG y PDF. Si cada uno lo calculara por su cuenta, el
+archivo exportado dejaria de ser el mapa que se vio. El PDF no tiene curva
+cuadratica: convierte cada esquina a cubica con la regla de dos tercios.
+
 → [contrato-api](contrato-api.md) · → [gotchas](gotchas.md)
 
 ## Donde vive el codigo
