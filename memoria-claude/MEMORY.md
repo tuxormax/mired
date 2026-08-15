@@ -2,7 +2,7 @@
 
 Proyecto en `/home/tuxor/www/mired`. Descubre los equipos de una red, dibuja el
 mapa y dice en que puerto de que switch esta cada aparato.
-En **v1.19 Rev 34** (2026-08-15).
+En **v1.19 Rev 37** (2026-08-15).
 **PROGRAMA DE ESCRITORIO en Flutter + tres binarios en Go + SQLite, una base por
 red, entregado en un `.deb`.** No hay interfaz web: el programa arranca sus
 servicios al abrirse y los mata al cerrarse.
@@ -28,7 +28,7 @@ Arrancado el 2026-08-12.
 
 ## Antes de dar algo por terminado
 Correr **`./herramientas/probar.sh`**: construye el `.deb`, lo desempaqueta
-aparte, levanta los servicios desde ahi y recorre el flujo completo (46
+aparte, levanta los servicios desde ahi y recorre el flujo completo (63
 comprobaciones). Correr los binarios del arbol de compilacion NO prueba lo mismo:
 no valida que el paquete lleve el programa, el catalogo ni la configuracion.
 

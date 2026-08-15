@@ -9,17 +9,18 @@ var (
 	// Numero es la version del sistema: v1.X, donde **X es el numero de MODULOS**.
 	//
 	// No es versionado semantico: X no sube porque un cambio sea grande, sube
-	// cuando hay un modulo mas. Los 15 de hoy: redes, subredes, equipos, escaneo
+	// cuando hay un modulo mas. Los 19 de hoy: redes, subredes, equipos, escaneo
 	// y agenda, presencia, mapa de puertos, mapa visual, alertas, consumo,
 	// inspeccion profunda, usuarios, credenciales SNMP, controladoras WiFi,
-	// catalogo de dispositivos y topologia manual.
+	// catalogo de dispositivos, topologia manual, catalogo comunitario, escucha
+	// del aire, enlaces inalambricos y credenciales por equipo.
 	//
 	// Este valor y el de abajo son solo el respaldo para `go run`: al compilar de
 	// verdad los fija construir.sh leyendolos del historial.
 	Numero = "v1.19"
 	// Revision sube en cada entrega y NUNCA se reinicia, tampoco al cambiar de
 	// version. Sale del historial, no de un argumento que alguien teclea.
-	Revision = "20"
+	Revision = "38"
 	// Build es el hash corto del commit con el que se compilo el binario.
 	Build = "desarrollo"
 )

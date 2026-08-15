@@ -33,6 +33,17 @@ errores tontos.
   problemas distintos y se arreglan en sitios distintos.
 - **`ON CONFLICT` contra un indice parcial exige repetir su condicion**:
   `ON CONFLICT (cidr) WHERE estatus >= 0 DO UPDATE …`.
+- **Si tocas un `CHECK` → hay que REHACER la tabla → cuidado con lo que cuelga de
+  ella.** SQLite no sabe cambiar un `CHECK`, y `DROP TABLE` con las llaves
+  foraneas encendidas **dispara los `ON DELETE CASCADE` de los hijos**: soltar la
+  tabla padre con el hijo colgando borra los datos del hijo sin decir nada. Orden
+  obligado: crear las dos nuevas y copiar → soltar el HIJO → soltar el padre, que
+  ya no tiene a quien arrastrar → renombrar (al renombrar el padre, SQLite
+  reescribe sola la referencia del hijo). Y `PRAGMA defer_foreign_keys = ON` al
+  principio, porque `foreign_keys` **no se puede apagar dentro de una
+  transaccion** y las migraciones corren en una. Ejemplo hecho: red 0018, con una
+  prueba que corre la migracion sobre las tablas de antes, con datos dentro, y
+  comprueba que no se perdio ni un cable.
 - **NUNCA decidir "esto es nuevo" o "esto ya no esta" comparando marcas de
   tiempo.** `Ahora()` tiene resolucion de SEGUNDOS y dos escaneos seguidos en una
   red chica caen en el mismo segundo. Ya mordio DOS veces (puertos que se cierran,
@@ -286,6 +297,23 @@ v1.15-21. Donde el conector fisico y el puerto TCP puedan confundirse se dice
   aplico. El cambio de nombre de la columna lo hace la **0013**.
 - En `internal/version/historial.toml` las entradas viejas siguen diciendo
   "bocas": son el registro de lo que se entrego ese dia y no se reescribe.
+
+## Un puerto se llama LAN 3, no "puerto 3"
+
+El **tipo mas el numero**, como esta rotulado en el aparato: `LAN 3`, `WAN 1`,
+`DMZ 1`, `SFP 1`, `CONSOLA 1`. El nombre lo arma **una sola funcion**
+(`nombreDePuerto`, en `interfaz/lib/modelos/tipos_de_puerto.dart`) y la usan
+todas las pantallas: si cada una lo armara, el mismo puerto se llamaria de dos
+maneras.
+
+- La lista de tipos vive **tres veces** —CHECK de la tabla (red 0018),
+  `TiposDePuerto` en Go y el archivo Dart— y hay dos pruebas en Go que la vigilan.
+  Misma regla que [[ref-categorias]].
+- **A un aparato de punta se le supone su LAN 1** (PC, TV, grabador): se conecta
+  por un cable y entra por su unica toma, asi que el mapa dice las dos puntas.
+  **Menos si va por el aire**: muchas laptops y tabletas ya ni traen conector de
+  red. Y **menos si tiene puertos declarados**: ahi hay datos contados mirando el
+  aparato y mandan esos. Ver [[modulo-topologia-manual]].
 
 ## Una definicion del catalogo suma sus condiciones (Y), no las alterna (O)
 

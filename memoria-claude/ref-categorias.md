@@ -107,6 +107,16 @@ categorias[]}`.
    en uno.
 3. Si algun `.toml` del catalogo va a usarla, comprobar que la escribe igual.
 
+## La otra lista espejo: los tipos de puerto
+
+Misma regla, distinto sitio y **tres** copias en vez de dos: el `CHECK` de
+`puertos_fisicos` (red 0018), `TiposDePuerto` en
+`internal/basedatos/topologiamanual.go` y
+`interfaz/lib/modelos/tipos_de_puerto.dart`. Las vigila
+`go test ./internal/basedatos/ -run TiposDePuerto`, que ademas mete un puerto de
+cada tipo en la tabla de verdad: una lista que el servidor da por buena y la
+tabla rechaza seria un error 500 en vez de un mensaje de negocio.
+
 **Ver tambien:** [modulo-topologia-manual](modulo-topologia-manual.md) ·
 [modulo-escaneo](modulo-escaneo.md) · [contrato-api](contrato-api.md) ·
 [gotchas](gotchas.md)

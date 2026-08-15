@@ -91,8 +91,33 @@ Tres pruebas lo vigilan: que el binario y el historial digan la misma version,
 que la revision **no tenga huecos ni repetidos**, y que sembrar mil veces no
 duplique filas.
 
-## Estado real (2026-08-14, v1.15 Rev 20)
-**Las 10 fases cerradas**, salvo publicar los paquetes. Lo hecho:
+## Estado real (2026-08-15, v1.19 Rev 37)
+**Las 10 fases cerradas**, salvo firmar los paquetes. Los **19 modulos**: los 15
+del plan mas el **catalogo comunitario** (16), la **escucha del aire** (17), los
+**enlaces inalambricos** (18) y las **credenciales por equipo** (19).
+
+Lo hecho despues de cerrar el plan (Rev 21-37, todo del 2026-08-15):
+- **Reconocimiento de verdad** (Rev 21-27): lista IEEE completa —52 977
+  prefijos, antes 99— y huellas activas: titulo y encabezados de su pagina,
+  certificado TLS, banner SSH, mDNS, UPnP, ONVIF y los protocolos propios de
+  Ubiquiti, MikroTik, TP-Link (Kasa y Omada), Hikvision, D-Link, NETGEAR, Dahua,
+  Xiaomi, Ruckus, Tuya y Fortinet. Antes medio parque salia como «servidor web».
+  Ver [[modulo-reconocimiento]].
+- **Modulos 16-19** (Rev 24-31): aportar al catalogo desde el programa, saber
+  que SSID emite cada antena, colgar equipos del WiFi de uno en uno o de varios a
+  la vez, y guardar cifradas las credenciales del panel de cada aparato —las
+  mismas con las que MiRed entra a leerle su tabla de conectados—.
+  Ver [[modulo-inalambricos]] y [[modulo-aire]].
+- **El mapa, redibujado** (Rev 32-37): crece hacia la derecha, cada aparato a la
+  altura de su primer hijo, cables en codo con su propio canal y su color, y las
+  etiquetas con las **dos puntas** del cable (`LAN 4 → LAN 1`). La ficha de un
+  aparato abre en Propiedades y lleva Conexiones y Credenciales.
+  Ver [[modulo-topologia-manual]].
+- **Que no se coma el equipo** (Rev 34): mientras se edita el mapa la agenda de
+  esa red se para, las cinco escuchas de red van a la vez y no en fila, y el
+  barrido de puertos baja de 128 a 48 conexiones a la vez.
+
+Lo que ya estaba:
 1. Cimientos: servidor + sonda, una base SQLite por red, autenticacion con
    permisos por red, API con el estandar de errores de la casa, programa de
    escritorio y `.deb` para amd64 y arm64.
@@ -143,9 +168,9 @@ puerto espejo; y **conectar puertos tocandolas con el raton en la ventana** (la
 API entera y el dibujo del plano si estan cubiertos por pruebas). El switch administrable sigue
 siendo el riesgo abierto mas grande.
 
-## Cobertura (2026-08-14)
-**125 pruebas en Go y 43 en Flutter**, sobre ~18 800 lineas de Go y ~10 200 de
-Dart, en 14 paquetes. Mas `herramientas/probar.sh` con **46 comprobaciones**:
+## Cobertura (2026-08-15)
+**207 pruebas en Go y 76 en Flutter**, sobre ~27 000 lineas de Go y ~14 900 de
+Dart, en 15 paquetes. Mas `herramientas/probar.sh` con **63 comprobaciones**:
 construye el `.deb`, lo desempaqueta y recorre el flujo completo. Es la unica que
 prueba lo que de verdad se entrega.
 
