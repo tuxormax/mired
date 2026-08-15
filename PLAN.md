@@ -108,7 +108,7 @@ Raspberry Pi, que era el requisito.
 
 ### Cobertura de pruebas
 
-**120 pruebas en Go y 42 en Flutter**, sobre ~18 000 líneas de Go y ~9 500 de
+**125 pruebas en Go y 43 en Flutter**, sobre ~18 800 líneas de Go y ~10 200 de
 Dart, en 14 paquetes.
 
 En Go: almacenamiento, agenda, alertas, topologia, catalogo, la lectura de SNMP,

@@ -144,8 +144,8 @@ API entera y el dibujo del plano si estan cubiertos por pruebas). El switch admi
 siendo el riesgo abierto mas grande.
 
 ## Cobertura (2026-08-14)
-**120 pruebas en Go y 42 en Flutter**, sobre ~18 000 lineas de Go y ~9 500 de
-Dart, en 14 paquetes. Mas `herramientas/probar.sh` con **42 comprobaciones**:
+**125 pruebas en Go y 43 en Flutter**, sobre ~18 800 lineas de Go y ~10 200 de
+Dart, en 14 paquetes. Mas `herramientas/probar.sh` con **46 comprobaciones**:
 construye el `.deb`, lo desempaqueta y recorre el flujo completo. Es la unica que
 prueba lo que de verdad se entrega.
 
