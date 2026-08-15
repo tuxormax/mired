@@ -2,6 +2,7 @@ package basedatos
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
 )
@@ -485,5 +486,128 @@ func TestUnPuertoDeDestinoTampocoLlevaDosCables(t *testing.T) {
 	}
 	if cuantos != 1 {
 		t.Fatalf("el puerto de destino quedo con %d cables", cuantos)
+	}
+}
+
+// Rehacer una tabla en SQLite es lo mas parecido que hay a una operacion a
+// corazon abierto: `enlaces_fisicos` cuelga de `puertos_fisicos` con ON DELETE
+// CASCADE, y soltar la tabla vieja en el orden equivocado borra TODOS los cables
+// declarados sin decir nada. Esta prueba corre la migracion 0018 sobre las
+// tablas de antes, con datos dentro, y comprueba que no se perdio ninguno.
+func TestLaMigracionDeTiposDePuertoNoSeLlevaLosCables(t *testing.T) {
+	_, base, devolver := conRedDePrueba(t)
+	defer devolver()
+	ctx := context.Background()
+
+	// Se vuelve a la forma vieja: tablas de 0011, con la lista corta de tipos.
+	viejo := `
+        DROP TABLE enlaces_fisicos;
+        DROP TABLE puertos_fisicos;
+        CREATE TABLE puertos_fisicos (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            equipo_id      INTEGER NOT NULL REFERENCES equipos (id) ON DELETE CASCADE,
+            numero         INTEGER NOT NULL CHECK (numero BETWEEN 1 AND 512),
+            tipo           TEXT    NOT NULL CHECK (tipo IN ('lan', 'wan')),
+            velocidad_mbps INTEGER CHECK (velocidad_mbps IS NULL OR velocidad_mbps > 0),
+            notas          TEXT,
+            creado_en      TEXT    NOT NULL
+        );
+        CREATE UNIQUE INDEX ux_puertos_fisicos ON puertos_fisicos (equipo_id, numero, tipo);
+        CREATE TABLE enlaces_fisicos (
+            id                INTEGER PRIMARY KEY AUTOINCREMENT,
+            puerto_origen_id  INTEGER NOT NULL REFERENCES puertos_fisicos (id) ON DELETE CASCADE,
+            puerto_destino_id INTEGER REFERENCES puertos_fisicos (id) ON DELETE CASCADE,
+            equipo_destino_id INTEGER REFERENCES equipos (id) ON DELETE CASCADE,
+            origen_dato       TEXT NOT NULL CHECK (
+                                  origen_dato IN ('manual', 'snmp', 'lldp', 'cdp', 'inferido')
+                              ),
+            notas             TEXT,
+            creado_en         TEXT NOT NULL,
+            CHECK (
+                (puerto_destino_id IS NOT NULL AND equipo_destino_id IS NULL)
+                OR
+                (puerto_destino_id IS NULL AND equipo_destino_id IS NOT NULL)
+            )
+        );
+        CREATE UNIQUE INDEX ux_enlaces_fisicos_origen ON enlaces_fisicos (puerto_origen_id);`
+	if _, err := base.ExecContext(ctx, viejo); err != nil {
+		t.Fatalf("no se pudo dejar la base como estaba antes: %v", err)
+	}
+
+	modem, err := base.CrearEquipoManual(ctx, EquipoManual{
+		Nombre: "Modem", Categoria: "gateway", Puertos: 0,
+	})
+	if err != nil {
+		t.Fatalf("no se pudo declarar el modem: %v", err)
+	}
+	conmutador, err := base.CrearEquipoManual(ctx, EquipoManual{
+		Nombre: "Switch", Categoria: "switch_simple", Puertos: 0,
+	})
+	if err != nil {
+		t.Fatalf("no se pudo declarar el switch: %v", err)
+	}
+
+	ahora := Ahora()
+	if _, err := base.ExecContext(ctx, `
+        INSERT INTO puertos_fisicos (id, equipo_id, numero, tipo, notas, creado_en)
+        VALUES (1, ?, 1, 'lan', '', ?), (2, ?, 1, 'lan', '', ?)`,
+		modem.ID, ahora, conmutador.ID, ahora); err != nil {
+		t.Fatalf("no se pudieron sembrar los puertos: %v", err)
+	}
+	if _, err := base.ExecContext(ctx, `
+        INSERT INTO enlaces_fisicos
+            (id, puerto_origen_id, puerto_destino_id, origen_dato, notas, creado_en)
+        VALUES (1, 1, 2, 'manual', '', ?)`, ahora); err != nil {
+		t.Fatalf("no se pudo sembrar el cable: %v", err)
+	}
+
+	// Y ahora la migracion de verdad, leida del mismo archivo que se aplica en
+	// produccion: una copia del SQL aqui probaria otra cosa.
+	cuerpo, err := esquemas.ReadFile("esquema/red/0018_tipos_de_puerto.sql")
+	if err != nil {
+		t.Fatalf("no se encontro la migracion: %v", err)
+	}
+	if err := base.EnTransaccion(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, string(cuerpo))
+		return err
+	}); err != nil {
+		t.Fatalf("la migracion no corrio: %v", err)
+	}
+
+	var cables, puertos int
+	if err := base.QueryRowContext(ctx, `SELECT COUNT(*) FROM enlaces_fisicos`).Scan(&cables); err != nil {
+		t.Fatalf("no se pudieron contar los cables: %v", err)
+	}
+	if err := base.QueryRowContext(ctx, `SELECT COUNT(*) FROM puertos_fisicos`).Scan(&puertos); err != nil {
+		t.Fatalf("no se pudieron contar los puertos: %v", err)
+	}
+	if puertos != 2 {
+		t.Fatalf("se sembraron 2 puertos y quedaron %d", puertos)
+	}
+	if cables != 1 {
+		t.Fatalf("el cable declarado se perdio en la migracion: quedaron %d", cables)
+	}
+
+	// El tipo nuevo entra, y la lista sigue cerrada.
+	if _, err := base.ExecContext(ctx, `
+        INSERT INTO puertos_fisicos (equipo_id, numero, tipo, notas, creado_en)
+        VALUES (?, 2, 'dmz', '', ?)`, modem.ID, ahora); err != nil {
+		t.Fatalf("un puerto DMZ tendria que entrar: %v", err)
+	}
+	if _, err := base.ExecContext(ctx, `
+        INSERT INTO puertos_fisicos (equipo_id, numero, tipo, notas, creado_en)
+        VALUES (?, 3, 'inventado', '', ?)`, modem.ID, ahora); err == nil {
+		t.Fatal("un tipo que no existe tiene que rebotar")
+	}
+
+	// Y el cascade sigue en pie: borrar el equipo se lleva sus puertos y su cable.
+	if err := base.BorrarEquipoManual(ctx, modem.ID); err != nil {
+		t.Fatalf("no se pudo borrar el modem: %v", err)
+	}
+	if err := base.QueryRowContext(ctx, `SELECT COUNT(*) FROM enlaces_fisicos`).Scan(&cables); err != nil {
+		t.Fatalf("no se pudieron contar los cables: %v", err)
+	}
+	if cables != 0 {
+		t.Fatalf("al borrar el equipo su cable tenia que irse con el: quedaron %d", cables)
 	}
 }

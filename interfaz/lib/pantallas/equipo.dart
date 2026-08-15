@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../modelos/modelos.dart';
+import '../modelos/tipos_de_puerto.dart';
 import '../servicios/api.dart';
 import '../widgets/mensajes.dart';
 import 'propiedades_equipo.dart';
@@ -439,7 +440,7 @@ class _ConexionesState extends State<_Conexiones> {
       return ListTile(
         dense: true,
         leading: const Icon(Icons.add_circle_outline),
-        title: Text('Puerto ${puerto.etiqueta}'),
+        title: Text(puerto.etiqueta),
         subtitle: const Text('libre'),
         trailing: TextButton(
           onPressed: () => _conectarPuerto(puerto),
@@ -458,8 +459,8 @@ class _ConexionesState extends State<_Conexiones> {
 
     return ListTile(
       dense: true,
-      leading: const Icon(Icons.settings_ethernet),
-      title: Text('Puerto ${puerto.etiqueta} → ${nombre.isEmpty ? 'conectado' : nombre}'),
+      leading: Icon(iconoDePuerto(puerto.tipo)),
+      title: Text('${puerto.etiqueta} → ${nombre.isEmpty ? 'conectado' : nombre}'),
       subtitle: Text([
         'por cable',
         if (cable.numeroDestino > 0 && soyOrigen) 'a su puerto ${cable.numeroDestino}',

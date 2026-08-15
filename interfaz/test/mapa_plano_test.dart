@@ -231,6 +231,63 @@ void main() {
     expect(television.subtitulo, contains('-62 dBm'));
   });
 
+  test('la etiqueta dice por que puerto sale Y por cual entra', () {
+    // "PUERTO 4" era la mitad del dato: no decia si era LAN o WAN —en un modem
+    // hay de las dos— ni en que puerto del switch entra el cable.
+    final plano = armarPlano(armarCasa(cableEntrePuertos: true), colores);
+
+    final etiquetas = plano.lineas.map((linea) => linea.etiqueta).toList();
+    expect(etiquetas, contains('LAN 4 → LAN 5'),
+        reason: 'del puerto 4 del modem al 5 del switch, con las dos puntas');
+    // Al grabador, que no tiene puertos declarados, se dice solo por donde sale:
+    // inventarle un "LAN 1" seria escribir algo que nadie conto.
+    expect(etiquetas, contains('LAN 1'));
+    expect(etiquetas.any((etiqueta) => etiqueta.startsWith('puerto ')), isFalse,
+        reason: 'ya no se nombra un puerto sin decir de que tipo es');
+  });
+
+  test('un puerto se llama por su tipo y su numero', () {
+    const lan = PuertoFisico(id: 1, equipoId: 1, numero: 3, tipo: 'lan');
+    const wan = PuertoFisico(id: 2, equipoId: 1, numero: 1, tipo: 'wan');
+    const dmz = PuertoFisico(id: 3, equipoId: 1, numero: 1, tipo: 'dmz');
+
+    expect(lan.etiqueta, 'LAN 3');
+    expect(wan.etiqueta, 'WAN 1');
+    expect(dmz.etiqueta, 'DMZ 1');
+  });
+
+  test('el aparato va a la misma altura que su primer hijo', () {
+    // Centrado en su franja, el modem quedaba flotando en medio de un hueco y
+    // costaba ver de que colgaba cada cosa.
+    final plano = armarPlano(armarCasa(cableEntrePuertos: true), colores);
+
+    final conmutador = plano.cajas.firstWhere((caja) => caja.titulo == 'switch');
+    final grabador = plano.cajas.firstWhere((caja) => caja.titulo == 'dvr');
+    expect(grabador.rectangulo.top, conmutador.rectangulo.top,
+        reason: 'el primero de lo que cuelga del switch va a su misma altura');
+
+    final modem = plano.cajas.firstWhere((caja) => caja.titulo == 'MODEM TELMEX');
+    expect(conmutador.rectangulo.top, modem.rectangulo.top,
+        reason: 'y el switch, a la del modem, que es de quien cuelga');
+  });
+
+  test('ninguna caja se encima con otra', () {
+    // Cada rama reserva su franja entera, con todo lo que le cuelga. Si de una
+    // antena cuelgan cuatro equipos, lo que va debajo de la antena empieza
+    // despues de esos cuatro y no encima del primero.
+    final plano = armarPlano(armarCasaConWiFi(), colores);
+
+    for (var i = 0; i < plano.cajas.length; i++) {
+      for (var j = i + 1; j < plano.cajas.length; j++) {
+        final una = plano.cajas[i].rectangulo;
+        final otra = plano.cajas[j].rectangulo;
+        expect(una.overlaps(otra), isFalse,
+            reason: '"${plano.cajas[i].titulo}" se encima con '
+                '"${plano.cajas[j].titulo}"');
+      }
+    }
+  });
+
   test('el cable va en codo: sale horizontal, baja y entra horizontal', () {
     // En diagonal, un switch de varios puertos daba un abanico de rectas
     // cruzadas donde no se podia seguir ninguna con la vista.

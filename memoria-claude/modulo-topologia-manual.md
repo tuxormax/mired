@@ -103,10 +103,40 @@ El servidor valida **lo mismo** y contesta con mensaje de negocio, no con un 500
   `origen_del_dato`. Tres trazos para tres cosas: continuo = medido, punteado
   corto = deducido, punteado largo = tecleado.
 
-### Como se dibuja un cable (Rev 35)
+### Como se llama un puerto (Rev 36)
+
+**`LAN 3`, `WAN 1`, `DMZ 1`** — el tipo y el numero, como esta rotulado en el
+aparato. Nunca «puerto 3» a secas: en un modem con LAN, WAN y DMZ eso no dice
+por donde sale el cable.
+
+- La lista de tipos vive **tres veces**: el CHECK de la tabla (red 0018), la
+  constante `TiposDePuerto` de Go y `interfaz/lib/modelos/tipos_de_puerto.dart`.
+  Dos pruebas en Go las vigilan: una compara Go contra Dart, la otra mete un
+  puerto de cada tipo en la tabla de verdad. Es la misma regla de
+  [ref-categorias](ref-categorias.md).
+- **El nombre lo arma una sola funcion** (`nombreDePuerto`) y la usan el mapa, la
+  ficha y las listas: si cada pantalla lo armara, el mismo puerto se llamaria de
+  dos maneras.
+- La etiqueta del cable en el mapa lleva **las dos puntas**: `LAN 4 → LAN 5`.
+  Cuando el otro extremo no tiene puertos declarados —una laptop, un DVR de un
+  solo cable— se dice solo la de salida: inventarle un `LAN 1` seria escribir en
+  el mapa algo que nadie conto.
+- **Rehacer `puertos_fisicos` es peligroso**: `enlaces_fisicos` cuelga de ella
+  con `ON DELETE CASCADE`, y soltar la tabla vieja con el hijo colgando borra
+  todos los cables sin avisar. Orden obligado: copiar las dos nuevas → soltar el
+  hijo → soltar el padre → renombrar. La prueba
+  `TestLaMigracionDeTiposDePuertoNoSeLlevaLosCables` lo cuida.
+
+### Como se dibuja un cable (Rev 35-36)
 
 El plano crece hacia la **derecha**: una columna por nivel, los hermanos en lista
-hacia abajo. Y el cable **va en codo, nunca en diagonal**:
+hacia abajo. **Cada aparato va a la misma altura que su PRIMER hijo** —no
+centrado en su franja, que lo dejaba flotando en medio de un hueco— y cada rama
+reserva su franja entera, con todo lo que le cuelga: por eso dos ramas no se
+enciman nunca y no hace falta correr nada a un lado. Hay una prueba que compara
+todas las cajas contra todas.
+
+Y el cable **va en codo, nunca en diagonal**:
 
 1. Sale horizontal del aparato.
 2. Baja por **su propio canal** (`canalDeEnlace`), separado del de sus hermanos:

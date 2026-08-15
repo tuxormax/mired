@@ -52,7 +52,10 @@ type PuertoFisico struct {
 	ID       int64 `json:"id"`
 	EquipoID int64 `json:"equipoId"`
 	Numero   int   `json:"numero"`
-	// Tipo es "lan" o "wan".
+	// Tipo es uno de TiposDePuerto. Con el numero forma el NOMBRE del puerto
+	// —"LAN 3", "WAN 1"—, que es como esta rotulado en el aparato y como hay que
+	// nombrarlo en el mapa: "puerto 3" a secas no dice por donde sale el cable en
+	// un modem que tiene LAN, WAN y DMZ.
 	Tipo string `json:"tipo"`
 	// VelocidadMbps va en NULL cuando no se sabe: mejor vacio que un 100
 	// inventado que despues alguien lea como medido.
@@ -370,12 +373,29 @@ func (b *Base) BorrarPuertoFisico(ctx context.Context, id int64) error {
 	return nil
 }
 
+// TiposDePuerto es la lista cerrada de lo que puede ser un puerto fisico.
+//
+// Es la MISMA lista que el CHECK de la tabla (red 0018) y que el desplegable de
+// la interfaz. Cerrada a proposito: con texto libre acabarian conviviendo "Lan",
+// "LAN1" y "lan ", y el mapa nombraria el mismo puerto de tres maneras.
+var TiposDePuerto = []string{"lan", "wan", "dmz", "sfp", "consola"}
+
+// TipoDePuertoValido dice si ese tipo esta en la lista.
+func TipoDePuertoValido(tipo string) bool {
+	for _, valido := range TiposDePuerto {
+		if tipo == valido {
+			return true
+		}
+	}
+	return false
+}
+
 func validarPuerto(puerto PuertoFisico) error {
 	if puerto.Numero < 1 || puerto.Numero > 512 {
 		return errors.New("el numero de puerto tiene que estar entre 1 y 512")
 	}
-	if puerto.Tipo != "lan" && puerto.Tipo != "wan" {
-		return errors.New("el puerto solo puede ser LAN o WAN")
+	if !TipoDePuertoValido(puerto.Tipo) {
+		return fmt.Errorf("un puerto solo puede ser %s", strings.Join(TiposDePuerto, ", "))
 	}
 	if puerto.VelocidadMbps != nil && (*puerto.VelocidadMbps < 1 || *puerto.VelocidadMbps > 400000) {
 		return errors.New("la velocidad no es de un puerto de red")

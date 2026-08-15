@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../modelos/categorias.dart';
 import '../modelos/modelos.dart';
+import '../modelos/tipos_de_puerto.dart';
 import '../servicios/api.dart';
 import '../widgets/mensajes.dart';
 
@@ -445,12 +446,8 @@ class _DialogoPuertosState extends State<DialogoPuertos> {
                               final cable = topologia.enlaceDe(puerto.id);
                               return ListTile(
                                 dense: true,
-                                leading: Icon(puerto.tipo == 'wan'
-                                    ? Icons.public
-                                    : Icons.settings_input_hdmi),
-                                title: Text(puerto.tipo == 'wan'
-                                    ? 'Puerto WAN'
-                                    : 'Puerto ${puerto.numero}'),
+                                leading: Icon(iconoDePuerto(puerto.tipo)),
+                                title: Text(puerto.etiqueta),
                                 subtitle: Text([
                                   if (puerto.velocidadMbps != null) '${puerto.velocidadMbps} Mbps',
                                   if (cable == null)
@@ -524,9 +521,15 @@ class _DialogoPuertoState extends State<_DialogoPuerto> {
                 initialValue: _tipo,
                 decoration: const InputDecoration(
                     labelText: 'Tipo', border: OutlineInputBorder(), isDense: true),
-                items: const [
-                  DropdownMenuItem(value: 'lan', child: Text('LAN')),
-                  DropdownMenuItem(value: 'wan', child: Text('WAN (hacia el proveedor)')),
+                // El desplegable sale de la lista unica: nunca texto libre, y
+                // nunca una lista escrita a mano aqui que se separe de la que
+                // valida el servidor.
+                items: [
+                  for (final tipo in tiposDePuerto)
+                    DropdownMenuItem(
+                      value: tipo.clave,
+                      child: Text('${tipo.nombre} — ${tipo.explicacion}'),
+                    ),
                 ],
                 onChanged: (valor) => setState(() => _tipo = valor ?? 'lan'),
               ),
@@ -615,8 +618,8 @@ class DialogoElegirPuerto extends StatelessWidget {
                 itemBuilder: (_, indice) {
                   final puerto = puertos[indice];
                   return ListTile(
-                    leading: Icon(puerto.tipo == 'wan' ? Icons.public : Icons.settings_ethernet),
-                    title: Text(puerto.tipo == 'wan' ? 'Puerto WAN' : 'Puerto ${puerto.numero}'),
+                    leading: Icon(iconoDePuerto(puerto.tipo)),
+                    title: Text(puerto.etiqueta),
                     subtitle: puerto.velocidadMbps != null
                         ? Text('${puerto.velocidadMbps} Mbps')
                         : null,

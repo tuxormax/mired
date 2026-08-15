@@ -4,6 +4,8 @@
 /// llama distinto en cada capa, tarde o temprano alguien mapea mal un campo.
 library;
 
+import 'tipos_de_puerto.dart';
+
 class Usuario {
   final int id;
   final String usuario;
@@ -705,7 +707,7 @@ class PuertoFisico {
   final int equipoId;
   final int numero;
 
-  /// `lan` o `wan`.
+  /// Uno de [tiposDePuerto]: `lan`, `wan`, `dmz`, `sfp` o `consola`.
   final String tipo;
 
   /// Nulo cuando no se sabe. Mejor vacio que un 100 inventado que despues
@@ -731,7 +733,11 @@ class PuertoFisico {
         notas: json['notas'] as String? ?? '',
       );
 
-  String get etiqueta => tipo == 'wan' ? 'WAN' : '$numero';
+  /// Como se llama el puerto: `LAN 3`, `WAN 1`, `DMZ 1`.
+  ///
+  /// Nunca "puerto 3" a secas: en un modem con LAN, WAN y DMZ eso no dice por
+  /// donde sale el cable, que es justo lo que se va a mirar en el mapa.
+  String get etiqueta => nombreDePuerto(tipo, numero);
 }
 
 /// Un cable con las dos puntas ya resueltas, venga de donde venga el dato.
@@ -1005,6 +1011,16 @@ class TopologiaManual {
   /// uplink puesto tiene 4 libres, no 5.
   List<PuertoFisico> puertosLibresDe(int equipoId) =>
       puertosDe(equipoId).where((puerto) => enlaceDe(puerto.id) == null).toList();
+
+  /// Un puerto, por su id. Sirve para nombrar la OTRA punta de un cable: sin
+  /// esto el mapa solo podia decir de donde sale, no a donde entra.
+  PuertoFisico? puertoPorId(int? puertoId) {
+    if (puertoId == null) return null;
+    for (final puerto in puertos) {
+      if (puerto.id == puertoId) return puerto;
+    }
+    return null;
+  }
 
   /// De que equipo es un puerto.
   int? equipoDelPuerto(int puertoId) {

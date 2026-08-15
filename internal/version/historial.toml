@@ -402,3 +402,19 @@ fecha = "2026-08-15"
 tipo = "change"
 modulo = "Mapa"
 notas = "Los cables van en CODO y no en diagonal: salen horizontales del aparato, bajan por su propio canal con la esquina redondeada y entran horizontales al de la derecha. En diagonal, un switch con varios puertos daba un abanico de rectas cruzadas donde no se podia seguir ninguna con la vista, y las etiquetas se juntaban todas en el mismo trozo del dibujo. La etiqueta del puerto pasa a ir pegada a la caja a la que entra el cable —alineada por la derecha, a su altura— asi que cada una queda junto a lo que nombra y dos nunca caen en el mismo renglon. El hueco entre columnas se ensancho para que quepan la bajada y el texto. El mismo recorrido lo dibujan la pantalla, el SVG y el PDF, sacado de una sola funcion: si cada uno lo calculara por su cuenta, el archivo exportado no seria el mapa que se vio."
+
+[[base]]
+version = "1.19"
+revision = 36
+fecha = "2026-08-15"
+tipo = "change"
+modulo = "Topologia manual"
+notas = "Red 0018: un puerto ya no es solo LAN o WAN; tambien DMZ, SFP y CONSOLA. SQLite no sabe cambiar un CHECK, asi que hay que rehacer la tabla, y como enlaces_fisicos cuelga de puertos_fisicos con ON DELETE CASCADE, soltar la vieja con el hijo colgando se llevaria por delante TODOS los cables declarados: se rehacen las dos, se suelta primero el hijo, despues el padre —que ya no tiene a quien arrastrar— y al final se renombran. Hay una prueba que corre la migracion sobre las tablas de antes, con datos dentro, y comprueba que no se perdio ningun cable."
+
+[[sistema]]
+version = "1.19"
+revision = 36
+fecha = "2026-08-15"
+tipo = "change"
+modulo = "Mapa"
+notas = "Un puerto se llama por su tipo y su numero —LAN 3, WAN 1, DMZ 1—, como esta rotulado en el aparato, y el mapa dice las DOS puntas del cable: «LAN 4 → LAN 5». Antes decia «PUERTO 4», que es la mitad del dato: en un modem con LAN, WAN y DMZ ni siquiera se sabia de que fila salia, y del otro extremo no se decia nada. Cuando la otra punta no tiene puertos declarados —una laptop, un DVR de un solo cable— se dice solo la de salida: inventarle un LAN 1 seria escribir en el mapa algo que nadie conto. Ademas, cada aparato se dibuja a la MISMA ALTURA que su primer hijo, no centrado en su franja: el modem quedaba flotando en medio de un hueco. Cada rama sigue reservando su franja entera, asi que dos ramas no se enciman nunca."

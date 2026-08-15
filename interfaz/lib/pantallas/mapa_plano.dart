@@ -495,6 +495,25 @@ class _ArbolDeclarado {
     return alto;
   }
 
+  /// comoSeLlamaElCable dice POR DONDE SALE y POR DONDE ENTRA: `LAN 2 → LAN 1`.
+  ///
+  /// Antes decia solo "puerto 2", que es la mitad del dato: en un modem con LAN,
+  /// WAN y DMZ ni siquiera se sabia de que fila salia el cable, y del otro
+  /// extremo —en que puerto del switch entra— no se decia nada. Cuando el otro
+  /// extremo no tiene puertos declarados —una laptop, un DVR de un solo cable—
+  /// se dice solo el de salida: inventarle un "LAN 1" seria escribir en el mapa
+  /// algo que nadie conto.
+  String comoSeLlamaElCable(PuertoFisico puerto, EnlaceFisico? cable) {
+    if (cable == null) return puerto.etiqueta;
+
+    final otroId = cable.puertoOrigenId == puerto.id
+        ? cable.puertoDestinoId
+        : cable.puertoOrigenId;
+    final otro = datos.topologia.puertoPorId(otroId);
+    if (otro == null || otro.id == puerto.id) return puerto.etiqueta;
+    return '${puerto.etiqueta} → ${otro.etiqueta}';
+  }
+
   /// subePorAqui dice si ese puerto es por el que el aparato cuelga del de la
   /// izquierda. Ese puerto esta ocupado —y hay que contarlo como tal— pero no se
   /// dibuja como una caja mas: seria repetir la misma conexion dos veces.
@@ -508,8 +527,15 @@ class _ArbolDeclarado {
 
   /// colocar dibuja el aparato y, a su DERECHA, todo lo que le cuelga.
   ///
-  /// `y` es donde empieza su franja; el aparato se centra en ella, y sus hijos
-  /// se apilan hacia abajo en la columna siguiente. Devuelve cuanto alto ocupo.
+  /// `y` es donde empieza su franja. **El aparato va arriba del todo de su
+  /// franja, a la misma altura que su PRIMER hijo**, y los demas hijos bajan
+  /// desde ahi. Centrarlo en la franja lo dejaba flotando en medio de un hueco:
+  /// el modem quedaba a la altura de nada y costaba ver de que colgaba cada
+  /// cosa. Devuelve cuanto alto ocupo.
+  ///
+  /// Cada rama reserva su franja entera —lo que mide con todo lo que le cuelga—,
+  /// asi que dos ramas nunca se pisan: si de una antena cuelgan cuatro equipos,
+  /// lo que va debajo de la antena empieza despues de esos cuatro.
   double colocar({
     required Equipo equipo,
     required double x,
@@ -521,7 +547,7 @@ class _ArbolDeclarado {
     required Color Function() siguienteColor,
   }) {
     final altoBloque = medir(equipo);
-    final centroEquipo = Offset(x + anchoCaja / 2, y + altoBloque / 2);
+    final centroEquipo = Offset(x + anchoCaja / 2, y + altoFila / 2);
     alCrecer(x + anchoCaja, y + altoBloque);
 
     cajas.add(CajaPlano(
@@ -565,8 +591,8 @@ class _ArbolDeclarado {
       final hijo = hijoEn(equipo.id, puerto);
       final cable = datos.topologia.enlaceDe(puerto.id);
       final altoHijo = hijo == null ? altoFila : medir(hijo);
-      final centroHijo = Offset(xHijos + anchoCaja / 2, yHijo + altoHijo / 2);
-      final etiqueta = puerto.tipo == 'wan' ? 'WAN' : 'puerto ${puerto.numero}';
+      final centroHijo = Offset(xHijos + anchoCaja / 2, yHijo + altoFila / 2);
+      final etiqueta = comoSeLlamaElCable(puerto, cable);
 
       if (hijo != null) {
         colocar(
@@ -584,7 +610,7 @@ class _ArbolDeclarado {
         // conectar algo, y verlo vacio dice cuanto falta por declarar.
         cajas.add(CajaPlano(
           rectangulo: Rect.fromCenter(center: centroHijo, width: anchoCaja, height: altoCaja),
-          titulo: 'Puerto ${puerto.etiqueta} libre',
+          titulo: '${puerto.etiqueta} libre',
           subtitulo:
               puerto.velocidadMbps != null ? '${puerto.velocidadMbps} Mbps' : 'sin conectar',
           color: colores.surfaceContainerLow,
@@ -623,7 +649,7 @@ class _ArbolDeclarado {
       final hijo = datos.equipoPorId(cliente.equipoId);
       final esBloque = hijo != null && esCabecera(hijo.id);
       final altoHijo = esBloque ? medir(hijo) : altoFila;
-      final centroHijo = Offset(xHijos + anchoCaja / 2, yHijo + altoHijo / 2);
+      final centroHijo = Offset(xHijos + anchoCaja / 2, yHijo + altoFila / 2);
 
       if (esBloque) {
         colocar(
@@ -709,7 +735,7 @@ Plano armarPlano(DatosMapa datos, ColorScheme colores) {
   porSwitch.forEach((switchId, puertos) {
     final ejemplo = puertos.values.first.first;
     final altoBloque = matematicas.max(puertos.length * altoFila, altoFila);
-    final centroSwitch = Offset(margen + anchoCaja / 2, y + altoBloque / 2);
+    final centroSwitch = Offset(margen + anchoCaja / 2, y + altoFila / 2);
     centrosDeSwitch[switchId] = centroSwitch;
 
     cajas.add(CajaPlano(
