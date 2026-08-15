@@ -23,6 +23,7 @@ import (
 	"github.com/tuxormax/mired/internal/catalogo"
 	"github.com/tuxormax/mired/internal/configuracion"
 	"github.com/tuxormax/mired/internal/programador"
+	"github.com/tuxormax/mired/internal/secreto"
 	"github.com/tuxormax/mired/internal/version"
 )
 
@@ -103,6 +104,17 @@ func correr(cfg configuracion.Configuracion, bitacora *slog.Logger) error {
 	agenda := programador.Nuevo(datos, cfg.Sonda.Socket, bitacora)
 	agenda.Catalogo = dispositivos
 
+	// La caja de secretos cifra las claves de los equipos. La llave se crea sola
+	// la primera vez, con permisos 0600, AL LADO DE LA CONFIGURACION: si viviera
+	// con los datos, viajaria en cada respaldo y cifrar no serviria de nada.
+	secretos := secreto.NuevaCaja(cfg.ArchivoLlave())
+	if err := secretos.Listo(); err != nil {
+		bitacora.Warn("no se pudo preparar el cifrado de claves de equipo",
+			"llave", cfg.ArchivoLlave(), "error", err)
+	}
+
+	agenda.Secretos = secretos
+
 	servicio := &api.API{
 		Datos:       datos,
 		Auth:        autenticador,
@@ -110,6 +122,7 @@ func correr(cfg configuracion.Configuracion, bitacora *slog.Logger) error {
 		SocketSonda: cfg.Sonda.Socket,
 		Programador: agenda,
 		Catalogo:    dispositivos,
+		Secretos:    secretos,
 		// Las mismas carpetas de donde se cargo, para poder releerlas cuando se
 		// guarde una definicion propia o se traigan las de la comunidad, sin
 		// reiniciar el servicio.

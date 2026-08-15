@@ -730,3 +730,294 @@ class _DialogoElegirEquipoState extends State<DialogoElegirEquipo> {
     );
   }
 }
+
+/// DialogoColgarPorWiFi elige que equipos cuelgan de una antena.
+///
+/// **Con casillas, y de una sola vez.** El WiFi no tiene puertos: de una antena
+/// cuelgan uno o veinte equipos sin que haya nada que declarar por cada uno.
+/// Obligar a repetir el flujo aparato por aparato seria castigar a quien declara
+/// bien su red.
+///
+/// Devuelve los identificadores elegidos, o null si se cancelo.
+class DialogoColgarPorWiFi extends StatefulWidget {
+  const DialogoColgarPorWiFi({super.key, required this.antena, required this.candidatos});
+
+  final Equipo antena;
+  final List<Equipo> candidatos;
+
+  @override
+  State<DialogoColgarPorWiFi> createState() => _DialogoColgarPorWiFiState();
+}
+
+class _DialogoColgarPorWiFiState extends State<DialogoColgarPorWiFi> {
+  final Set<int> _elegidos = {};
+  String _filtro = '';
+
+  @override
+  Widget build(BuildContext contexto) {
+    final lista = widget.candidatos
+        .where((equipo) =>
+            equipo.id != widget.antena.id &&
+            (_filtro.isEmpty ||
+                '${equipo.comoSeLlama} ${equipo.ip} ${equipo.mac} ${equipo.fabricante}'
+                    .toLowerCase()
+                    .contains(_filtro)))
+        .toList();
+
+    return AlertDialog(
+      title: Text('Colgar de ${widget.antena.comoSeLlama} por WiFi'),
+      content: SizedBox(
+        width: 520,
+        height: 420,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Marque todos los que entran por esta antena. Queda declarado a mano: '
+              'si algun dia la antena lo dice por su cuenta, ese dato manda y se ve '
+              'que cambio.',
+              style: Theme.of(contexto).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search),
+                hintText: 'Buscar por nombre, IP, MAC o fabricante',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              onChanged: (texto) => setState(() => _filtro = texto.toLowerCase()),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: lista.isEmpty
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Text(
+                          'No queda ningun equipo suelto que colgar. Los que ya cuelgan de '
+                          'un puerto o de otra antena no se mueven desde aqui.',
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: lista.length,
+                      itemBuilder: (_, indice) {
+                        final equipo = lista[indice];
+                        return CheckboxListTile(
+                          value: _elegidos.contains(equipo.id),
+                          onChanged: (marcado) => setState(() {
+                            if (marcado == true) {
+                              _elegidos.add(equipo.id);
+                            } else {
+                              _elegidos.remove(equipo.id);
+                            }
+                          }),
+                          title: Text(equipo.comoSeLlama),
+                          subtitle: Text([
+                            if (equipo.ip.isNotEmpty) equipo.ip,
+                            if (equipo.fabricante.isNotEmpty) equipo.fabricante,
+                            if (equipo.mac.isNotEmpty) equipo.mac,
+                          ].join(' · ')),
+                          dense: true,
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(contexto).pop(),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: _elegidos.isEmpty
+              ? null
+              : () => Navigator.of(contexto).pop(_elegidos.toList()),
+          child: Text(_elegidos.length == 1
+              ? 'Colgar 1 equipo'
+              : 'Colgar ${_elegidos.length} equipos'),
+        ),
+      ],
+    );
+  }
+}
+
+/// DialogoCredencial guarda como se entra a un aparato.
+///
+/// La clave se escribe oculta y **dejarla en blanco no la borra**: significa "no
+/// la toques". Para quitarla esta el boton de borrar la credencial entera.
+class DialogoCredencial extends StatefulWidget {
+  const DialogoCredencial({
+    super.key,
+    required this.clave,
+    required this.equipo,
+    this.credencial,
+  });
+
+  final String clave;
+  final Equipo equipo;
+
+  /// La que ya estaba, si se esta corrigiendo. Nunca trae la clave: eso solo
+  /// viaja cuando alguien la pide expresamente.
+  final CredencialEquipo? credencial;
+
+  @override
+  State<DialogoCredencial> createState() => _DialogoCredencialState();
+}
+
+class _DialogoCredencialState extends State<DialogoCredencial> {
+  late TextEditingController _usuario;
+  late TextEditingController _claveTexto;
+  late TextEditingController _direccion;
+  late TextEditingController _notas;
+  late String _tipo;
+  bool _oculta = true;
+  bool _guardando = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final anterior = widget.credencial;
+    _tipo = anterior?.tipo ?? 'web';
+    _usuario = TextEditingController(text: anterior?.usuario ?? '');
+    _claveTexto = TextEditingController();
+    _direccion = TextEditingController(
+        text: anterior?.direccion ??
+            (widget.equipo.ip.isEmpty ? '' : 'http://${widget.equipo.ip}'));
+    _notas = TextEditingController(text: anterior?.notas ?? '');
+  }
+
+  @override
+  void dispose() {
+    _usuario.dispose();
+    _claveTexto.dispose();
+    _direccion.dispose();
+    _notas.dispose();
+    super.dispose();
+  }
+
+  Future<void> _guardar() async {
+    setState(() => _guardando = true);
+    try {
+      await Api.instancia.guardarCredencial(widget.clave, widget.equipo.id, {
+        'tipo': _tipo,
+        'usuario': _usuario.text.trim(),
+        'clave': _claveTexto.text,
+        'direccion': _direccion.text.trim(),
+        'notas': _notas.text.trim(),
+      });
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (problema, pila) {
+      if (mounted) {
+        setState(() => _guardando = false);
+        await mostrarProblema(context, problema, pila: pila.toString());
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext contexto) => AlertDialog(
+        title: Text('Credencial de ${widget.equipo.comoSeLlama}'),
+        content: SizedBox(
+          width: 460,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Queda guardada con el aparato, para no buscarla en un papel. La clave '
+                  'se guarda cifrada y no se muestra sola: hay que pedirla, y el servidor '
+                  'anota quien la pidio. Nunca sale en un mapa exportado.',
+                  style: Theme.of(contexto).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  initialValue: _tipo,
+                  decoration: const InputDecoration(
+                      labelText: 'Para que sirve', border: OutlineInputBorder(), isDense: true),
+                  items: const [
+                    DropdownMenuItem(value: 'web', child: Text('Panel web')),
+                    DropdownMenuItem(value: 'ssh', child: Text('Consola SSH')),
+                    DropdownMenuItem(value: 'consola', child: Text('Consola')),
+                    DropdownMenuItem(value: 'app', child: Text('Aplicacion del fabricante')),
+                    DropdownMenuItem(value: 'otro', child: Text('Otro acceso')),
+                  ],
+                  onChanged: (valor) => setState(() => _tipo = valor ?? 'web'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _usuario,
+                  maxLength: 120,
+                  decoration: const InputDecoration(
+                    labelText: 'Usuario',
+                    hintText: 'admin, ubnt, root...',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                    counterText: '',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _claveTexto,
+                  obscureText: _oculta,
+                  maxLength: 200,
+                  decoration: InputDecoration(
+                    labelText: 'Clave',
+                    hintText: widget.credencial?.tieneClave == true
+                        ? 'Dejela en blanco para no cambiarla'
+                        : null,
+                    border: const OutlineInputBorder(),
+                    isDense: true,
+                    counterText: '',
+                    suffixIcon: IconButton(
+                      icon: Icon(_oculta ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                      onPressed: () => setState(() => _oculta = !_oculta),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _direccion,
+                  maxLength: 200,
+                  decoration: const InputDecoration(
+                    labelText: 'Donde se entra',
+                    hintText: 'http://192.168.1.254, ssh://...',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                    counterText: '',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _notas,
+                  maxLines: 2,
+                  maxLength: 500,
+                  decoration: const InputDecoration(
+                    labelText: 'Notas',
+                    hintText: 'La del panel de invitados, la cambio Juan en mayo...',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                    counterText: '',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: _guardando ? null : () => Navigator.of(contexto).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: _guardando ? null : _guardar,
+            child: const Text('Guardar'),
+          ),
+        ],
+      );
+}

@@ -17,7 +17,7 @@ a heredar la AGPL de otro.
 
 ## Estado del desarrollo
 
-Actualizado el **2026-08-15**, en **v1.17 Rev 28**.
+Actualizado el **2026-08-15**, en **v1.19 Rev 30**.
 
 | Fase | Estado | Nota |
 |---|---|---|
@@ -78,7 +78,7 @@ de darla por buena** no es opcional en este proyecto.
 nunca se reinicia. No es versionado semántico: X no sube porque un cambio sea
 grande, sube cuando hay un módulo más.
 
-Hoy son **17 módulos** → **v1.17**, y la revisión va por la **28**.
+Hoy son **19 módulos** → **v1.19**, y la revisión va por la **30**.
 
 > Redes · Subredes · Equipos · Escaneo y agenda · Presencia · Mapa de puertos ·
 > Mapa visual · Alertas · Consumo · Inspección profunda · Usuarios · Credenciales

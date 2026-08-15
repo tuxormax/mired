@@ -68,6 +68,11 @@ valida renueva el vencimiento.
 | `POST /api/catalogo/actualizar` | **superadmin** | baja las definiciones publicadas por la comunidad |
 | `GET /api/redes/{clave}/equipos/{equipo}/propuesta` | lectura | el `.toml` ya relleno + `urlAporte`, la direccion del aporte ya escrito |
 | `GET /api/redes/{clave}/aire` | lectura | escucha el aire: SSID, BSSID, canal, banda, senal, y de que equipo es cada antena |
+| `POST /api/redes/{clave}/inalambricos` | escritura | cuelga **uno o VARIOS** equipos de una antena, de una sola llamada |
+| `DELETE /api/redes/{clave}/inalambricos/{enlace}` | escritura | descuelga un equipo de su antena |
+| `PUT /api/redes/{clave}/equipos/{equipo}/credencial` | escritura | guarda como se entra al aparato; **la clave vacia NO borra la que habia** |
+| `GET /api/redes/{clave}/equipos/{equipo}/credencial/clave` | escritura | **la unica puerta por donde sale una clave**, y queda anotado quien la pidio |
+| `DELETE /api/redes/{clave}/credenciales/{credencial}` | escritura | olvida una credencial |
 
 - **El catalogo lo cambia el superadministrador**, no quien tenga escritura en
   una red: una definicion cambia como se reconoce en TODAS las redes.
@@ -79,6 +84,13 @@ valida renueva el vencimiento.
   interfaz **tiene que mostrar cual de los dos es**.
 - Si no se puede oir el aire, la respuesta trae `explicacion` con el motivo. Una
   lista vacia sin explicacion se leeria como "aqui no hay redes WiFi".
+- **El WiFi no tiene puertos**: por eso al colgar se manda una LISTA de equipos y
+  no un puerto. La respuesta trae `colgados` y `rechazados`: colgar cinco de seis
+  y contestar que todo salio bien es la peor forma de que alguien se entere
+  tarde.
+- El equipo devuelto en `/equipos` trae `credenciales[]` **sin la clave**, con
+  `tieneClave` diciendo si hay una guardada. La clave sale solo por su ruta, y
+  **nunca** en un mapa exportado.
 
 Dos cosas del diseno de estas rutas:
 

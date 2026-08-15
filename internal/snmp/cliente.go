@@ -104,6 +104,10 @@ type Ficha struct {
 	Contadores map[int]Contador `json:"contadores,omitempty"`
 	// Vecinos son los equipos que se anunciaron por LLDP en cada puerto.
 	Vecinos []Vecino `json:"vecinos,omitempty"`
+	// Asociados son los equipos colgados de esta antena POR EL AIRE. El WiFi no
+	// tiene puertos: aqui no hay un numero de puerto que dar, hay un SSID y una
+	// senal. Vacio en un switch, que es lo normal.
+	Asociados []Asociado `json:"asociados,omitempty"`
 }
 
 // Interfaz es un puerto del equipo.
@@ -209,6 +213,9 @@ func consultarCon(ip string, credencial Credencial, espera time.Duration) (Ficha
 	ficha.MacsPorPuerto = leerTablaMac(conexion)
 	ficha.Vecinos = append(leerVecinos(conexion, ficha.Interfaces),
 		leerVecinosCDP(conexion, ficha.Interfaces)...)
+	// Y quien cuelga de esta antena por el aire. En un switch esto sale vacio y
+	// no pasa nada: es que ahi no hay nada que preguntar.
+	ficha.Asociados = leerAsociados(conexion)
 
 	// Un equipo que reporta una tabla de MAC es un switch aunque sysServices no
 	// lo diga: hay fabricantes que ese campo lo llenan mal o no lo llenan.

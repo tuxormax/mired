@@ -239,6 +239,51 @@ echo "$AIRE" | grep -qE '"redes":\[\{|"explicacion":"[^"]' \
     && paso "y si no puede oir nada, dice por que" \
     || falla "el aire devolvio una lista vacia sin explicar por que"
 
+# Lo que cuelga de una antena por el aire. El WiFi no tiene puertos: se cuelgan
+# UNO O VARIOS equipos de una sola vez, sin inventarle un puerto a cada uno.
+ANTENA=$(pedir -X POST "$API/api/redes/$CLAVE/equipos" \
+     -d '{"nombre":"AP de prueba","categoria":"punto_de_acceso","tipo":"Punto de acceso WiFi"}' \
+     | sed -n 's/.*"id":\([0-9]*\).*/\1/p' | head -1)
+[[ -n "$ANTENA" ]] \
+    && paso "da de alta una antena para colgarle equipos" \
+    || falla "no se pudo dar de alta la antena"
+
+CLIENTE=$(pedir -X POST "$API/api/redes/$CLAVE/equipos" \
+     -d '{"nombre":"Telefono de prueba","categoria":"telefono","tipo":"Telefono o celular"}' \
+     | sed -n 's/.*"id":\([0-9]*\).*/\1/p' | head -1)
+
+pedir -X POST "$API/api/redes/$CLAVE/inalambricos" \
+     -d "{\"antenaId\":$ANTENA,\"equipos\":[$CLIENTE],\"red\":\"CASA-5G\"}" \
+    | grep -q '"colgados"' \
+    && paso "cuelga equipos de la antena por WiFi, sin puertos de por medio" \
+    || falla "no se pudo colgar por WiFi"
+
+pedir "$API/api/redes/$CLAVE/topologia-manual" | grep -q '"inalambricos"' \
+    && paso "y lo inalambrico viaja con el resto de la topologia" \
+    || falla "la topologia no trae lo inalambrico"
+
+# Las credenciales de cada equipo: se guardan cifradas y la clave NO viaja en el
+# listado. Que se filtrara ahi seria repartir las claves de la red por pantallas
+# que no las pidieron.
+pedir -X PUT "$API/api/redes/$CLAVE/equipos/$ANTENA/credencial" \
+     -d '{"tipo":"web","usuario":"ubnt","clave":"clave-de-prueba","direccion":"http://192.168.1.86"}' \
+    | grep -q '"tieneClave":true' \
+    && paso "guarda la credencial de un equipo" \
+    || falla "no se pudo guardar la credencial"
+
+pedir "$API/api/redes/$CLAVE/equipos" | grep -q 'clave-de-prueba' \
+    && falla "LA CLAVE VIAJO EN EL LISTADO DE EQUIPOS" \
+    || paso "y la clave NO viaja en el listado de equipos"
+
+pedir "$API/api/redes/$CLAVE/equipos/$ANTENA/credencial/clave?tipo=web" \
+    | grep -q 'clave-de-prueba' \
+    && paso "pero si se entrega a quien la pide expresamente" \
+    || falla "no se pudo recuperar la clave guardada"
+
+grep -rq 'clave-de-prueba' "$CARPETA/datos/redes/" 2>/dev/null \
+    && falla "LA CLAVE QUEDO EN CLARO DENTRO DE LA BASE" \
+    || paso "y en la base quedo cifrada, no en claro"
+
 # ---------------------------------------------------- topologia declarada --
 #
 # Lo que ningun escaneo puede ver: un switch no administrable no tiene

@@ -443,6 +443,46 @@ class Api {
     return datos as Map<String, dynamic>;
   }
 
+  /// Cuelga uno o VARIOS equipos de una antena, de una sola vez. El WiFi no
+  /// tiene puertos: a una antena se le cuelga lo que sea sin inventarle uno.
+  Future<Map<String, dynamic>> colgarPorWiFi(String clave,
+      {required int antenaId, required List<int> equipos, String red = ''}) async {
+    final datos = await enviar('/api/redes/$clave/inalambricos', {
+      'antenaId': antenaId,
+      'equipos': equipos,
+      'red': red,
+    });
+    return datos as Map<String, dynamic>;
+  }
+
+  /// Quita un equipo de su antena.
+  Future<void> descolgarDeWiFi(String clave, int enlaceId) async {
+    await borrar('/api/redes/$clave/inalambricos/$enlaceId');
+  }
+
+  /// Guarda como se entra a un aparato. La clave vacia conserva la que hubiera:
+  /// en un formulario donde se muestra oculta, en blanco significa "no la
+  /// toques", no "quitala".
+  Future<CredencialEquipo> guardarCredencial(String clave, int equipoId,
+      Map<String, dynamic> credencial) async {
+    final datos = await reemplazar('/api/redes/$clave/equipos/$equipoId/credencial', credencial);
+    return CredencialEquipo.desdeJson(datos as Map<String, dynamic>);
+  }
+
+  /// Pide la clave en claro. Es la unica puerta por donde sale una clave, y el
+  /// servidor deja anotado quien la pidio.
+  Future<CredencialEquipo> verClave(String clave, int equipoId, {String tipo = 'web'}) async {
+    final datos = await obtener('/api/redes/$clave/equipos/$equipoId/credencial/clave?tipo=$tipo');
+    return CredencialEquipo.desdeJson(datos as Map<String, dynamic>);
+  }
+
+  /// Borra la credencial guardada de un equipo. Se llama distinto de
+  /// [borrarCredencial], que es la de SNMP: son dos cosas diferentes y
+  /// confundirlas seria borrar la que no es.
+  Future<void> borrarCredencialDeEquipo(String clave, int credencialId) async {
+    await borrar('/api/redes/$clave/credenciales/$credencialId');
+  }
+
   /// Escucha que redes inalambricas se oyen desde el equipo donde corre MiRed.
   Future<Map<String, dynamic>> barrerAire(String clave) async {
     final datos = await obtener('/api/redes/$clave/aire');

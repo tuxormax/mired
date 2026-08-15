@@ -19,6 +19,7 @@ import (
 	"github.com/tuxormax/mired/internal/avisos"
 	"github.com/tuxormax/mired/internal/basedatos"
 	"github.com/tuxormax/mired/internal/catalogo"
+	"github.com/tuxormax/mired/internal/secreto"
 	"github.com/tuxormax/mired/internal/snmp"
 	"github.com/tuxormax/mired/internal/sonda"
 )
@@ -50,6 +51,10 @@ type Servicio struct {
 	// Catalogo reconoce que es cada aparato. Puede ser nil: sin catalogo el
 	// servicio funciona igual, solo que los equipos quedan sin tipo.
 	Catalogo *catalogo.Catalogo
+	// Secretos abre las credenciales que el usuario guardo de cada equipo. Se
+	// usan para preguntarle a una antena quien cuelga de ella. Puede ser nil:
+	// sin esto, ese paso simplemente no corre.
+	Secretos *secreto.Caja
 
 	mu         sync.Mutex
 	enCurso    map[string]bool
@@ -205,6 +210,11 @@ func (s *Servicio) correr(clave string, escaneoID int64, subredes []string, solo
 		// puertos antes de colgarle los equipos inalambricos.
 		s.consultarControladoras(ctx, clave)
 		s.reconocer(ctx, clave)
+		// Y al final, los paneles: se entra a cada aparato que tenga credencial
+		// guardada —la antena, el modem, el router— y se lee su tabla de
+		// conectados. Va DESPUES de reconocer porque para entonces ya se sabe de
+		// que marca es cada uno, y con eso se elige el lector correcto.
+		s.preguntarALosPaneles(ctx, clave)
 	}
 	// Las alertas se revisan tambien tras un barrido de presencia: enterarse de
 	// que se conecto algo desconocido es justo lo que no puede esperar al
@@ -491,6 +501,13 @@ func (s *Servicio) consultarSNMP(ctx context.Context, clave string, vistos []son
 		}
 		porIP[ficha.IP] = contadores
 
+		asociados := make([]basedatos.AsociadoSNMP, 0, len(ficha.Asociados))
+		for _, asociado := range ficha.Asociados {
+			asociados = append(asociados, basedatos.AsociadoSNMP{
+				MAC: asociado.MAC, Red: asociado.Red, SenalDbm: asociado.SenalDbm,
+			})
+		}
+
 		fichas = append(fichas, basedatos.FichaSNMP{
 			IP:            ficha.IP,
 			Nombre:        ficha.Nombre,
@@ -504,6 +521,7 @@ func (s *Servicio) consultarSNMP(ctx context.Context, clave string, vistos []son
 			Interfaces:    interfaces,
 			MacsPorPuerto: ficha.MacsPorPuerto,
 			Vecinos:       vecinos,
+			Asociados:     asociados,
 		})
 	}
 

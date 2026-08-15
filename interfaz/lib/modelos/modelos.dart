@@ -160,6 +160,10 @@ class Equipo {
   /// protocolo de su fabricante. Cada dato trae de que fuente salio.
   final List<DatoHuella> huella;
 
+  /// Como se entra a este aparato. **Sin la clave**: aqui viene el usuario y la
+  /// direccion del panel, y la clave solo cuando alguien la pide.
+  final List<CredencialEquipo> credenciales;
+
   const Equipo({
     required this.id,
     required this.ip,
@@ -180,6 +184,7 @@ class Equipo {
     this.conexion = '',
     this.categoria = '',
     this.huella = const [],
+    this.credenciales = const [],
   });
 
   factory Equipo.desdeJson(Map<String, dynamic> json) => Equipo(
@@ -205,6 +210,9 @@ class Equipo {
         categoria: json['categoria'] as String? ?? '',
         huella: ((json['huella'] as List<dynamic>?) ?? [])
             .map((fila) => DatoHuella.desdeJson(fila as Map<String, dynamic>))
+            .toList(),
+        credenciales: ((json['credenciales'] as List<dynamic>?) ?? [])
+            .map((fila) => CredencialEquipo.desdeJson(fila as Map<String, dynamic>))
             .toList(),
       );
 
@@ -803,10 +811,137 @@ class Contradiccion {
 
 /// Todo lo que se declaro a mano en una red, mas donde eso ya no cuadra con lo
 /// que reportan los equipos.
+/// Un equipo colgado de una antena por el aire.
+///
+/// El WiFi no tiene puertos: de una antena cuelgan uno o VARIOS equipos, sin
+/// inventarle un puerto a cada uno. La regla va al reves: un equipo cuelga de
+/// UNA antena a la vez, porque asi funciona el WiFi.
+class EnlaceInalambrico {
+  final int id;
+  final int equipoId;
+  final int antenaId;
+  final String equipoNombre;
+  final String antenaNombre;
+
+  /// El SSID, cuando se sabe.
+  final String red;
+
+  /// Con cuanta fuerza llega, en dBm. Nulo cuando se declaro a mano: una
+  /// persona sabe de que antena cuelga su telefono, no con cuantos dBm llega.
+  final int? senalDbm;
+
+  /// `manual`, `snmp`, `airos` o `controladora`. Es lo que permite dibujar
+  /// distinto lo tecleado de lo medido.
+  final String origenDato;
+  final String notas;
+  final String ultimaVez;
+
+  const EnlaceInalambrico({
+    required this.id,
+    required this.equipoId,
+    required this.antenaId,
+    this.equipoNombre = '',
+    this.antenaNombre = '',
+    this.red = '',
+    this.senalDbm,
+    this.origenDato = 'manual',
+    this.notas = '',
+    this.ultimaVez = '',
+  });
+
+  factory EnlaceInalambrico.desdeJson(Map<String, dynamic> json) => EnlaceInalambrico(
+        id: json['id'] as int,
+        equipoId: json['equipoId'] as int,
+        antenaId: json['antenaId'] as int,
+        equipoNombre: json['equipoNombre'] as String? ?? '',
+        antenaNombre: json['antenaNombre'] as String? ?? '',
+        red: json['red'] as String? ?? '',
+        senalDbm: json['senalDbm'] as int?,
+        origenDato: json['origenDato'] as String? ?? 'manual',
+        notas: json['notas'] as String? ?? '',
+        ultimaVez: json['ultimaVez'] as String? ?? '',
+      );
+
+  bool get esManual => origenDato == 'manual';
+
+  /// Como se dice de donde salio este enlace. Lo declarado y lo medido no se
+  /// presentan igual: eso es lo que separa un inventario de una suposicion.
+  String get comoSeSupo {
+    switch (origenDato) {
+      case 'manual':
+        return 'declarado a mano';
+      case 'snmp':
+        return 'lo dijo la antena por SNMP';
+      case 'airos':
+        return 'lo dijo el panel de la antena';
+      case 'controladora':
+        return 'lo dijo la controladora';
+      default:
+        return origenDato;
+    }
+  }
+}
+
+/// Como se entra a un aparato.
+///
+/// La clave **no viaja** en los listados: aqui llega vacia y [tieneClave] dice
+/// si hay una guardada. Solo se pide cuando alguien la quiere ver, y eso queda
+/// anotado en la bitacora del servidor.
+class CredencialEquipo {
+  final int id;
+  final int equipoId;
+  final String tipo;
+  final String usuario;
+  final String clave;
+  final bool tieneClave;
+  final String direccion;
+  final String notas;
+
+  const CredencialEquipo({
+    this.id = 0,
+    required this.equipoId,
+    this.tipo = 'web',
+    this.usuario = '',
+    this.clave = '',
+    this.tieneClave = false,
+    this.direccion = '',
+    this.notas = '',
+  });
+
+  factory CredencialEquipo.desdeJson(Map<String, dynamic> json) => CredencialEquipo(
+        id: json['id'] as int? ?? 0,
+        equipoId: json['equipoId'] as int? ?? 0,
+        tipo: json['tipo'] as String? ?? 'web',
+        usuario: json['usuario'] as String? ?? '',
+        clave: json['clave'] as String? ?? '',
+        tieneClave: json['tieneClave'] as bool? ?? false,
+        direccion: json['direccion'] as String? ?? '',
+        notas: json['notas'] as String? ?? '',
+      );
+
+  /// Como se lee el tipo en pantalla.
+  String get comoSeLlamaElTipo {
+    switch (tipo) {
+      case 'web':
+        return 'Panel web';
+      case 'ssh':
+        return 'Consola SSH';
+      case 'consola':
+        return 'Consola';
+      case 'app':
+        return 'Aplicacion del fabricante';
+      default:
+        return 'Otro acceso';
+    }
+  }
+}
+
 class TopologiaManual {
   final List<PuertoFisico> puertos;
   final List<EnlaceFisico> enlaces;
   final List<Contradiccion> contradicciones;
+  /// Lo que cuelga de una antena por el aire.
+  final List<EnlaceInalambrico> inalambricos;
 
   /// De cuando es lo mas reciente que se declaro.
   final String momento;
@@ -815,6 +950,7 @@ class TopologiaManual {
     this.puertos = const [],
     this.enlaces = const [],
     this.contradicciones = const [],
+    this.inalambricos = const [],
     this.momento = '',
   });
 
@@ -828,10 +964,26 @@ class TopologiaManual {
         contradicciones: ((json['contradicciones'] as List<dynamic>?) ?? [])
             .map((fila) => Contradiccion.desdeJson(fila as Map<String, dynamic>))
             .toList(),
+        inalambricos: ((json['inalambricos'] as List<dynamic>?) ?? [])
+            .map((fila) => EnlaceInalambrico.desdeJson(fila as Map<String, dynamic>))
+            .toList(),
         momento: json['momento'] as String? ?? '',
       );
 
-  bool get hayAlgo => puertos.isNotEmpty || enlaces.isNotEmpty;
+  bool get hayAlgo =>
+      puertos.isNotEmpty || enlaces.isNotEmpty || inalambricos.isNotEmpty;
+
+  /// Lo que cuelga de una antena por el aire.
+  List<EnlaceInalambrico> inalambricosDe(int antenaId) =>
+      inalambricos.where((enlace) => enlace.antenaId == antenaId).toList();
+
+  /// De que antena cuelga un equipo, si cuelga de alguna.
+  EnlaceInalambrico? antenaDe(int equipoId) {
+    for (final enlace in inalambricos) {
+      if (enlace.equipoId == equipoId) return enlace;
+    }
+    return null;
+  }
 
   /// Los puertos de un equipo, ordenadas como se ven en el aparato.
   List<PuertoFisico> puertosDe(int equipoId) =>

@@ -303,3 +303,34 @@ escritura son configurables aparte (`carpeta_propia`, `carpeta_comunidad`) y el
 programa las apunta a la carpeta del usuario al arrancar los servicios. Si se
 agrega algo que escriba catalogo, tiene que usar esas dos, nunca una ruta fija.
 
+## El WiFi no tiene puertos, y por eso va en otra tabla
+
+Un enlace inalambrico NO se guarda en `enlaces_fisicos`: ahi cada punta necesita
+un puerto, y una antena no los tiene. Vive en `enlaces_inalambricos`, donde de
+una antena cuelgan **uno o varios** equipos y cada equipo cuelga de **una sola**
+antena.
+
+Si algun dia hay que colgar algo sin saber por que puerto entra, **no se
+reutiliza esa tabla**: se llamaria "inalambrico" a un cable, y este proyecto no
+miente en los nombres.
+
+## Lo que el modem ve por cable NO sirve para colgar nada
+
+El panel de un modem lista toda su LAN, incluido lo que esta **detras del
+switch**. Colgar de el a todos los que reporta dibujaria una red plana donde en
+realidad hay un arbol.
+
+Solo lo INALAMBRICO arma topologia: un cliente asociado a un radio cuelga de ese
+radio y no hay intermediario posible. Lo de cable se aprovecha unicamente para
+poner nombre a los equipos.
+
+## Una clave nunca viaja sin que alguien la pida
+
+- No sale en `/equipos`, ni en la topologia, ni en el mapa exportado.
+- Sale solo por `GET .../credencial/clave`, que exige escritura y **anota en la
+  bitacora quien la pidio**.
+- Se guarda cifrada, y **la llave vive con la configuracion, no con los datos**:
+  si algun dia se mueve a la carpeta de datos, el cifrado deja de proteger el
+  respaldo, que es lo unico de lo que protege.
+- Guardar con la clave en blanco **conserva** la que habia. En un formulario
+  donde se muestra oculta, en blanco significa "no la toques".

@@ -17,6 +17,7 @@ import (
 	"github.com/tuxormax/mired/internal/basedatos"
 	"github.com/tuxormax/mired/internal/catalogo"
 	"github.com/tuxormax/mired/internal/programador"
+	"github.com/tuxormax/mired/internal/secreto"
 )
 
 // API reune lo que necesitan los manejadores.
@@ -31,6 +32,11 @@ type API struct {
 	SocketSonda string
 	// Programador lanza los barridos, pedidos o por agenda.
 	Programador *programador.Servicio
+	// Secretos cifra las claves de los equipos. La llave vive con la
+	// configuracion y NO con los datos, para que un respaldo de la base no
+	// venga con que abrirse.
+	Secretos *secreto.Caja
+
 	// Catalogo reconoce que es cada aparato. Puede ser nil.
 	Catalogo *catalogo.Catalogo
 	// CarpetasCatalogo son las carpetas de donde salio, para poder releerlas al
@@ -112,6 +118,17 @@ func (a *API) Rutas() http.Handler {
 	mux.Handle("GET /api/redes/{clave}/consumo", a.conRed(a.consumoActual))
 	mux.Handle("GET /api/redes/{clave}/consumo/{switch}/{puerto}", a.conRed(a.historialTrafico))
 	mux.Handle("GET /api/redes/{clave}/aplicaciones", a.conRed(a.consumoPorAplicacion))
+
+	// Lo que cuelga de una antena por el aire. El WiFi no tiene puertos: a una
+	// antena se le cuelgan uno o VARIOS equipos de una sola vez.
+	mux.Handle("POST /api/redes/{clave}/inalambricos", a.conRed(a.colgarPorWiFi))
+	mux.Handle("DELETE /api/redes/{clave}/inalambricos/{enlace}", a.conRed(a.descolgarDeWiFi))
+
+	// Las credenciales de cada equipo. La clave solo sale por verClaveDeEquipo,
+	// que exige escritura y deja rastro en la bitacora.
+	mux.Handle("PUT /api/redes/{clave}/equipos/{equipo}/credencial", a.conRed(a.guardarCredencialEquipo))
+	mux.Handle("GET /api/redes/{clave}/equipos/{equipo}/credencial/clave", a.conRed(a.verClaveDeEquipo))
+	mux.Handle("DELETE /api/redes/{clave}/credenciales/{credencial}", a.conRed(a.borrarCredencialEquipo))
 
 	// El aire: que redes inalambricas se oyen desde este equipo. Va con la red
 	// activa porque el cruce con el inventario —de que aparato es cada antena—

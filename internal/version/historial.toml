@@ -22,10 +22,11 @@
 #                   cambiar de version.
 #   tipo            feature | fix | ajuste | change
 #
-# Los 17 modulos de la v1.17: redes, subredes, equipos, escaneo y agenda,
+# Los 19 modulos de la v1.19: redes, subredes, equipos, escaneo y agenda,
 # presencia, mapa de puertos, mapa visual, alertas, consumo, inspeccion profunda,
 # usuarios, credenciales SNMP, controladoras WiFi, catalogo de dispositivos,
-# topologia manual, catalogo comunitario y barrido de aire.
+# topologia manual, catalogo comunitario, barrido de aire, enlaces inalambricos
+# y credenciales de equipo.
 
 # --------------------------------------------------------------- el sistema --
 
@@ -253,6 +254,22 @@ tipo = "feature"
 modulo = "Reconocimiento de aparatos"
 notas = "Se completan los protocolos de fabricante que faltaban: Tuya / Smart Life (los focos y enchufes, que no contestan a nada: **avisan solos** por difusion y hay que estar escuchando), TP-Link Omada, D-Link, NETGEAR NSDP, Dahua DHDiscover, Xiaomi miIO, Ruckus y Fortinet. Fortinet no tiene descubrimiento abierto: se reconoce por su certificado —que trae el numero de serie, y de ahi sale el modelo— y por el puerto 541 de gestion. De los protocolos que solo se conocen por ingenieria inversa se lee lo que se entiende y nada mas: si el aparato contesta con su modelo dentro, se saca; si contesta otra cosa, no se inventa. Trece definiciones nuevas de catalogo, incluidas FortiGate, FortiAP, Ruckus, Omada, switches D-Link y NETGEAR por su modelo, Tuya y Dahua."
 
+[[sistema]]
+version = "1.18"
+revision = 29
+fecha = "2026-08-15"
+tipo = "feature"
+modulo = "Enlaces inalambricos"
+notas = "El modulo 18: quien cuelga de que antena. El WiFi no tiene puertos, asi que a una antena se le cuelgan UNO O VARIOS equipos de una sola vez, sin inventarle un puerto a cada uno; un equipo cuelga de UNA antena, porque asi funciona el WiFi. Se puede declarar a mano —con casillas, varios a la vez— y tambien se mide solo por tres caminos: la controladora WiFi, la tabla de asociados por SNMP de la propia antena, y el panel del aparato. El mapa lo dibuja con linea de puntos finos, distinta de las tres del cable, y cada enlace dice de donde salio."
+
+[[sistema]]
+version = "1.19"
+revision = 30
+fecha = "2026-08-15"
+tipo = "feature"
+modulo = "Credenciales de equipo"
+notas = "El modulo 19: como se entra a cada aparato, guardado en el aparato. Usuario, clave, direccion del panel y notas en la ficha, para no buscarlos en un papel. La clave se guarda CIFRADA y la llave del cifrado vive con la configuracion, no con los datos: un respaldo de la base copiado a cualquier lado no trae con que abrirse. La clave no viaja en ningun listado —solo cuando alguien la pide, y queda anotado quien fue— y NUNCA sale en un mapa exportado. La misma credencial es la que MiRed usa para entrar al panel del aparato y leer su tabla de conectados: AirOS de Ubiquiti, RouterOS de MikroTik, TR-064 para los modems de Telmex, Totalplay e izzi, y un lector generico que saca las MAC de cualquier panel. De ahi, lo INALAMBRICO cuelga en el mapa; lo de cable no, porque el modem ve toda su LAN y colgarlo de el dibujaria una red plana donde hay un arbol."
+
 # ----------------------------------------------------------------- la base --
 #
 # Cada entrada apunta al numero de migracion que la trae. El esquema de las bases
@@ -337,3 +354,11 @@ fecha = "2026-08-15"
 tipo = "feature"
 modulo = "Reconocimiento de aparatos"
 notas = "Red 0015: tabla huellas, con lo que cada aparato dice de si mismo y de que fuente salio cada dato. La fuente se guarda con el dato a proposito: no vale lo mismo un modelo firmado en un certificado que uno sacado del titulo de una pagina."
+
+[[base]]
+version = "1.19"
+revision = 11
+fecha = "2026-08-15"
+tipo = "feature"
+modulo = "Enlaces inalambricos y credenciales"
+notas = "Red 0016: tabla enlaces_inalambricos, con quien cuelga de que antena, el SSID, la senal y de donde salio el dato. Va aparte de enlaces_fisicos porque un enlace por el aire NO tiene puerto, y meterlo ahi obligaria a inventarle uno a cada telefono. Red 0017: tabla credenciales_equipo, con la clave cifrada; la llave vive con la configuracion, no con los datos."

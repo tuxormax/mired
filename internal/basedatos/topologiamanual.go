@@ -506,6 +506,10 @@ type TopologiaManual struct {
 	Puertos         []PuertoFisico  `json:"puertos"`
 	Enlaces         []EnlaceFisico  `json:"enlaces"`
 	Contradicciones []Contradiccion `json:"contradicciones"`
+	// Inalambricos es lo que cuelga de una antena por el aire. Va aqui y no en
+	// otra llamada porque el mapa necesita las dos cosas a la vez: sin esto,
+	// dibujaria los cables y dejaria los telefonos flotando.
+	Inalambricos []EnlaceInalambrico `json:"inalambricos"`
 	// Momento es de cuando es lo mas reciente que se declaro. Va con los datos
 	// por la misma regla que el resto de MiRed: todo reporte dice de cuando es.
 	Momento string `json:"momento"`
@@ -518,6 +522,7 @@ func (b *Base) LeerTopologiaManual(ctx context.Context) (TopologiaManual, error)
 		Puertos:         []PuertoFisico{},
 		Enlaces:         []EnlaceFisico{},
 		Contradicciones: []Contradiccion{},
+		Inalambricos:    []EnlaceInalambrico{},
 	}
 
 	puertos, err := b.ListarPuertosFisicos(ctx)
@@ -538,12 +543,22 @@ func (b *Base) LeerTopologiaManual(ctx context.Context) (TopologiaManual, error)
 	}
 	topologia.Contradicciones = contradicciones
 
+	// Lo que cuelga por el aire va en el mismo viaje: el mapa necesita los
+	// cables y las antenas a la vez, y en dos llamadas se dibujaria a medias.
+	inalambricos, err := b.ListarEnlacesInalambricos(ctx)
+	if err != nil {
+		return topologia, err
+	}
+	topologia.Inalambricos = inalambricos
+
 	var momento sql.NullString
 	if err := b.QueryRowContext(ctx, `
 		SELECT MAX(cuando) FROM (
 			SELECT MAX(creado_en) AS cuando FROM puertos_fisicos
 			UNION ALL
-			SELECT MAX(creado_en) FROM enlaces_fisicos)`).Scan(&momento); err != nil {
+			SELECT MAX(creado_en) FROM enlaces_fisicos
+			UNION ALL
+			SELECT MAX(creado_en) FROM enlaces_inalambricos)`).Scan(&momento); err != nil {
 		return topologia, fmt.Errorf("no se pudo leer de cuando es lo declarado: %w", err)
 	}
 	topologia.Momento = momento.String

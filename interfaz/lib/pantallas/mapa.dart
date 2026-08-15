@@ -83,6 +83,10 @@ class _PantallaMapaState extends State<PantallaMapa> {
         await _conectarPuerto(caja.puertoFisicoId!, datos);
         return;
       }
+      if (caja.enlaceInalambricoId != null) {
+        await _menuDeWiFi(caja.enlaceInalambricoId!, caja.titulo);
+        return;
+      }
       if (caja.enlaceId != null) {
         await _menuDeCable(caja.enlaceId!);
         return;
@@ -189,12 +193,90 @@ class _PantallaMapaState extends State<PantallaMapa> {
     }
   }
 
+  /// _menuDeEquipo ofrece las dos formas de colgar algo de un aparato: por
+  /// cable, declarando sus puertos, y por el aire.
+  ///
+  /// El WiFi no tiene puertos, asi que no se declara ninguno: se eligen los
+  /// equipos —uno o VARIOS de una vez— y se cuelgan.
   Future<void> _menuDeEquipo(Equipo equipo, DatosMapa datos) async {
-    final cambio = await showDialog<bool>(
+    final eleccion = await showModalBottomSheet<String>(
       context: context,
-      builder: (_) => DialogoPuertos(clave: widget.red.clave, equipo: equipo),
+      builder: (contextoHoja) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.settings_ethernet),
+              title: const Text('Puertos fisicos'),
+              subtitle: const Text('Declarar los puertos que tiene el aparato'),
+              onTap: () => Navigator.of(contextoHoja).pop('puertos'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.wifi),
+              title: const Text('Colgar equipos por WiFi'),
+              subtitle: const Text('Uno o varios a la vez; el WiFi no tiene puertos'),
+              onTap: () => Navigator.of(contextoHoja).pop('wifi'),
+            ),
+          ],
+        ),
+      ),
     );
-    if (cambio == true) _recargar();
+    if (eleccion == null || !mounted) return;
+
+    if (eleccion == 'puertos') {
+      final cambio = await showDialog<bool>(
+        context: context,
+        builder: (_) => DialogoPuertos(clave: widget.red.clave, equipo: equipo),
+      );
+      if (cambio == true) _recargar();
+      return;
+    }
+
+    final elegidos = await showDialog<List<int>>(
+      context: context,
+      builder: (_) => DialogoColgarPorWiFi(antena: equipo, candidatos: datos.sinUbicar),
+    );
+    if (elegidos == null || elegidos.isEmpty) return;
+
+    try {
+      final resultado = await Api.instancia.colgarPorWiFi(widget.red.clave,
+          antenaId: equipo.id, equipos: elegidos);
+      final rechazados = (resultado['rechazados'] as List<dynamic>? ?? []);
+      if (mounted && rechazados.isNotEmpty) {
+        mensajeAviso(context, 'No se pudieron colgar: ${rechazados.join('; ')}');
+      }
+      _recargar();
+    } catch (problema, pila) {
+      if (mounted) await mostrarProblema(context, problema, pila: pila.toString());
+    }
+  }
+
+  /// _menuDeWiFi descuelga un equipo de su antena.
+  Future<void> _menuDeWiFi(int enlaceId, String nombre) async {
+    final quitar = await showDialog<bool>(
+      context: context,
+      builder: (contextoModal) => AlertDialog(
+        title: const Text('Descolgar del WiFi'),
+        content: Text('$nombre deja de colgar de esta antena y vuelve a la zona de '
+            'los que no cuelgan de ningun sitio conocido. El equipo no se borra.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(contextoModal).pop(false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.of(contextoModal).pop(true),
+              child: const Text('Descolgar')),
+        ],
+      ),
+    );
+    if (quitar != true) return;
+
+    try {
+      await Api.instancia.descolgarDeWiFi(widget.red.clave, enlaceId);
+      _recargar();
+    } catch (problema, pila) {
+      if (mounted) await mostrarProblema(context, problema, pila: pila.toString());
+    }
   }
 
   Future<void> _agregarAparato() async {

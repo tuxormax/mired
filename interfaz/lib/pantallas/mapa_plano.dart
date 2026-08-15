@@ -82,6 +82,13 @@ class DatosMapa {
     for (final enlace in topologia.enlaces) {
       if (enlace.equipoDestinoId != null) declarados.add(enlace.equipoDestinoId!);
     }
+    // Y lo que cuelga de una antena por el aire tambien esta ubicado: sin esto,
+    // los telefonos seguirian flotando abajo aunque se sepa de que antena
+    // cuelgan.
+    for (final enlace in topologia.inalambricos) {
+      declarados.add(enlace.equipoId);
+      declarados.add(enlace.antenaId);
+    }
 
     return equipos
         .where((equipo) =>
@@ -102,6 +109,7 @@ class CajaPlano {
     this.equipoId,
     this.puertoFisicoId,
     this.enlaceId,
+    this.enlaceInalambricoId,
     this.puertoLibre = false,
     this.declarada = false,
   });
@@ -122,6 +130,11 @@ class CajaPlano {
   /// El cable declarado que la ocupa, si hay alguno.
   final int? enlaceId;
 
+  /// El enlace INALAMBRICO que representa, si cuelga por el aire. Va aparte del
+  /// cable a proposito: quitar un cable y descolgar un equipo del WiFi son dos
+  /// cosas distintas, y confundirlas borraria la que no es.
+  final int? enlaceInalambricoId;
+
   /// Un puerto declarado sin nada conectado. Es donde el modo edicion ofrece
   /// conectar algo.
   final bool puertoLibre;
@@ -138,6 +151,7 @@ class LineaPlano {
     required this.confirmada,
     required this.etiqueta,
     this.declarada = false,
+    this.inalambrica = false,
   });
 
   final Offset desde;
@@ -149,6 +163,11 @@ class LineaPlano {
   /// inferido: son tres cosas distintas y presentarlas igual seria hacer pasar
   /// lo tecleado por medido.
   final bool declarada;
+
+  /// No es un cable: es WiFi. Se dibuja con puntos finos, distinto de los tres
+  /// anteriores, porque tampoco es lo mismo: por el aire no hay puerto que
+  /// senalar, y el mapa no puede sugerir que lo haya.
+  final bool inalambrica;
 }
 
 /// EnlacePlano es un cable de switch a switch, dibujado como arco por encima de
@@ -232,24 +251,52 @@ class _ArbolDeclarado {
       _tienePuertos.add(equipo.id);
     }
 
+    // Una antena tambien es cabecera de bloque aunque no tenga NINGUN puerto
+    // declarado: el WiFi no tiene puertos, y aun asi de ella cuelgan equipos.
+    final antenas = <int>{};
+    for (final enlace in datos.topologia.inalambricos) {
+      antenas.add(enlace.antenaId);
+    }
+
     for (final cable in datos.topologia.enlaces) {
       final padre = datos.topologia.equipoDelPuerto(cable.puertoOrigenId);
       final hijo = cable.puertoDestinoId != null
           ? datos.topologia.equipoDelPuerto(cable.puertoDestinoId!)
           : cable.equipoDestinoId;
       if (padre == null || hijo == null || padre == hijo) continue;
-      if (!_tienePuertos.contains(hijo)) continue; // sin puertos es una hoja
+      // Es hoja solo si no es cabecera de nada: ni tiene puertos declarados ni
+      // le cuelga algo por el aire. Una antena sin un solo puerto sigue siendo
+      // cabecera de su bloque, y si se tratara como hoja se dibujaria dos veces.
+      if (!_tienePuertos.contains(hijo) && !antenas.contains(hijo)) continue;
       if (_padreDe.containsKey(hijo)) continue; // ya cuelga de otro
       if (_desciendeDe(padre, hijo)) continue; // cerraria un circulo
       _padreDe[hijo] = padre;
     }
 
-    raices = conPuertos.where((equipo) => !_padreDe.containsKey(equipo.id)).toList();
+    // Lo que cuelga por el aire tambien hace padre a la antena. Se hace DESPUES
+    // de los cables para que un aparato conectado por cable no acabe colgando
+    // del WiFi: el cable es el dato mas firme de los dos.
+    for (final enlace in datos.topologia.inalambricos) {
+      if (enlace.equipoId == enlace.antenaId) continue;
+      if (_padreDe.containsKey(enlace.equipoId)) continue;
+      if (_desciendeDe(enlace.antenaId, enlace.equipoId)) continue;
+      _padreDe[enlace.equipoId] = enlace.antenaId;
+      _clientes.putIfAbsent(enlace.antenaId, () => []).add(enlace);
+    }
+
+    final cabeceras = <int>{..._tienePuertos, ...antenas};
+    raices = datos.equipos
+        .where((equipo) =>
+            cabeceras.contains(equipo.id) && !_padreDe.containsKey(equipo.id))
+        .toList()
+      ..sort((uno, otro) => uno.comoSeLlama.compareTo(otro.comoSeLlama));
   }
 
   final DatosMapa datos;
   final Map<int, int> _padreDe = {};
   final Set<int> _tienePuertos = {};
+  /// Lo que cuelga de cada antena por el aire.
+  final Map<int, List<EnlaceInalambrico>> _clientes = {};
   final Map<int, double> _anchos = {};
   late final List<Equipo> raices;
 
@@ -263,6 +310,11 @@ class _ArbolDeclarado {
     }
     return false;
   }
+
+  /// esCabecera dice si a ese aparato hay que dibujarle su propio bloque: o
+  /// tiene puertos declarados, o le cuelga algo por el aire.
+  bool esCabecera(int equipoId) =>
+      _tienePuertos.contains(equipoId) || (_clientes[equipoId]?.isNotEmpty ?? false);
 
   /// El equipo que cuelga de este puerto, si es un aparato con puertos propios.
   Equipo? hijoEn(int equipoId, PuertoFisico puerto) {
@@ -294,6 +346,13 @@ class _ArbolDeclarado {
     for (final puerto in datos.topologia.puertosDe(equipo.id)) {
       final hijo = hijoEn(equipo.id, puerto);
       total += hijo == null ? anchoCaja + separacionX : medir(hijo);
+    }
+    // Y lo que cuelga por el aire, que no ocupa puerto pero si ocupa lugar.
+    for (final cliente in _clientes[equipo.id] ?? const <EnlaceInalambrico>[]) {
+      final hijo = datos.equipoPorId(cliente.equipoId);
+      total += hijo != null && esCabecera(hijo.id)
+          ? medir(hijo)
+          : anchoCaja + separacionX;
     }
 
     final ancho = matematicas.max(total, anchoCaja + separacionX);
@@ -393,6 +452,54 @@ class _ArbolDeclarado {
       ));
 
       xPuerto += anchoPuerto;
+    }
+
+    // Y lo que cuelga por el aire. **No ocupa puerto**: el WiFi no tiene, y
+    // dibujarlo como si lo tuviera seria sugerir que hay un cable que no existe.
+    for (final cliente in _clientes[equipo.id] ?? const <EnlaceInalambrico>[]) {
+      final hijo = datos.equipoPorId(cliente.equipoId);
+      final esBloque = hijo != null && esCabecera(hijo.id);
+      final anchoCliente = esBloque ? medir(hijo) : anchoCaja + separacionX;
+      final centroCliente = Offset(xPuerto + anchoCliente / 2, y + separacionY);
+
+      if (esBloque) {
+        colocar(
+          equipo: hijo,
+          x: xPuerto,
+          y: y + separacionY,
+          colores: colores,
+          cajas: cajas,
+          lineas: lineas,
+          alBajar: alBajar,
+        );
+      } else {
+        cajas.add(CajaPlano(
+          rectangulo: Rect.fromCenter(center: centroCliente, width: anchoCaja, height: altoCaja),
+          titulo: hijo?.comoSeLlama ?? cliente.equipoNombre,
+          // De donde salio se dice SIEMPRE: no es lo mismo que lo haya
+          // declarado una persona a que lo haya dicho la propia antena.
+          subtitulo: [
+            if (cliente.red.isNotEmpty) cliente.red,
+            if (cliente.senalDbm != null) '${cliente.senalDbm} dBm',
+            cliente.comoSeSupo,
+          ].join(' · '),
+          color: colores.surfaceContainerHighest,
+          icono: Icons.wifi,
+          equipoId: cliente.equipoId,
+          enlaceInalambricoId: cliente.id,
+          declarada: cliente.esManual,
+        ));
+      }
+
+      lineas.add(LineaPlano(
+        desde: centroEquipo + const Offset(0, altoCaja / 2),
+        hasta: centroCliente - const Offset(0, altoCaja / 2),
+        confirmada: false,
+        inalambrica: true,
+        etiqueta: cliente.red.isEmpty ? 'WiFi' : cliente.red,
+      ));
+
+      xPuerto += anchoCliente;
     }
 
     alBajar(y + separacionY);
@@ -644,7 +751,10 @@ class PintorMapa extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     for (final linea in plano.lineas) {
-      if (linea.confirmada) {
+      if (linea.inalambrica) {
+        // Puntos finos: por el aire no hay cable ni puerto que senalar.
+        _lineaPunteada(lienzo, linea.desde, linea.hasta, trazo, largo: 2, hueco: 4);
+      } else if (linea.confirmada) {
         lienzo.drawLine(linea.desde, linea.hasta, trazo);
       } else if (linea.declarada) {
         // Guion largo: se distingue a simple vista del punteado corto del grupo

@@ -2,7 +2,7 @@
 
 Proyecto en `/home/tuxor/www/mired`. Descubre los equipos de una red, dibuja el
 mapa y dice en que puerto de que switch esta cada aparato.
-En **v1.17 Rev 28** (2026-08-15).
+En **v1.19 Rev 30** (2026-08-15).
 **PROGRAMA DE ESCRITORIO en Flutter + tres binarios en Go + SQLite, una base por
 red, entregado en un `.deb`.** No hay interfaz web: el programa arranca sus
 servicios al abrirse y los mata al cerrarse.
@@ -72,6 +72,11 @@ Para probar una instalacion **en limpio**: `sudo ./herramientas/desinstalar.sh`.
   catalogo o el escaneo profundo.**
 - [modulo-aire](modulo-aire.md) — el modulo 17: escuchar el aire para saber que
   SSID emite cada antena y con que MAC de radio. Hace falta tarjeta WiFi.
+- [modulo-inalambricos](modulo-inalambricos.md) — los modulos 18 y 19: **quien
+  cuelga de que antena por el aire** (el WiFi no tiene puertos: uno o varios de
+  una vez) y **las credenciales guardadas en cada equipo**, cifradas, que son
+  las mismas con las que MiRed entra a su panel a preguntar. **Leer antes de
+  tocar el mapa, las credenciales o los lectores de panel.**
 - [modulo-programa](modulo-programa.md) — MiRed como programa de escritorio:
   como arranca y mata sus servicios, y por que ya no hay web.
 

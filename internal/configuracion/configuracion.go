@@ -35,6 +35,14 @@ type Configuracion struct {
 	Flujos   Flujos   `toml:"flujos"`
 	Catalogo Catalogo `toml:"catalogo"`
 	Registro Registro `toml:"registro"`
+
+	// Llave es donde se guarda la llave del cifrado de secretos. Vacio deja que
+	// la calcule ArchivoLlave, al lado del archivo de configuracion.
+	Llave string `toml:"llave_secretos"`
+
+	// Archivo es de donde se leyo esta configuracion. No sale del .toml: lo
+	// rellena Cargar, y sirve para saber donde poner la llave.
+	Archivo string `toml:"-"`
 }
 
 // Servidor ajusta como escucha y que sirve el binario mired-servidor.
@@ -199,6 +207,9 @@ func Cargar(ruta string) (Configuracion, error) {
 		return cfg, fmt.Errorf("no se pudo leer %s: %w", ruta, err)
 	}
 
+	// De donde salio, para poder poner la llave de los secretos a su lado.
+	cfg.Archivo = ruta
+
 	aplicarEntorno(&cfg)
 
 	if cfg.Datos.RedesAbiertas < 1 {
@@ -247,6 +258,7 @@ func aplicarEntorno(cfg *Configuracion) {
 	texto("MIRED_DISPOSITIVOS_PROPIOS", &cfg.Catalogo.Propia)
 	texto("MIRED_DISPOSITIVOS_COMUNIDAD", &cfg.Catalogo.Comunidad)
 	texto("MIRED_NIVEL_REGISTRO", &cfg.Registro.Nivel)
+	texto("MIRED_LLAVE_SECRETOS", &cfg.Llave)
 }
 
 // ArchivoCatalogo es la ruta de la base global: usuarios, permisos y el registro
@@ -258,4 +270,21 @@ func (c Configuracion) ArchivoCatalogo() string {
 // CarpetaRedes es donde vive un archivo .db por cada red.
 func (c Configuracion) CarpetaRedes() string {
 	return filepath.Join(c.Datos.Ruta, "redes")
+}
+
+// ArchivoLlave es donde vive la llave con la que se cifran las claves de los
+// equipos.
+//
+// **Va con la CONFIGURACION, no con los datos.** Esa es toda la gracia: la
+// carpeta de datos es lo unico que hay que respaldar, y esos respaldos se copian
+// a discos, a la nube y a correos. Si la llave viajara ahi dentro, cifrar no
+// protegeria de nada.
+func (c Configuracion) ArchivoLlave() string {
+	if c.Llave != "" {
+		return c.Llave
+	}
+	if c.Archivo != "" {
+		return filepath.Join(filepath.Dir(c.Archivo), "llave-secretos")
+	}
+	return "/etc/mired/llave-secretos"
 }

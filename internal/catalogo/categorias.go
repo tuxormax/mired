@@ -129,6 +129,11 @@ var Categorias = []Categoria{
 // interesa de un mapa.
 const SinReconocer = "sin_reconocer"
 
+// PuntoDeAcceso es la antena WiFi. Se nombra aparte porque hay codigo que
+// pregunta "¿a este le tiene sentido preguntarle quien esta asociado?", y esa
+// pregunta solo se le hace a una antena.
+const PuntoDeAcceso = "punto_de_acceso"
+
 // SwitchAdministrable la asigna SNMP, no el catalogo: si un equipo contesto que
 // es un switch, eso manda sobre cualquier deduccion por puertos abiertos.
 const SwitchAdministrable = "switch_administrable"

@@ -32,6 +32,11 @@ type Equipo struct {
 	// de su fabricante. Con la fuente de cada cosa, para poder decir de donde
 	// salio en vez de presentarlo todo como igual de firme.
 	Huella []DatoHuella `json:"huella,omitempty"`
+
+	// Credenciales son las de entrar a ESTE aparato. **Van SIN la clave**: se
+	// manda el usuario y la direccion del panel, que es lo que se quiere ver de
+	// un vistazo, y la clave solo cuando alguien la pide expresamente.
+	Credenciales []CredencialEquipo `json:"credenciales,omitempty"`
 	// Modelo y Notas los escribe una persona. No salen de ningun barrido: son lo
 	// que sabe quien tiene el aparato delante.
 	Modelo string `json:"modelo"`
@@ -294,6 +299,15 @@ func guardarHuella(ctx context.Context, tx *sql.Tx, equipoID int64, datos []Dato
 	return nil
 }
 
+// GuardarHuellaDeEquipo suma lo que se supo de un equipo fuera de un escaneo:
+// por ejemplo, el nombre que le da el panel del aparato del que cuelga.
+func (b *Base) GuardarHuellaDeEquipo(ctx context.Context, equipoID int64, datos []DatoHuella) error {
+	momento := Ahora()
+	return b.EnTransaccion(ctx, func(tx *sql.Tx) error {
+		return guardarHuella(ctx, tx, equipoID, datos, momento)
+	})
+}
+
 // HuellaDe devuelve lo que un equipo conto de si mismo.
 func (b *Base) HuellaDe(ctx context.Context, equipoID int64) ([]DatoHuella, error) {
 	filas, err := b.QueryContext(ctx, `
@@ -545,6 +559,18 @@ func (b *Base) ListarEquipos(ctx context.Context, soloPresentes bool) ([]Equipo,
 	}
 	if err := filasPuertos.Err(); err != nil {
 		return nil, err
+	}
+
+	// Y las credenciales guardadas, SIN clave: aqui solo viaja el usuario y la
+	// direccion del panel.
+	credenciales, err := b.CredencialesDeRed(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for equipoID, lista := range credenciales {
+		if indice, hay := porID[equipoID]; hay {
+			equipos[indice].Credenciales = lista
+		}
 	}
 
 	// Lo mismo con las huellas: una sola consulta y se reparten en memoria.

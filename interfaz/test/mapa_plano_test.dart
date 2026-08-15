@@ -123,4 +123,89 @@ void main() {
     expect(desdeElModem, contains(2), reason: 'al switch le quedan puertos libres');
     expect(desdeElModem, isNot(contains(1)), reason: 'un aparato no se conecta consigo mismo');
   });
+
+  /// De la antena cuelgan varios equipos por el aire, sin puertos de por medio.
+  DatosMapa armarCasaConWiFi() {
+    return DatosMapa(
+      mapa: const MapaPuertos(capacidad: 'ninguna', explicacion: '', puertos: [], enlaces: []),
+      equipos: [
+        equipo(2, 'switch'),
+        equipo(5, 'AP ubiquiti'),
+        equipo(6, 'telefono'),
+        equipo(7, 'tv samsung'),
+      ],
+      topologia: TopologiaManual(
+        puertos: const [
+          PuertoFisico(id: 20, equipoId: 2, numero: 1, tipo: 'lan'),
+          PuertoFisico(id: 21, equipoId: 2, numero: 2, tipo: 'lan'),
+        ],
+        enlaces: const [
+          // El AP cuelga del switch por cable.
+          EnlaceFisico(
+            id: 100,
+            puertoOrigenId: 20,
+            equipoOrigenId: 2,
+            numeroOrigen: 1,
+            origenNombre: 'switch',
+            equipoDestinoId: 5,
+            destinoNombre: 'AP ubiquiti',
+            origenDato: 'manual',
+          ),
+        ],
+        inalambricos: const [
+          EnlaceInalambrico(
+              id: 1, equipoId: 6, antenaId: 5, red: 'CASA-5G', origenDato: 'manual'),
+          EnlaceInalambrico(
+              id: 2, equipoId: 7, antenaId: 5, red: 'CASA-5G', senalDbm: -62,
+              origenDato: 'panel'),
+        ],
+      ),
+    );
+  }
+
+  test('lo que entra por WiFi cuelga de su antena, no flota abajo', () {
+    final datos = armarCasaConWiFi();
+
+    // Ni el telefono ni la television siguen "sin ubicar".
+    final sueltos = datos.sinUbicar.map((equipo) => equipo.id).toList();
+    expect(sueltos, isNot(contains(6)));
+    expect(sueltos, isNot(contains(7)));
+
+    final plano = armarPlano(datos, colores);
+    expect(plano.cajas.where((caja) => caja.titulo == 'telefono').length, 1);
+    expect(plano.cajas.where((caja) => caja.titulo == 'tv samsung').length, 1);
+  });
+
+  test('la linea del WiFi se dibuja distinta de la del cable', () {
+    // Son tres cosas distintas —medido, tecleado y por el aire— y el plano tiene
+    // que dejar ver cual es cual sin leer la leyenda.
+    final plano = armarPlano(armarCasaConWiFi(), colores);
+
+    final porAire = plano.lineas.where((linea) => linea.inalambrica).toList();
+    expect(porAire.length, 2, reason: 'los dos equipos por WiFi tienen su linea');
+    for (final linea in porAire) {
+      expect(linea.confirmada, isFalse);
+      expect(linea.etiqueta, 'CASA-5G');
+    }
+  });
+
+  test('de donde salio cada enlace se dice en la caja', () {
+    // Lo declarado por una persona y lo que dijo el panel de la antena no se
+    // presentan igual.
+    final plano = armarPlano(armarCasaConWiFi(), colores);
+
+    final telefono = plano.cajas.firstWhere((caja) => caja.titulo == 'telefono');
+    expect(telefono.subtitulo, contains('declarado a mano'));
+
+    final television = plano.cajas.firstWhere((caja) => caja.titulo == 'tv samsung');
+    expect(television.subtitulo, contains('panel'));
+    expect(television.subtitulo, contains('-62 dBm'));
+  });
+
+  test('una antena sin puertos declarados igual es cabecera de su bloque', () {
+    // El AP no tiene ni un puerto declarado y aun asi le cuelgan dos equipos:
+    // el WiFi no tiene puertos.
+    final plano = armarPlano(armarCasaConWiFi(), colores);
+    expect(plano.cajas.where((caja) => caja.titulo == 'AP ubiquiti').length, 1);
+  });
 }

@@ -23,6 +23,16 @@ type FichaSNMP struct {
 	Interfaces    []InterfazSNMP
 	MacsPorPuerto map[string][]string
 	Vecinos       []VecinoSNMP
+	// Asociados son los equipos colgados de esta antena POR EL AIRE, con su SSID
+	// y su senal. Vacio en un switch: ahi no hay nada que preguntar.
+	Asociados []AsociadoSNMP
+}
+
+// AsociadoSNMP es un equipo que la antena dice tener asociado.
+type AsociadoSNMP struct {
+	MAC      string
+	Red      string
+	SenalDbm int
 }
 
 // InterfazSNMP es un puerto de un equipo administrable.
@@ -116,6 +126,11 @@ func (b *Base) GuardarSNMP(ctx context.Context, fichas []FichaSNMP) ([]Movimient
 			if err := guardarEnlaces(ctx, tx, equipoID, ficha.Vecinos, porMAC, momento); err != nil {
 				return err
 			}
+			// Y lo que cuelga de esta antena por el aire. El WiFi no tiene
+			// puertos: esto no va a conexiones_puerto, va a su propia tabla.
+			if err := guardarAsociados(ctx, tx, equipoID, ficha.Asociados, porMAC, momento); err != nil {
+				return err
+			}
 		}
 
 		despues, err := puertoPorMac(ctx, tx)
@@ -127,6 +142,60 @@ func (b *Base) GuardarSNMP(ctx context.Context, fichas []FichaSNMP) ([]Movimient
 	})
 
 	return movimientos, err
+}
+
+// guardarAsociados cuelga de la antena lo que ella misma dijo tener asociado.
+//
+// Solo se guarda lo que ya existe en el inventario: un asociado cuya MAC no
+// conoce nadie todavia no es un error —aparecera en el proximo barrido— y
+// crearle un equipo a medias desde aqui seria inventar un aparato del que solo
+// se sabe que estuvo un momento cerca de una antena.
+func guardarAsociados(ctx context.Context, tx *sql.Tx, antenaID int64,
+	asociados []AsociadoSNMP, porMAC map[string]int64, momento string) error {
+	for _, asociado := range asociados {
+		// El mapa viene con la MAC tal como se guardo —en minusculas y con dos
+		// puntos—, asi que la de la antena se lleva a esa misma forma.
+		equipoID, hay := porMAC[conDosPuntos(asociado.MAC)]
+		if !hay || equipoID == antenaID {
+			continue
+		}
+
+		var senal *int
+		if asociado.SenalDbm != 0 {
+			valor := asociado.SenalDbm
+			senal = &valor
+		}
+
+		_, err := tx.ExecContext(ctx, `
+			INSERT INTO enlaces_inalambricos (equipo_id, antena_id, red, senal_dbm,
+			                                  origen_dato, ultima_vez, creado_en)
+			VALUES (?, ?, ?, ?, 'snmp', ?, ?)
+			ON CONFLICT (equipo_id) DO UPDATE SET
+				antena_id   = excluded.antena_id,
+				red         = COALESCE(NULLIF(excluded.red, ''), enlaces_inalambricos.red),
+				senal_dbm   = COALESCE(excluded.senal_dbm, enlaces_inalambricos.senal_dbm),
+				origen_dato = excluded.origen_dato,
+				ultima_vez  = excluded.ultima_vez`,
+			equipoID, antenaID, nuloSiVacio(asociado.Red), senal, momento, momento)
+		if err != nil {
+			return fmt.Errorf("no se pudo guardar el asociado %s: %w", asociado.MAC, err)
+		}
+	}
+	return nil
+}
+
+// conDosPuntos deja una MAC como se guarda en la base: minusculas y separada
+// por dos puntos. La antena puede contestarla de cualquier forma.
+func conDosPuntos(mac string) string {
+	limpia := normalizarMACGuardada(mac)
+	if limpia == "" {
+		return ""
+	}
+	partes := make([]string, 6)
+	for i := 0; i < 6; i++ {
+		partes[i] = limpia[i*2 : i*2+2]
+	}
+	return strings.Join(partes, ":")
 }
 
 // puertoPorMac dice en que puerto esta cada MAC, como texto legible.
