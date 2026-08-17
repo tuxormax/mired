@@ -163,6 +163,9 @@ func (a *API) Rutas() http.Handler {
 	mux.Handle("GET /api/redes/{clave}/credenciales-snmp", a.conRed(a.listarCredenciales))
 	mux.Handle("POST /api/redes/{clave}/credenciales-snmp", a.conRed(a.crearCredencial))
 	mux.Handle("DELETE /api/redes/{clave}/credenciales-snmp/{id}", a.conRed(a.borrarCredencial))
+	// Probar antes de guardar: sin esto, quien no sabe que es SNMP no tiene forma
+	// de saber si escribio bien la contrasena del switch.
+	mux.Handle("POST /api/redes/{clave}/credenciales-snmp/probar", a.conRed(a.probarCredencial))
 	mux.Handle("GET /api/redes/{clave}/controladoras", a.conRed(a.listarControladoras))
 	mux.Handle("POST /api/redes/{clave}/controladoras", a.conRed(a.crearControladora))
 	mux.Handle("DELETE /api/redes/{clave}/controladoras/{id}", a.conRed(a.borrarControladora))

@@ -80,9 +80,9 @@ class _PantallaCredencialesState extends State<PantallaCredenciales> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Credenciales SNMP'),
+              const Text('Preguntarle a los switches'),
               Text(
-                'Solo de la red ${widget.red.nombre}',
+                'Credenciales SNMP · solo de la red ${widget.red.nombre}',
                 style: Theme.of(contexto).textTheme.labelSmall,
               ),
             ],
@@ -91,7 +91,7 @@ class _PantallaCredencialesState extends State<PantallaCredenciales> {
         floatingActionButton: FloatingActionButton.extended(
           onPressed: _crear,
           icon: const Icon(Icons.add),
-          label: const Text('Nueva credencial'),
+          label: const Text('Agregar la contrasena de un switch'),
         ),
         body: FutureBuilder<List<CredencialSNMP>>(
           future: _credenciales,
@@ -121,12 +121,30 @@ class _PantallaCredencialesState extends State<PantallaCredenciales> {
                         const Icon(Icons.info_outline),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: Text(
-                            'Con estas credenciales MiRed le pregunta a los switches que hay '
-                            'conectado en cada puerto. Se prueban en orden contra cada equipo y se '
-                            'usa la primera que conteste, asi que no hace falta decir cual va con '
-                            'cual switch.',
-                            style: Theme.of(contexto).textTheme.bodyMedium,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Un switch «administrable» sabe que aparato tiene enchufado en '
+                                'cada uno de sus puertos, y puede decirlo — pero solo si le damos '
+                                'su contrasena de lectura. Eso es lo que se guarda aqui.',
+                                style: Theme.of(contexto).textTheme.bodyMedium,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Es OPCIONAL. Sin esto MiRed sigue encontrando todos los aparatos '
+                                'de la red; lo unico que no podra decir es de que puerto cuelga '
+                                'cada uno.',
+                                style: Theme.of(contexto).textTheme.bodyMedium,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Puede poner varias: se prueban en orden contra cada aparato y se '
+                                'usa la primera que conteste, asi que no hace falta decir cual va '
+                                'con cual switch.',
+                                style: Theme.of(contexto).textTheme.bodySmall,
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -193,6 +211,9 @@ class _DialogoCredencialState extends State<_DialogoCredencial> {
   String _protocoloAuth = 'SHA';
   String _protocoloPriv = 'AES';
   bool _ocupado = false;
+  bool _probando = false;
+  bool _tecnicoAbierto = false;
+  PruebaDeCredencial? _resultado;
 
   @override
   void dispose() {
@@ -209,19 +230,10 @@ class _DialogoCredencialState extends State<_DialogoCredencial> {
   Future<void> _guardar() async {
     if (!_formulario.currentState!.validate()) return;
     setState(() => _ocupado = true);
-    Trayectoria.instancia.anotar('Crear credencial SNMP ${_nombre.text}');
+    Trayectoria.instancia.anotar('Crear credencial SNMP $_nombreFinal');
 
     try {
-      await Api.instancia.crearCredencial(widget.clave, {
-        'nombre': _nombre.text.trim(),
-        'version': _version,
-        if (!_esV3) 'comunidad': _comunidad.text,
-        if (_esV3) 'usuario': _usuario.text.trim(),
-        if (_esV3 && _claveAuth.text.isNotEmpty) 'autenticacionProtocolo': _protocoloAuth,
-        if (_esV3 && _claveAuth.text.isNotEmpty) 'autenticacionClave': _claveAuth.text,
-        if (_esV3 && _clavePriv.text.isNotEmpty) 'privacidadProtocolo': _protocoloPriv,
-        if (_esV3 && _clavePriv.text.isNotEmpty) 'privacidadClave': _clavePriv.text,
-      });
+      await Api.instancia.crearCredencial(widget.clave, _comoQuedaria());
       if (mounted) Navigator.of(context).pop(true);
     } catch (problema, pila) {
       if (mounted) await mostrarProblema(context, problema, pila: pila.toString());
@@ -230,154 +242,305 @@ class _DialogoCredencialState extends State<_DialogoCredencial> {
     }
   }
 
+  /// _probar pregunta a los equipos de la red con lo que hay escrito, sin
+  /// guardar nada.
+  ///
+  /// Es la pieza que hace usable esta pantalla para quien no sabe que es SNMP:
+  /// sin ella se guarda una contrasena a ciegas, y si estaba mal nadie se entera
+  /// —el mapa simplemente se queda sin puertos, tres dias despues, sin decir por
+  /// que—. Con esto se pulsa un boton y contesta cuantos aparatos respondieron.
+  Future<void> _probar() async {
+    if (!_formulario.currentState!.validate()) return;
+    setState(() {
+      _probando = true;
+      _resultado = null;
+    });
+    try {
+      final resultado =
+          await Api.instancia.probarCredencial(widget.clave, _comoQuedaria());
+      if (mounted) setState(() => _resultado = resultado);
+    } catch (problema, pila) {
+      if (mounted) await mostrarProblema(context, problema, pila: pila.toString());
+    } finally {
+      if (mounted) setState(() => _probando = false);
+    }
+  }
+
+  /// _comoQuedaria arma lo que se mandaria al guardar. Lo usan la prueba y el
+  /// guardado, para que no puedan diferir.
+  Map<String, dynamic> _comoQuedaria() => {
+        'nombre': _nombreFinal,
+        'version': _version,
+        if (!_esV3) 'comunidad': _comunidad.text,
+        if (_esV3) 'usuario': _usuario.text.trim(),
+        if (_esV3 && _claveAuth.text.isNotEmpty) 'autenticacionProtocolo': _protocoloAuth,
+        if (_esV3 && _claveAuth.text.isNotEmpty) 'autenticacionClave': _claveAuth.text,
+        if (_esV3 && _clavePriv.text.isNotEmpty) 'privacidadProtocolo': _protocoloPriv,
+        if (_esV3 && _clavePriv.text.isNotEmpty) 'privacidadClave': _clavePriv.text,
+      };
+
+  /// _nombreFinal: si no le pusieron nombre, se le pone uno.
+  ///
+  /// Pedir un nombre para algo de lo que casi siempre hay UNO es pedir trabajo
+  /// por nada. El experto que lleva cuatro se lo pone; el que lleva una, no
+  /// tiene ni que pensarlo.
+  String get _nombreFinal {
+    final escrito = _nombre.text.trim();
+    if (escrito.isNotEmpty) return escrito;
+    return _esV3 ? 'Acceso SNMP v3' : 'Contrasena de lectura';
+  }
+
   @override
-  Widget build(BuildContext contexto) => AlertDialog(
-        title: const Text('Nueva credencial SNMP'),
-        content: SizedBox(
-          width: 460,
-          child: SingleChildScrollView(
-            child: Form(
-              key: _formulario,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
+  Widget build(BuildContext contexto) {
+    final tema = Theme.of(contexto);
+    return AlertDialog(
+      title: const Text('Agregar la contrasena de un switch'),
+      content: SizedBox(
+        width: 520,
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formulario,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'La que trae el switch para DEJARSE LEER. No es la de entrar a '
+                  'configurarlo: con esta solo se le puede preguntar, no cambiar nada.',
+                  style: tema.textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 16),
+
+                if (!_esV3) ...[
                   TextFormField(
-                    controller: _nombre,
+                    controller: _comunidad,
                     autofocus: true,
-                    maxLength: 80,
                     decoration: const InputDecoration(
-                      labelText: 'Nombre',
-                      hintText: 'Switches de matriz, Lectura general...',
-                      border: OutlineInputBorder(),
-                      counterText: '',
-                    ),
-                    validator: (valor) =>
-                        (valor == null || valor.trim().isEmpty) ? 'Capture el nombre' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: _version,
-                    decoration: const InputDecoration(
-                      labelText: 'Version de SNMP',
+                      labelText: 'Contrasena de lectura del switch',
+                      hintText: 'public',
+                      // El nombre tecnico va escrito, no escondido: quien sabe
+                      // SNMP tiene que reconocer el campo de un vistazo, y quien
+                      // no sabe se entera de como se llama esto en el manual del
+                      // switch, que es donde va a tener que buscarlo.
+                      helperText: 'En el switch aparece como «community» de solo lectura. '
+                          'Si nadie la cambio, casi siempre es: public',
+                      helperMaxLines: 3,
                       border: OutlineInputBorder(),
                     ),
-                    // Enumerado, nunca texto libre: son las tres versiones que
-                    // existen y la base solo acepta esas.
-                    items: const [
-                      DropdownMenuItem(value: 'v1', child: Text('v1 (vieja)')),
-                      DropdownMenuItem(value: 'v2c', child: Text('v2c (la mas comun)')),
-                      DropdownMenuItem(value: 'v3', child: Text('v3 (con usuario y cifrado)')),
-                    ],
-                    onChanged: (valor) => setState(() => _version = valor ?? 'v2c'),
+                    validator: (valor) => (!_esV3 && (valor == null || valor.isEmpty))
+                        ? 'Escriba la contrasena de lectura'
+                        : null,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Donde encontrarla: entre a la pagina del switch escribiendo su '
+                    'direccion IP en el navegador, y busque la seccion «SNMP».',
+                    style: tema.textTheme.bodySmall,
+                  ),
+                ] else ...[
+                  TextFormField(
+                    controller: _usuario,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Usuario',
+                      helperText: 'El que le dieron para consultar el switch',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (valor) => (_esV3 && (valor == null || valor.trim().isEmpty))
+                        ? 'Escriba el usuario'
+                        : null,
                   ),
                   const SizedBox(height: 12),
-                  if (!_esV3)
-                    TextFormField(
-                      controller: _comunidad,
+                  Row(children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: _protocoloAuth,
+                        decoration: const InputDecoration(
+                          labelText: 'Autenticacion',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 'MD5', child: Text('MD5')),
+                          DropdownMenuItem(value: 'SHA', child: Text('SHA')),
+                          DropdownMenuItem(value: 'SHA224', child: Text('SHA224')),
+                          DropdownMenuItem(value: 'SHA256', child: Text('SHA256')),
+                          DropdownMenuItem(value: 'SHA384', child: Text('SHA384')),
+                          DropdownMenuItem(value: 'SHA512', child: Text('SHA512')),
+                        ],
+                        onChanged: (valor) => setState(() => _protocoloAuth = valor ?? 'SHA'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _claveAuth,
+                        obscureText: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Clave', border: OutlineInputBorder()),
+                      ),
+                    ),
+                  ]),
+                  const SizedBox(height: 12),
+                  Row(children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: _protocoloPriv,
+                        decoration: const InputDecoration(
+                          labelText: 'Privacidad',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 'DES', child: Text('DES')),
+                          DropdownMenuItem(value: 'AES', child: Text('AES')),
+                          DropdownMenuItem(value: 'AES192', child: Text('AES192')),
+                          DropdownMenuItem(value: 'AES256', child: Text('AES256')),
+                        ],
+                        onChanged: (valor) => setState(() => _protocoloPriv = valor ?? 'AES'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _clavePriv,
+                        obscureText: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Clave', border: OutlineInputBorder()),
+                      ),
+                    ),
+                  ]),
+                ],
+
+                // Probar ANTES de guardar. Es lo unico que convierte esta
+                // pantalla en algo que se puede usar sin saber que es SNMP.
+                const SizedBox(height: 16),
+                Row(children: [
+                  OutlinedButton.icon(
+                    onPressed: _probando || _ocupado ? null : _probar,
+                    icon: _probando
+                        ? const SizedBox(
+                            width: 16, height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.wifi_tethering),
+                    label: Text(_probando ? 'Preguntando...' : 'Probar ahora'),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Le pregunta a los aparatos de esta red y dice cuantos contestan. '
+                      'No guarda nada.',
+                      style: tema.textTheme.bodySmall,
+                    ),
+                  ),
+                ]),
+                if (_resultado != null) ...[
+                  const SizedBox(height: 12),
+                  _elResultado(contexto, _resultado!),
+                ],
+
+                // Lo tecnico, plegado: quien lleva veinte anos en redes lo abre y
+                // encuentra la version y el v3 donde espera; a quien no le suena
+                // de nada no le estorba.
+                const SizedBox(height: 8),
+                ExpansionTile(
+                  initiallyExpanded: _tecnicoAbierto,
+                  onExpansionChanged: (abierto) => _tecnicoAbierto = abierto,
+                  tilePadding: EdgeInsets.zero,
+                  childrenPadding: const EdgeInsets.only(bottom: 8),
+                  title: Text('Opciones tecnicas (version de SNMP)',
+                      style: tema.textTheme.bodyMedium),
+                  children: [
+                    DropdownButtonFormField<String>(
+                      initialValue: _version,
                       decoration: const InputDecoration(
-                        labelText: 'Comunidad',
-                        hintText: 'public',
-                        helperText: 'Es la contrasena de lectura del switch',
+                        labelText: 'Version de SNMP',
                         border: OutlineInputBorder(),
                       ),
-                      validator: (valor) => (!_esV3 && (valor == null || valor.isEmpty))
-                          ? 'Capture la comunidad'
-                          : null,
-                    )
-                  else ...[
+                      // Enumerado, nunca texto libre: son las tres versiones que
+                      // existen y la base solo acepta esas.
+                      items: const [
+                        DropdownMenuItem(
+                            value: 'v2c',
+                            child: Text('v2c — con contrasena de lectura (lo normal)')),
+                        DropdownMenuItem(
+                            value: 'v1', child: Text('v1 — igual, pero de equipos viejos')),
+                        DropdownMenuItem(
+                            value: 'v3', child: Text('v3 — con usuario y cifrado')),
+                      ],
+                      onChanged: (valor) => setState(() {
+                        _version = valor ?? 'v2c';
+                        _resultado = null;
+                      }),
+                    ),
+                    const SizedBox(height: 12),
                     TextFormField(
-                      controller: _usuario,
-                      decoration: const InputDecoration(
-                        labelText: 'Usuario',
-                        border: OutlineInputBorder(),
+                      controller: _nombre,
+                      maxLength: 80,
+                      decoration: InputDecoration(
+                        labelText: 'Como llamarla en la lista',
+                        hintText: _nombreFinal,
+                        helperText: 'Solo para reconocerla si llega a haber varias',
+                        border: const OutlineInputBorder(),
+                        counterText: '',
                       ),
-                      validator: (valor) => (_esV3 && (valor == null || valor.trim().isEmpty))
-                          ? 'Capture el usuario'
-                          : null,
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            initialValue: _protocoloAuth,
-                            decoration: const InputDecoration(
-                              labelText: 'Autenticacion',
-                              border: OutlineInputBorder(),
-                            ),
-                            items: const [
-                              DropdownMenuItem(value: 'MD5', child: Text('MD5')),
-                              DropdownMenuItem(value: 'SHA', child: Text('SHA')),
-                              DropdownMenuItem(value: 'SHA224', child: Text('SHA224')),
-                              DropdownMenuItem(value: 'SHA256', child: Text('SHA256')),
-                              DropdownMenuItem(value: 'SHA384', child: Text('SHA384')),
-                              DropdownMenuItem(value: 'SHA512', child: Text('SHA512')),
-                            ],
-                            onChanged: (valor) => setState(() => _protocoloAuth = valor ?? 'SHA'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _claveAuth,
-                            obscureText: true,
-                            decoration: const InputDecoration(
-                              labelText: 'Clave',
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            initialValue: _protocoloPriv,
-                            decoration: const InputDecoration(
-                              labelText: 'Privacidad',
-                              border: OutlineInputBorder(),
-                            ),
-                            items: const [
-                              DropdownMenuItem(value: 'DES', child: Text('DES')),
-                              DropdownMenuItem(value: 'AES', child: Text('AES')),
-                              DropdownMenuItem(value: 'AES192', child: Text('AES192')),
-                              DropdownMenuItem(value: 'AES256', child: Text('AES256')),
-                            ],
-                            onChanged: (valor) => setState(() => _protocoloPriv = valor ?? 'AES'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _clavePriv,
-                            obscureText: true,
-                            decoration: const InputDecoration(
-                              labelText: 'Clave',
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                        ),
-                      ],
                     ),
                   ],
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: _ocupado ? null : () => Navigator.of(contexto).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: _ocupado ? null : _guardar,
-            child: _ocupado
-                ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('Guardar'),
-          ),
-        ],
-      );
+      ),
+      actions: [
+        TextButton(
+          onPressed: _ocupado ? null : () => Navigator.of(contexto).pop(false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: _ocupado ? null : _guardar,
+          child: _ocupado
+              ? const SizedBox(
+                  height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Text('Guardar'),
+        ),
+      ],
+    );
+  }
+
+  /// _elResultado cuenta como fue la prueba, en una frase y con color.
+  ///
+  /// Verde si contesto alguien, ambar si no. **Que no conteste nadie no es un
+  /// error**: puede ser que los switches de esa red sean sencillos, y eso hay
+  /// que decirlo asi en vez de pintar un fallo rojo que asusta.
+  Widget _elResultado(BuildContext contexto, PruebaDeCredencial prueba) {
+    final tema = Theme.of(contexto);
+    final bien = prueba.contestaron > 0;
+    final color = bien ? tema.colorScheme.primary : tema.colorScheme.tertiary;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: tema.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color),
+      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(bien ? Icons.check_circle_outline : Icons.info_outline, color: color),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(prueba.explicacion, style: tema.textTheme.bodyMedium),
+            for (final aparato in prueba.switches)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  '· ${aparato.nombre.isEmpty ? aparato.ip : aparato.nombre}'
+                  '${aparato.puertos > 0 ? ' — ${aparato.puertos} puertos' : ''}',
+                  style: tema.textTheme.bodySmall,
+                ),
+              ),
+          ]),
+        ),
+      ]),
+    );
+  }
 }

@@ -81,9 +81,9 @@ class _PantallaControladorasState extends State<PantallaControladoras> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Controladoras WiFi'),
+              const Text('Quien manda el WiFi'),
               Text(
-                'Solo de la red ${widget.red.nombre}',
+                'Controladoras WiFi · solo de la red ${widget.red.nombre}',
                 style: Theme.of(contexto).textTheme.labelSmall,
               ),
             ],
@@ -123,10 +123,14 @@ class _PantallaControladorasState extends State<PantallaControladoras> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            'Un punto de acceso no tiene puertos, tiene antenas, y quien sabe '
-                            'quien esta colgado de cual es la controladora. Dando de alta la suya, '
-                            'el WiFi aparece en el mapa igual que lo cableado: cada equipo bajo la '
-                            'antena y la red a la que se conecto.',
+                            'Lo que va por cable se sabe mirando los puertos del switch. Lo que '
+                            'va por WiFi no: una antena no tiene puertos, y quien sabe que '
+                            'telefono o que laptop esta colgado de cual es la controladora que '
+                            'las manda —una UniFi, un Cloud Key—.\n\n'
+                            'Es OPCIONAL, y solo hace falta si tiene una. Dandola de alta, el '
+                            'WiFi sale en el mapa igual que lo cableado: cada aparato bajo su '
+                            'antena y con el nombre de la red a la que se conecto. Sin ella, esos '
+                            'aparatos salen igual, pero como «sin ubicar».',
                             style: Theme.of(contexto).textTheme.bodyMedium,
                           ),
                         ),
@@ -267,7 +271,7 @@ class _DialogoControladoraState extends State<_DialogoControladora> {
 
   @override
   Widget build(BuildContext contexto) => AlertDialog(
-        title: const Text('Nueva controladora WiFi'),
+        title: const Text('Agregar la controladora del WiFi'),
         content: SizedBox(
           width: 460,
           child: SingleChildScrollView(
@@ -275,7 +279,18 @@ class _DialogoControladoraState extends State<_DialogoControladora> {
               key: _formulario,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Que es una controladora, para quien nunca ha oido la
+                  // palabra. Con un ejemplo de marca, que es como la reconoce
+                  // quien la tiene puesta en su casa u oficina.
+                  Text(
+                    'Es el aparato o el programa que manda sobre sus antenas WiFi '
+                    '—una UniFi, un Cloud Key—. Sin preguntarle a ella no hay forma de '
+                    'saber que telefono o que laptop esta colgado de cada antena.',
+                    style: Theme.of(contexto).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
                   TextFormField(
                     controller: _nombre,
                     autofocus: true,
@@ -308,9 +323,10 @@ class _DialogoControladoraState extends State<_DialogoControladora> {
                     controller: _url,
                     maxLength: 200,
                     decoration: const InputDecoration(
-                      labelText: 'Direccion',
+                      labelText: 'Direccion de su pagina',
                       hintText: 'https://192.168.1.10:8443',
-                      helperText: 'La misma con la que entra usted desde el navegador',
+                      helperText: 'La misma que escribe usted en el navegador para entrar '
+                          'a administrarla',
                       border: OutlineInputBorder(),
                       counterText: '',
                     ),
@@ -335,7 +351,8 @@ class _DialogoControladoraState extends State<_DialogoControladora> {
                     maxLength: 80,
                     decoration: const InputDecoration(
                       labelText: 'Usuario',
-                      helperText: 'Basta con uno de solo lectura',
+                      helperText: 'Con el que entra a su pagina. Basta uno de solo lectura',
+                      helperMaxLines: 2,
                       border: OutlineInputBorder(),
                       counterText: '',
                     ),
@@ -361,7 +378,9 @@ class _DialogoControladoraState extends State<_DialogoControladora> {
                     maxLength: 80,
                     decoration: const InputDecoration(
                       labelText: 'Sitio',
-                      helperText: 'Una controladora atiende varios; el normal se llama default',
+                      helperText: 'Una controladora puede llevar varias instalaciones; si '
+                          'solo lleva la suya, dejelo en «default»',
+                      helperMaxLines: 3,
                       border: OutlineInputBorder(),
                       counterText: '',
                     ),

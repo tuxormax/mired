@@ -474,6 +474,20 @@ pedir "$API/api/redes/$CLAVE/credenciales-snmp" | grep -q '"secreta"' \
     && falla "la comunidad SNMP viajo de vuelta al programa" \
     || paso "y su comunidad no sale en el listado"
 
+# Probar una credencial ANTES de guardarla es lo que hace usable esta pantalla
+# para quien no sabe que es SNMP: sin esto se guarda a ciegas y, si estaba mal,
+# el mapa se queda sin puertos tres dias despues sin decir por que.
+pedir -X POST "$API/api/redes/$CLAVE/credenciales-snmp/probar" \
+     -d '{"version":"v2c","comunidad":"public"}' \
+    | grep -q '"explicacion"' \
+    && paso "una credencial se puede probar antes de guardarla" \
+    || falla "no se pudo probar la credencial"
+
+# Y probar NO guarda: sigue habiendo una sola, la de arriba.
+[[ $(pedir "$API/api/redes/$CLAVE/credenciales-snmp" | grep -o '"nombre"' | wc -l) == 1 ]] \
+    && paso "y probarla no la guarda" \
+    || falla "probar la credencial la guardo"
+
 OTRA=$(pedir -X POST "$API/api/redes" \
        -d '{"nombre":"Otro cliente","subredes":["10.9.0.0/24"]}' \
        | sed -n 's/.*"clave":"\([^"]*\)".*/\1/p')

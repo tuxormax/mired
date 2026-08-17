@@ -91,13 +91,13 @@ Tres pruebas lo vigilan: que el binario y el historial digan la misma version,
 que la revision **no tenga huecos ni repetidos**, y que sembrar mil veces no
 duplique filas.
 
-## Estado real (2026-08-17, v1.20 Rev 45)
+## Estado real (2026-08-17, v1.20 Rev 46)
 **Las 10 fases cerradas**, salvo firmar los paquetes. Los **20 modulos**: los 15
 del plan mas el **catalogo comunitario** (16), la **escucha del aire** (17), los
 **enlaces inalambricos** (18), las **credenciales por equipo** (19) y la
 **importacion de hojas** (20).
 
-Lo hecho despues de cerrar el plan (Rev 21-45):
+Lo hecho despues de cerrar el plan (Rev 21-46):
 - **Reconocimiento de verdad** (Rev 21-27): lista IEEE completa —52 977
   prefijos, antes 99— y huellas activas: titulo y encabezados de su pagina,
   certificado TLS, banner SSH, mDNS, UPnP, ONVIF y los protocolos propios de
@@ -117,6 +117,11 @@ Lo hecho despues de cerrar el plan (Rev 21-45):
 - **Que no se coma el equipo** (Rev 34): mientras se edita el mapa la agenda de
   esa red se para, las cinco escuchas de red van a la vez y no en fila, y el
   barrido de puertos baja de 128 a 48 conexiones a la vez.
+- **Que lo entienda quien NO sabe de redes** (Rev 46): la pantalla de
+  credenciales SNMP pedia «Comunidad» y «Version de SNMP». Ahora pide un solo
+  campo en cristiano, dice para que sirve y que es opcional, deja lo tecnico
+  plegado —no borrado— y **se puede PROBAR antes de guardar**: contesta cuantos
+  switches respondieron. Ver la regla completa en [[gotchas]].
 - **Las credenciales, de cada red** (Rev 44): las credenciales SNMP y las
   controladoras WiFi dejan de compartirse entre todas las redes y pasan a la base
   de cada una. Compartidas, la comunidad de un cliente se probaba contra los
@@ -198,8 +203,8 @@ API entera y el dibujo del plano si estan cubiertos por pruebas). El switch admi
 siendo el riesgo abierto mas grande.
 
 ## Cobertura (2026-08-17)
-**234 pruebas en Go y 94 en Flutter**, sobre ~27 000 lineas de Go y ~14 900 de
-Dart, en 15 paquetes. Mas `herramientas/probar.sh` con **77 comprobaciones**:
+**234 pruebas en Go y 98 en Flutter**, sobre ~27 000 lineas de Go y ~14 900 de
+Dart, en 15 paquetes. Mas `herramientas/probar.sh` con **79 comprobaciones**:
 construye el `.deb`, lo desempaqueta y recorre el flujo completo. Es la unica que
 prueba lo que de verdad se entrega.
 

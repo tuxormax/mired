@@ -509,3 +509,29 @@ Dos trampas que ya mordieron:
 Y `DataTable` **mide por su contenido**: en una pantalla ancha deja el hueco
 sobrante a la derecha con el texto apretado. Para una tabla con celdas de texto
 largo, `Table` con anchos flexibles.
+
+## MiRed es para quien sabe poco de redes Y para quien sabe mucho
+
+Las dos cosas a la vez, y por eso NO se resuelve «simplificando»: borrar la
+palabra SNMP dejaria fuera al que la busca. La regla es:
+
+1. **Lo simple, a la vista.** Un campo, en el idioma del que no sabe:
+   «Contrasena de lectura del switch», no «Comunidad».
+2. **El nombre tecnico, escrito al lado.** «En el switch aparece como
+   *community*». Quien sabe lo reconoce de un vistazo; quien no sabe se entera
+   de como se llama en el manual del switch, que es donde va a tener que
+   buscarlo. **Nunca uno de los dos: los dos.**
+3. **Lo tecnico, plegado, no borrado.** Version de SNMP, v3, protocolos: en un
+   desplegable cerrado. El experto lo abre y esta donde espera.
+4. **Decir para que sirve y que pasa si no se pone.** Casi todo es OPCIONAL, y
+   quien no sabe no puede adivinarlo: «sin esto MiRed sigue viendo todos los
+   aparatos; lo unico que no podra decir es de que puerto cuelga cada uno».
+5. **Poder PROBAR antes de guardar.** Es lo que mas cambia las cosas: sin el
+   boton se guarda a ciegas y, si estaba mal, nadie se entera —el mapa se queda
+   sin puertos tres dias despues sin decir por que—. Con el, se pulsa y contesta
+   «respondieron 2 switches».
+6. **Poner el valor tipico en el hueco del campo** (`public`) y **el nombre solo
+   si de verdad hace falta**: si casi siempre hay uno, se le pone uno solo.
+
+Hecho asi en `interfaz/lib/pantallas/credenciales.dart`, que es el caso mas duro
+del programa. Al tocar cualquier formulario, mismo trato.

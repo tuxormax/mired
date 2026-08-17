@@ -4,9 +4,12 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/tuxormax/mired/internal/autenticacion"
 	"github.com/tuxormax/mired/internal/basedatos"
+	"github.com/tuxormax/mired/internal/snmp"
+	"github.com/tuxormax/mired/internal/sonda"
 )
 
 // listarCredenciales devuelve las credenciales SNMP SIN sus secretos.
@@ -292,4 +295,118 @@ func (a *API) borrarControladora(escritor http.ResponseWriter, peticion *http.Re
 
 	a.anotarActividad(peticion, "Controladoras WiFi", "Borrar controladora")
 	responderOk(escritor, map[string]any{"borrada": true})
+}
+
+// probarCredencial dice si con esos datos contesta algun equipo de la red.
+//
+// Es la diferencia entre configurar a ciegas y saber. Quien no sabe que es SNMP
+// no tiene forma de comprobar si escribio bien la contrasena del switch: la
+// guarda, se va, y tres dias despues el mapa sigue sin puertos sin que nadie le
+// haya dicho por que. Aqui se pulsa un boton y contesta «respondieron 2
+// switches» o «no contesto ninguno», que es lo unico que hace falta entender.
+//
+// **No guarda nada.** Se prueba con lo que hay escrito en el formulario, y quien
+// prueba decide despues si lo guarda.
+func (a *API) probarCredencial(escritor http.ResponseWriter, peticion *http.Request) {
+	if !a.exigeEscritura(escritor, peticion, "Probar credencial") {
+		return
+	}
+	clave, _ := autenticacion.RedActivaDe(peticion.Context())
+
+	var cuerpo basedatos.CredencialSNMP
+	if !a.leerCuerpo(escritor, peticion, &cuerpo, "Credenciales SNMP", "Probar") {
+		return
+	}
+
+	var equipos []basedatos.Equipo
+	err := a.Datos.ConRed(peticion.Context(), clave, func(base *basedatos.Base) error {
+		var err error
+		equipos, err = base.ListarEquipos(peticion.Context(), false)
+		return err
+	})
+	if err != nil {
+		a.responderError(escritor, peticion, contextoError{
+			Modulo: "Credenciales SNMP", Accion: "Probar", Causa: CausaBaseDatos,
+			Tabla: "equipos", Codigo: http.StatusInternalServerError,
+		}, "No se pudo leer que equipos hay en la red.", err)
+		return
+	}
+
+	destinos := make([]string, 0, len(equipos))
+	for _, equipo := range equipos {
+		if equipo.IP != "" {
+			destinos = append(destinos, equipo.IP)
+		}
+	}
+	if len(destinos) == 0 {
+		// Sin equipos no hay a quien preguntarle, y eso NO es un fallo de la
+		// credencial: hay que decirlo distinto o la persona se pone a cambiar una
+		// contrasena que estaba bien.
+		responderOk(escritor, map[string]any{
+			"consultados": 0, "contestaron": 0, "switches": []any{},
+			"explicacion": "Todavia no hay equipos en esta red: primero un escaneo, " +
+				"y despues se puede probar contra ellos.",
+		})
+		return
+	}
+
+	resultado, err := sonda.PedirSNMP(a.SocketSonda, sonda.PeticionSNMP{
+		Destinos:     destinos,
+		Credenciales: []snmp.Credencial{aCredencialDeSonda(cuerpo)},
+		EsperaMs:     2000,
+	}, 60*time.Second)
+	if err != nil {
+		a.responderError(escritor, peticion, contextoError{
+			Modulo: "Credenciales SNMP", Accion: "Probar", Causa: CausaRed,
+			Codigo: http.StatusServiceUnavailable,
+		}, "No se pudo hablar con la sonda para hacer la prueba.", err)
+		return
+	}
+
+	switches := make([]map[string]any, 0, len(resultado.Fichas))
+	for _, ficha := range resultado.Fichas {
+		switches = append(switches, map[string]any{
+			"ip":       ficha.IP,
+			"nombre":   ficha.Nombre,
+			"esSwitch": ficha.EsSwitch,
+			"puertos":  len(ficha.Interfaces),
+		})
+	}
+
+	responderOk(escritor, map[string]any{
+		"consultados": resultado.Consultados,
+		"contestaron": len(resultado.Fichas),
+		"switches":    switches,
+		"explicacion": explicacionDeLaPrueba(len(resultado.Fichas), len(destinos)),
+	})
+}
+
+// explicacionDeLaPrueba cuenta el resultado como se lo diria una persona a otra.
+func explicacionDeLaPrueba(contestaron, consultados int) string {
+	switch {
+	case contestaron == 0:
+		return "No contesto ninguno de los " + itoa(consultados) + " aparatos. O la " +
+			"contrasena no es esa, o los switches de esta red no son administrables. " +
+			"MiRed funciona igual: lo unico que no podra decir es en que puerto esta " +
+			"cada aparato."
+	case contestaron == 1:
+		return "Contesto 1 aparato. Con esto MiRed ya puede decir que hay conectado en " +
+			"cada uno de sus puertos."
+	default:
+		return "Contestaron " + itoa(contestaron) + " aparatos. Con esto MiRed ya puede " +
+			"decir que hay conectado en cada uno de sus puertos."
+	}
+}
+
+func aCredencialDeSonda(credencial basedatos.CredencialSNMP) snmp.Credencial {
+	return snmp.Credencial{
+		Nombre:                 credencial.Nombre,
+		Version:                credencial.Version,
+		Comunidad:              credencial.Comunidad,
+		Usuario:                credencial.Usuario,
+		AutenticacionProtocolo: credencial.AutenticacionProtocolo,
+		AutenticacionClave:     credencial.AutenticacionClave,
+		PrivacidadProtocolo:    credencial.PrivacidadProtocolo,
+		PrivacidadClave:        credencial.PrivacidadClave,
+	}
 }

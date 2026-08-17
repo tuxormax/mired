@@ -1692,3 +1692,59 @@ class PlantillaImportacion {
     return null;
   }
 }
+
+/// El resultado de probar una credencial SNMP contra los aparatos de la red.
+///
+/// Existe para que configurar SNMP no sea un acto de fe. Sin esto se guarda una
+/// contrasena a ciegas y, si estaba mal, nadie se entera: el mapa se queda sin
+/// puertos y no hay nada que diga por que.
+class PruebaDeCredencial {
+  /// Cuantos aparatos se consultaron y cuantos contestaron.
+  final int consultados;
+  final int contestaron;
+
+  /// Los que contestaron, para poder decir cuales son por su nombre.
+  final List<SwitchQueContesto> switches;
+
+  /// El resultado contado como se lo diria una persona a otra. Lo arma el
+  /// servidor: la frase depende de cuantos contestaron y de por que.
+  final String explicacion;
+
+  const PruebaDeCredencial({
+    this.consultados = 0,
+    this.contestaron = 0,
+    this.switches = const [],
+    this.explicacion = '',
+  });
+
+  factory PruebaDeCredencial.desdeJson(Map<String, dynamic> json) => PruebaDeCredencial(
+        consultados: json['consultados'] as int? ?? 0,
+        contestaron: json['contestaron'] as int? ?? 0,
+        switches: ((json['switches'] as List<dynamic>?) ?? [])
+            .map((fila) => SwitchQueContesto.desdeJson(fila as Map<String, dynamic>))
+            .toList(),
+        explicacion: json['explicacion'] as String? ?? '',
+      );
+}
+
+/// Un aparato que contesto a la prueba.
+class SwitchQueContesto {
+  final String ip;
+  final String nombre;
+  final bool esSwitch;
+  final int puertos;
+
+  const SwitchQueContesto({
+    required this.ip,
+    this.nombre = '',
+    this.esSwitch = false,
+    this.puertos = 0,
+  });
+
+  factory SwitchQueContesto.desdeJson(Map<String, dynamic> json) => SwitchQueContesto(
+        ip: json['ip'] as String? ?? '',
+        nombre: json['nombre'] as String? ?? '',
+        esSwitch: json['esSwitch'] as bool? ?? false,
+        puertos: json['puertos'] as int? ?? 0,
+      );
+}

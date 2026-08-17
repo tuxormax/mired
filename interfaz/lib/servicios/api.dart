@@ -606,6 +606,16 @@ class Api {
   Future<void> borrarCredencial(String clave, int id) =>
       borrar('/api/redes/$clave/credenciales-snmp/$id');
 
+  /// Prueba una credencial contra los aparatos de la red **sin guardarla**.
+  ///
+  /// Es lo que permite configurar SNMP sin saber que es SNMP: se pulsa y el
+  /// servidor contesta cuantos aparatos respondieron.
+  Future<PruebaDeCredencial> probarCredencial(
+      String clave, Map<String, dynamic> credencial) async {
+    final datos = await enviar('/api/redes/$clave/credenciales-snmp/probar', credencial);
+    return PruebaDeCredencial.desdeJson(datos as Map<String, dynamic>);
+  }
+
   // ------------------------------------------------------- controladoras --
 
   Future<List<Controladora>> listarControladoras(String clave) async {
