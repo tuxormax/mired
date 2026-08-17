@@ -114,3 +114,12 @@ camino corto y no borra nada.
 
 **Ver tambien:** [[modulo-reconocimiento]] · [[modulo-topologia-manual]] ·
 [[modulo-aire]] · [[contrato-api]] · [[gotchas]]
+
+## Pendiente
+- **Que se vea por que NO se pudo leer un panel.** Hoy, si el modem tiene TR-064
+  apagado —varios proveedores lo desactivan— o la credencial ya no sirve, el
+  intento queda solo en la bitacora del servidor: quien mira la pantalla ve el
+  mismo mapa de antes y no tiene forma de saber si fallo la clave, si el aparato
+  no habla, o si simplemente no habia nada que leer. Deberia decirse en la ficha
+  del aparato, al lado de su credencial. Salio el 2026-08-17, al guardar la clave
+  del modem de Telmex.

@@ -2,12 +2,20 @@
 
 Proyecto en `/home/tuxor/www/mired`. Descubre los equipos de una red, dibuja el
 mapa y dice en que puerto de que switch esta cada aparato.
-En **v1.20 Rev 50** (2026-08-17).
+En **v1.20 Rev 51** (2026-08-17).
 **PROGRAMA DE ESCRITORIO en Flutter + tres binarios en Go + SQLite, una base por
 red, entregado en un `.deb`.** No hay interfaz web: el programa arranca sus
 servicios al abrirse y los mata al cerrarse.
 **Codigo propio, NO un fork**: Scanopy solo se consulta, nunca se copia.
 Arrancado el 2026-08-12.
+
+## 👉 Por donde se sigue (2026-08-17)
+**Cerrar el viaje de ida y vuelta de la exportacion**: lo exportado ya lleva las
+contrasenas, pero todavia no se puede volver a importar —la hoja del reporte y la
+plantilla no usan los mismos encabezados— y falta el `.zip` para mudar una
+instalacion a otra maquina. Las tres formas de hacerlo, con su coste y la
+recomendacion, en [modulo-importacion](modulo-importacion.md), seccion
+«LO SIGUIENTE».
 
 ## ⚠️ Antes de tocar — pre-flight obligatorio
 0. Leer [gotchas](gotchas.md) — **siempre**, antes de tocar cualquier codigo.

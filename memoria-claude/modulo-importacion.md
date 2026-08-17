@@ -132,13 +132,49 @@ Va en `equipos` y no en `equipos_snmp`: aquella la escribe el propio aparato
 cuando contesta SNMP (su `sysLocation`), esta la escribe una persona, y un switch
 tonto no contesta nada y tambien esta en algun sitio.
 
-## Pendiente
+## LO SIGUIENTE: cerrar el viaje de ida y vuelta (pedido el 2026-08-17)
+**Es la tarea con la que arranca la proxima sesion.** El usuario lo pidio asi:
+«si se exporta el mapa de la red ya sea en archivo .zip para importar en otra
+instalacion o en un excel o csv, o ods, tambien va la contrasena».
+
+Las contrasenas ya van (Rev 50). Lo que falta es que **lo exportado se pueda
+volver a importar**, y hoy no se puede porque las dos hojas no hablan el mismo
+idioma:
+
+| La hoja que se EXPORTA | La plantilla que se IMPORTA |
+|---|---|
+| `Aparato` | `NOMBRE` |
+| `Que es` | `QUE_ES` ✔ (sinonimo) |
+| `Donde esta` | `UBICACION` |
+| `Cuelga de` | `CUELGA_DE` ✔ |
+| `Puerto` | `PUERTO` ✔ |
+| `Acceso`, `Usuario`, `Clave`, `Direccion del panel` | `ACCESO`, `USUARIO`, `CLAVE`, `DIRECCION` |
+| `Ultimo barrido`, `Que tan seguro`, `Como se supo` | *(no existen: se ignoran al importar)* |
+
+Tres formas de cerrarlo, de menos a mas trabajo:
+
+1. **Renombrar los encabezados de la exportacion** a los de la plantilla y
+   agregar los que faltan (`PUERTOS`, `MODELO`, `NOTAS`). Casi gratis: la hoja
+   pasa a ser reporte **y** plantilla a la vez, y el importador ya avisa de las
+   columnas que no entiende. Lo unico feo es que el reporte pierde nombres
+   bonitos («Aparato» pasa a «NOMBRE»).
+2. **Agregar sinonimos al lector** (`APARATO`, `DONDE_ESTA`, `DIRECCION_DEL_PANEL`)
+   y dejar la exportacion como esta. Tambien casi gratis y no afea el reporte;
+   a cambio, la lista de sinonimos crece y hay que acordarse de tocarla cuando
+   cambie una columna.
+3. **El `.zip`** que pidio: un archivo con la hoja dentro —y quiza el PNG del
+   mapa— para mudar una instalacion entera. La escritura del ZIP ya existe
+   (`interfaz/lib/servicios/zip.dart`) y la lectura tambien (`archive/zip` en
+   `internal/importacion/lector.go`, que hoy espera un ODS o un XLSX dentro);
+   habria que aceptar «un zip con una hoja suelta dentro».
+
+Recomendado: **2 + 3**. El reporte se queda legible, el viaje de ida y vuelta
+cierra, y el `.zip` es lo que de verdad pidio para mudar instalaciones.
+
+## Otros pendientes
 - No se importan **enlaces inalambricos**: el WiFi no tiene puertos y la
   plantilla va por `CUELGA_DE` + `PUERTO`. Haria falta una forma de decir «cuelga
   de esta antena por el aire». Ver [[modulo-inalambricos]].
-- No hay **exportar a la plantilla**: hoy la hoja del mapa se exporta con otras
-  columnas ([[modulo-topologia]]), asi que no se puede exportar, corregir en
-  Calc y volver a subir del tirón.
 
 **Ver tambien:** [[modulo-topologia-manual]], [[modulo-topologia]],
 [[ref-categorias]], [[contrato-api]], [[gotchas]]
