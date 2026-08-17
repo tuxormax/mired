@@ -17,7 +17,7 @@ a heredar la AGPL de otro.
 
 ## Estado del desarrollo
 
-Actualizado el **2026-08-15**, en **v1.19 Rev 34**.
+Actualizado el **2026-08-17**, en **v1.19 Rev 39**.
 
 | Fase | Estado | Nota |
 |---|---|---|
@@ -25,7 +25,7 @@ Actualizado el **2026-08-15**, en **v1.19 Rev 34**.
 | 2 — Descubrimiento | ✅ terminada | ARP, ICMP y TCP; puertos, DNS inverso y fabricante por OUI |
 | 3 — Presencia en vivo | ✅ terminada | Barrido rapido, historial de conexiones y agenda por red |
 | 4 — SNMP y capa 2 | ⚠️ hecha, sin probar en equipo real | LLDP, CDP, enlaces entre switches dibujados y controladora UniFi. **Falta probarla contra equipo de verdad** |
-| 5 — El mapa | ✅ terminada | Mapa visual, exportacion a PNG, SVG, PDF y CSV, y **edicion manual del cableado** (modulo 15, v1.15): equipos que ningun escaneo ve, puertos declarados y contradicciones avisadas |
+| 5 — El mapa | ✅ terminada | Mapa visual, exportacion a PNG, SVG, PDF y hoja de calculo (ODS, XLSX y CSV) **guardada donde diga el usuario**, y **edicion manual del cableado** (modulo 15, v1.15): equipos que ningun escaneo ve, puertos declarados y contradicciones avisadas |
 | 6 — Catalogo `.toml` | ✅ terminada | Formato, motor de reconocimiento, 15 definiciones semilla, "proponer definicion" y la **lista unica de categorias** que comparten el catalogo y el alta manual |
 | 7 — Alertas | ✅ terminada | Las 6 reglas detectan y los 4 destinos de aviso funcionan |
 | 8 — Ancho de banda | ✅ terminada | Contadores SNMP por puerto y receptor de flujos: NetFlow v5, NetFlow v9, IPFIX y sFlow |
@@ -78,7 +78,7 @@ de darla por buena** no es opcional en este proyecto.
 nunca se reinicia. No es versionado semántico: X no sube porque un cambio sea
 grande, sube cuando hay un módulo más.
 
-Hoy son **19 módulos** → **v1.19**, y la revisión va por la **34**.
+Hoy son **19 módulos** → **v1.19**, y la revisión va por la **39**.
 
 > Redes · Subredes · Equipos · Escaneo y agenda · Presencia · Mapa de puertos ·
 > Mapa visual · Alertas · Consumo · Inspección profunda · Usuarios · Credenciales

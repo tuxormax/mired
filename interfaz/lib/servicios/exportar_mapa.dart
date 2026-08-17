@@ -4,15 +4,20 @@ import 'dart:ui' as dibujo;
 
 import 'package:flutter/material.dart';
 
+import '../modelos/categorias.dart';
+import '../modelos/modelos.dart';
+import '../modelos/tipos_de_puerto.dart';
 import '../pantallas/mapa_plano.dart';
+import 'hoja_calculo.dart';
 
-/// Este archivo convierte el plano del mapa en los cuatro formatos que se
-/// entregan: PNG, SVG, PDF y CSV.
+/// Este archivo convierte el plano del mapa en los formatos que se entregan:
+/// PNG, SVG, PDF y las hojas de calculo (ODS, XLSX y CSV).
 ///
-/// Los tres primeros salen del **mismo plano** que se ve en pantalla, no de un
+/// Los tres dibujos salen del **mismo plano** que se ve en pantalla, no de un
 /// recalculo aparte, para que el archivo guardado y la pantalla no puedan
-/// discrepar. El CSV es el unico que sale de los datos crudos, porque una hoja
-/// de calculo no quiere posiciones sino renglones.
+/// discrepar. Las hojas de calculo no quieren posiciones sino renglones, asi que
+/// no usan el plano —pero si el **mismo arbol**, [ArbolDeclarado], que decide
+/// quien cuelga de quien.
 ///
 /// El PNG lo dibuja Flutter. El SVG y el PDF se escriben aqui a mano, byte por
 /// byte, sin biblioteca de terceros: son cajas, lineas y texto, que es la parte
@@ -458,77 +463,477 @@ String _colorPdf(Color color) {
   return '${_n(rojo)} ${_n(verde)} ${_n(azul)}';
 }
 
-// -------------------------------------------------------------------- CSV ---
+// ------------------------------------------------------- hoja de calculo ---
 
-/// csvDelMapa saca los renglones para una hoja de calculo.
+/// tablasDelMapa arma las DOS tablas del mapa: los aparatos y las conexiones.
 ///
-/// Los equipos sin ubicar van tambien, marcados como tales. Un inventario que
-/// calla lo que no supo ubicar se lee como si estuviera completo.
+/// Son dos y no una porque hablan de cosas distintas. Una sola tabla obligaba a
+/// meter en el mismo renglon un aparato, un puerto y un cable, y a dejar en
+/// blanco lo que no aplicara: la mitad de las celdas vacias querian decir «no
+/// aplica» y la otra mitad «no se sabe», sin forma de distinguirlas. Ademas cada
+/// cable salia DOS veces, una por cada punta, porque las dos puntas son puertos.
 ///
-/// **Empieza diciendo de cuando son los datos**, igual que los otros tres
-/// formatos. Es la regla del proyecto: todo reporte que salga de MiRed dice de
-/// que momento es, porque un archivo suelto sin fecha, a la semana, ya no se
-/// sabe si sirve. Va en su propio renglon y con un renglon en blanco detras, para
-/// que la hoja de calculo siga encontrando los encabezados como una fila.
-String csvDelMapa(DatosMapa datos, [EncabezadoMapa? encabezado]) {
-  final renglones = <String>[
-    if (encabezado != null) ...[
-      _paraCsv('${encabezado.titulo} — ${encabezado.subtitulo}'),
-      '',
-    ],
-    'switch,ip_switch,puerto,equipo,ip_equipo,mac,certeza,equipos_en_el_puerto,origen_del_dato',
+/// Las dos salen del mismo [ArbolDeclarado] que dibuja el mapa y **en el mismo
+/// orden en que el mapa se lee**: de la raiz hacia afuera, y lo que no se supo
+/// ubicar al final. Asi la hoja y el dibujo se recorren igual.
+List<Tabla> tablasDelMapa(DatosMapa datos) {
+  final arbol = ArbolDeclarado(datos);
+  final orden = _aparatosEnOrdenDelMapa(datos, arbol);
+  return [
+    _tablaDeAparatos(datos, arbol, orden),
+    _tablaDeConexiones(datos, arbol, orden),
   ];
-  for (final puerto in datos.mapa.puertos) {
-    renglones.add([
-      puerto.switchNombre,
-      puerto.switchIp,
-      puerto.puerto,
-      puerto.equipoNombre,
-      puerto.equipoIp,
-      puerto.mac,
-      puerto.confirmado ? 'confirmado' : 'grupo',
-      '${puerto.cuantosEnPuerto}',
-      'snmp',
-    ].map(_paraCsv).join(','));
-  }
-
-  // Lo declarado a mano va con su propia columna de origen. Mezclarlo con lo
-  // medido sin decir cual es cual convertiria la hoja en un inventario que
-  // parece comprobado y no lo esta.
-  for (final puerto in datos.topologia.puertos) {
-    final equipo = datos.equipoPorId(puerto.equipoId);
-    final cable = datos.topologia.enlaceDe(puerto.id);
-    final soyOrigen = cable != null && cable.puertoOrigenId == puerto.id;
-    final otroLado = cable == null
-        ? ''
-        : (soyOrigen ? cable.destinoNombre : cable.origenNombre);
-    final destino = datos.equipoPorId(
-        cable == null ? null : (soyOrigen ? cable.equipoDestinoId : cable.equipoOrigenId));
-
-    renglones.add([
-      equipo?.comoSeLlama ?? '',
-      equipo?.ip ?? '',
-      puerto.tipo == 'wan' ? 'WAN' : 'puerto ${puerto.numero}',
-      otroLado,
-      destino?.ip ?? '',
-      destino?.mac ?? '',
-      cable == null ? 'puerto libre' : 'declarado a mano',
-      '',
-      cable?.origenDato ?? 'manual',
-    ].map(_paraCsv).join(','));
-  }
-
-  for (final equipo in datos.sinUbicar) {
-    renglones.add([
-      '', '', '', equipo.comoSeLlama, equipo.ip, equipo.mac, 'sin ubicar', '', '',
-    ].map(_paraCsv).join(','));
-  }
-  return renglones.join('\n');
 }
 
-String _paraCsv(String valor) => valor.contains(',') || valor.contains('"')
-    ? '"${valor.replaceAll('"', '""')}"'
-    : valor;
+/// csvDelMapa deja las dos tablas en un texto plano, una tras otra.
+///
+/// **Empieza diciendo de cuando son los datos**, igual que los otros formatos.
+/// Es la regla del proyecto: todo reporte que salga de MiRed dice de que momento
+/// es, porque un archivo suelto sin fecha, a la semana, ya no se sabe si sirve.
+String csvDelMapa(DatosMapa datos, [EncabezadoMapa? encabezado]) =>
+    csvDeTablas(tablasDelMapa(datos), titulo: _tituloDeUnaLinea(encabezado));
+
+/// odsDelMapa y xlsxDelMapa entregan lo mismo con una pestana por tabla.
+Uint8List odsDelMapa(DatosMapa datos, EncabezadoMapa encabezado, DateTime momento) =>
+    odsDeTablas(tablasDelMapa(datos), momento, titulo: _tituloDeUnaLinea(encabezado));
+
+Uint8List xlsxDelMapa(DatosMapa datos, EncabezadoMapa encabezado, DateTime momento) =>
+    xlsxDeTablas(tablasDelMapa(datos), momento, titulo: _tituloDeUnaLinea(encabezado));
+
+String _tituloDeUnaLinea(EncabezadoMapa? encabezado) =>
+    encabezado == null ? '' : '${encabezado.titulo} — ${encabezado.subtitulo}';
+
+// --------------------------------------------------- la tabla de aparatos ---
+
+Tabla _tablaDeAparatos(DatosMapa datos, ArbolDeclarado arbol, List<Equipo> orden) =>
+    Tabla(
+      nombre: 'Aparatos',
+      explicacion: 'Un renglon por aparato: que es, de donde cuelga y que tan '
+          'seguro es ese dato.',
+      encabezados: const [
+        'Aparato',
+        'Que es',
+        'IP',
+        'MAC',
+        'Ultimo barrido',
+        'Conexion',
+        'Cuelga de',
+        'Puerto',
+        'Que tan seguro',
+        'Como se supo',
+      ],
+      filas: [
+        for (final equipo in orden) _filaDeAparato(datos, arbol, equipo),
+      ],
+    );
+
+List<String> _filaDeAparato(DatosMapa datos, ArbolDeclarado arbol, Equipo equipo) {
+  final donde = _dondeCuelga(datos, arbol, equipo);
+  return [
+    equipo.comoSeLlama,
+    _queEs(equipo),
+    equipo.ip,
+    equipo.mac,
+    _ultimoBarrido(equipo),
+    _comoSeConecta(equipo, donde),
+    donde.cuelgaDe,
+    donde.puerto,
+    donde.seguridad,
+    donde.comoSeSupo,
+  ];
+}
+
+/// _Ubicacion es de donde cuelga un aparato, con la procedencia del dato pegada.
+///
+/// Van juntos a proposito: decir «cuelga del puerto LAN 2» sin decir si eso lo
+/// midio un switch o lo tecleo alguien convierte una suposicion razonable en un
+/// hecho, que es como se ensucia un inventario.
+class _Ubicacion {
+  const _Ubicacion({
+    this.cuelgaDe = '',
+    this.puerto = '',
+    this.seguridad = '',
+    this.comoSeSupo = '',
+    this.porElAire = false,
+    this.porCable = false,
+  });
+
+  final String cuelgaDe;
+  final String puerto;
+  final String seguridad;
+  final String comoSeSupo;
+  final bool porElAire;
+  final bool porCable;
+}
+
+_Ubicacion _dondeCuelga(DatosMapa datos, ArbolDeclarado arbol, Equipo equipo) {
+  // 1. Por el aire. El WiFi no tiene puertos: se dice de que antena cuelga y por
+  //    que red, que es todo lo que hay que saber.
+  final aire = datos.topologia.antenaDe(equipo.id);
+  if (aire != null) {
+    final antena = datos.equipoPorId(aire.antenaId);
+    return _Ubicacion(
+      cuelgaDe: antena?.comoSeLlama ?? aire.antenaNombre,
+      puerto: aire.red.isEmpty ? 'Por el aire' : 'WiFi «${aire.red}»',
+      seguridad: aire.senalDbm == null
+          ? 'Colgado de la antena'
+          : 'Colgado de la antena (${aire.senalDbm} dBm)',
+      comoSeSupo: _conMayuscula(aire.comoSeSupo),
+      porElAire: true,
+    );
+  }
+
+  // 2. Por un cable declarado. Se busca el cable que lo une con su padre en el
+  //    arbol, que es el mismo que dibuja la linea en el mapa.
+  final cable = _cableHaciaSuPadre(datos, arbol, equipo);
+  if (cable != null) {
+    final padreId = arbol.padreDe(equipo.id) ??
+        arbol.otroExtremo(cable.cable, equipo.id);
+    final padre = datos.equipoPorId(padreId);
+    return _Ubicacion(
+      cuelgaDe: padre?.comoSeLlama ?? cable.cable.origenNombre,
+      puerto: cable.puertoDelPadre,
+      seguridad: 'Puerto exacto',
+      comoSeSupo: _comoSeSupoElCable(cable.cable.origenDato),
+      porCable: true,
+    );
+  }
+
+  // 3. Lo que reporto un switch por SNMP.
+  for (final puerto in datos.mapa.puertos) {
+    if (puerto.equipoId != equipo.id) continue;
+    return _Ubicacion(
+      cuelgaDe: puerto.switchIp.isEmpty
+          ? puerto.switchNombre
+          : '${puerto.switchNombre} (${puerto.switchIp})',
+      puerto: puerto.puerto,
+      seguridad: puerto.confirmado
+          ? 'Puerto exacto'
+          : 'En grupo con ${puerto.cuantosEnPuerto - 1} mas',
+      comoSeSupo: 'SNMP',
+      porCable: true,
+    );
+  }
+
+  // 4. Es la raiz: de el cuelga la red, no cuelga de nadie. No es lo mismo que
+  //    «sin ubicar», y confundirlos haria parecer perdido al modem de la casa.
+  if (arbol.raices.any((raiz) => raiz.id == equipo.id)) {
+    return _Ubicacion(
+      cuelgaDe: 'Raiz de la red',
+      seguridad: 'Es por donde entra la red',
+      comoSeSupo: equipo.origen == 'manual' ? 'Declarado a mano' : 'Escaneo',
+    );
+  }
+
+  // 5. Se sabe que existe, no de donde cuelga. Se dice, no se esconde: un
+  //    inventario que calla lo que no supo ubicar se lee como si estuviera
+  //    completo.
+  return const _Ubicacion(
+    cuelgaDe: 'Sin ubicar',
+    seguridad: 'No se sabe donde esta conectado',
+  );
+}
+
+/// _CableConPuerto es un cable y como se llama el puerto del padre.
+class _CableConPuerto {
+  const _CableConPuerto(this.cable, this.puertoDelPadre);
+  final EnlaceFisico cable;
+  final String puertoDelPadre;
+}
+
+/// _cableHaciaSuPadre busca por que cable cuelga el aparato del de arriba.
+///
+/// Un aparato con puertos propios cuelga por uno de los suyos; uno de punta —una
+/// PC, una TV— no declaro ninguno, y entonces el cable lo declaro el del otro
+/// lado apuntandole al aparato entero.
+_CableConPuerto? _cableHaciaSuPadre(
+    DatosMapa datos, ArbolDeclarado arbol, Equipo equipo) {
+  final padreId = arbol.padreDe(equipo.id);
+
+  for (final cable in datos.topologia.enlaces) {
+    final origenEquipo = datos.topologia.equipoDelPuerto(cable.puertoOrigenId);
+    final destinoEquipo = cable.puertoDestinoId != null
+        ? datos.topologia.equipoDelPuerto(cable.puertoDestinoId!)
+        : cable.equipoDestinoId;
+
+    final soyDestino = destinoEquipo == equipo.id;
+    final soyOrigen = origenEquipo == equipo.id;
+    if (!soyDestino && !soyOrigen) continue;
+
+    final otro = soyDestino ? origenEquipo : destinoEquipo;
+    if (padreId != null) {
+      // Con padre conocido se exige que sea EL cable que lo une a el.
+      if (otro != padreId) continue;
+    } else if (!soyDestino) {
+      // Sin padre en el arbol solo cuelga de un cable que le APUNTE: es un
+      // aparato de punta y el cable lo declaro el del otro lado. Un cable que
+      // SALE de el no lo cuelga de nadie —lo cuelga a el del otro—, y tomarlo
+      // por bueno dejaba al modem de la casa «colgando» del switch que alimenta,
+      // con el mapa dibujando exactamente lo contrario.
+      continue;
+    }
+
+    final puertoDelPadre = datos.topologia
+        .puertoPorId(soyDestino ? cable.puertoOrigenId : cable.puertoDestinoId);
+    if (puertoDelPadre == null) continue;
+    return _CableConPuerto(cable, puertoDelPadre.etiqueta);
+  }
+  return null;
+}
+
+/// _aparatosEnOrdenDelMapa recorre el arbol como se lee el dibujo.
+///
+/// De la raiz hacia afuera y, en cada aparato, primero lo que cuelga de sus
+/// puertos y despues lo que cuelga por el aire, que es el mismo orden en que el
+/// plano apila las cajas. Lo que no esta en el arbol va detras, y lo que no se
+/// supo ubicar, al final del todo.
+List<Equipo> _aparatosEnOrdenDelMapa(DatosMapa datos, ArbolDeclarado arbol) {
+  final vistos = <int>{};
+  final orden = <Equipo>[];
+
+  void recorrer(Equipo equipo) {
+    if (!vistos.add(equipo.id)) return;
+    orden.add(equipo);
+
+    for (final puerto in datos.topologia.puertosDe(equipo.id)) {
+      final cable = datos.topologia.enlaceDe(puerto.id);
+      if (cable == null) continue;
+      final otro = arbol.otroExtremo(cable, equipo.id);
+      if (otro == null) continue;
+      // Cuelga de este si el arbol lo dice, o si es un aparato de punta —sin
+      // puertos propios— que no es cabecera de nada.
+      if (arbol.padreDe(otro) != equipo.id && arbol.esCabecera(otro)) continue;
+      final hijo = datos.equipoPorId(otro);
+      if (hijo != null) recorrer(hijo);
+    }
+
+    for (final cliente in arbol.clientesDe(equipo.id)) {
+      final hijo = datos.equipoPorId(cliente.equipoId);
+      if (hijo != null) recorrer(hijo);
+    }
+  }
+
+  for (final raiz in arbol.raices) {
+    recorrer(raiz);
+  }
+
+  final sinUbicar = datos.sinUbicar.map((equipo) => equipo.id).toSet();
+  for (final equipo in datos.equipos) {
+    if (vistos.contains(equipo.id) || sinUbicar.contains(equipo.id)) continue;
+    vistos.add(equipo.id);
+    orden.add(equipo);
+  }
+  for (final equipo in datos.sinUbicar) {
+    if (vistos.add(equipo.id)) orden.add(equipo);
+  }
+  return orden;
+}
+
+// ------------------------------------------------- la tabla de conexiones ---
+
+/// _tablaDeConexiones saca un renglon por conexion, **cada cable una sola vez**.
+///
+/// Antes cada cable salia dos veces, una por punta, porque la tabla recorria
+/// puertos: de cinco cables salian ocho renglones y no habia como saber que
+/// «dvr → switch» y «switch → dvr» eran el mismo. Aqui el cable se apunta cuando
+/// se emite y no se repite; como el recorrido va de la raiz hacia afuera, la
+/// punta que queda a la izquierda es siempre la de arriba, igual que en el mapa.
+///
+/// Los puertos libres tambien salen: son la mitad de la utilidad de esta hoja
+/// cuando hay que conectar algo nuevo.
+Tabla _tablaDeConexiones(
+    DatosMapa datos, ArbolDeclarado arbol, List<Equipo> orden) {
+  final filas = <List<String>>[];
+  final cablesPuestos = <int>{};
+  final puertosSnmpPuestos = <String>{};
+
+  void puertosSnmpDe(int equipoId) {
+    for (final puerto in datos.mapa.puertos) {
+      if (puerto.switchId != equipoId) continue;
+      final clave = '${puerto.switchId}|${puerto.indice}|${puerto.mac}';
+      if (!puertosSnmpPuestos.add(clave)) continue;
+      filas.add(_filaSnmp(puerto));
+    }
+  }
+
+  for (final equipo in orden) {
+    // Los puertos que alguien conto mirando el aparato.
+    for (final puerto in datos.topologia.puertosDe(equipo.id)) {
+      final cable = datos.topologia.enlaceDe(puerto.id);
+      if (cable == null) {
+        filas.add([
+          equipo.comoSeLlama,
+          puerto.etiqueta,
+          '',
+          '',
+          'Libre',
+          _velocidad(puerto.velocidadMbps),
+          'Declarado a mano',
+        ]);
+        continue;
+      }
+      if (!cablesPuestos.add(cable.id)) continue; // ya salio por la otra punta
+
+      final otroId = arbol.otroExtremo(cable, equipo.id);
+      final otro = datos.equipoPorId(otroId);
+      final puertoDelOtro = datos.topologia.puertoPorId(
+          cable.puertoOrigenId == puerto.id
+              ? cable.puertoDestinoId
+              : cable.puertoOrigenId);
+      filas.add([
+        equipo.comoSeLlama,
+        puerto.etiqueta,
+        otro?.comoSeLlama ??
+            (cable.puertoOrigenId == puerto.id
+                ? cable.destinoNombre
+                : cable.origenNombre),
+        // Sin puerto declarado al otro lado, un aparato de punta entra por su
+        // unica toma. No es suponer: se conecta por un cable.
+        puertoDelOtro?.etiqueta ??
+            (otroId != null && datos.topologia.puertosDe(otroId).isEmpty
+                ? puertoUnicoDeUnEquipoFinal
+                : ''),
+        'Ocupado',
+        _velocidad(puerto.velocidadMbps),
+        _comoSeSupoElCable(cable.origenDato),
+      ]);
+    }
+
+    // Lo que cuelga de este aparato por el aire.
+    for (final cliente in arbol.clientesDe(equipo.id)) {
+      final colgado = datos.equipoPorId(cliente.equipoId);
+      filas.add([
+        equipo.comoSeLlama,
+        cliente.red.isEmpty ? 'Por el aire' : 'WiFi «${cliente.red}»',
+        colgado?.comoSeLlama ?? cliente.equipoNombre,
+        '',
+        cliente.senalDbm == null
+            ? 'Por el aire'
+            : 'Por el aire (${cliente.senalDbm} dBm)',
+        '',
+        _conMayuscula(cliente.comoSeSupo),
+      ]);
+    }
+
+    puertosSnmpDe(equipo.id);
+  }
+
+  // Los switches que solo conoce el SNMP y que no entraron en el recorrido.
+  for (final puerto in datos.mapa.puertos) {
+    final clave = '${puerto.switchId}|${puerto.indice}|${puerto.mac}';
+    if (puertosSnmpPuestos.contains(clave)) continue;
+    puertosSnmpPuestos.add(clave);
+    filas.add(_filaSnmp(puerto));
+  }
+
+  // Los cables entre switches que se anunciaron por LLDP o CDP.
+  for (final enlace in datos.mapa.enlacesUnicos) {
+    filas.add([
+      enlace.enlace.equipoNombre,
+      enlace.enlace.interfazLocal,
+      enlace.enlace.vecinoNombre,
+      enlace.enlace.vecinoPuerto,
+      'Enlace entre switches',
+      '',
+      enlace.origenes.map((origen) => origen.toUpperCase()).join(' y '),
+    ]);
+  }
+
+  return Tabla(
+    nombre: 'Conexiones',
+    explicacion: 'Un renglon por conexion, cada cable una sola vez. Los puertos '
+        'libres tambien salen.',
+    encabezados: const [
+      'De',
+      'Por',
+      'A',
+      'Entra por',
+      'Estado',
+      'Velocidad',
+      'Como se supo',
+    ],
+    filas: filas,
+  );
+}
+
+List<String> _filaSnmp(PuertoDeSwitch puerto) => [
+      puerto.switchNombre,
+      puerto.puerto,
+      // Cuando el switch reporta una MAC que no es de ningun aparato conocido se
+      // dice asi, con la MAC a la vista: es el hilo del que se tira para
+      // averiguar que hay ahi.
+      puerto.equipoNombre.isNotEmpty
+          ? puerto.equipoNombre
+          : (puerto.mac.isEmpty ? '' : 'Sin identificar (${puerto.mac})'),
+      '',
+      puerto.confirmado
+          ? 'Ocupado'
+          : 'Compartido por ${puerto.cuantosEnPuerto} aparatos',
+      _velocidad(puerto.velocidadMbps),
+      'SNMP',
+    ];
+
+// ------------------------------------------------------------------ apoyo ---
+
+/// _queEs dice que clase de aparato es, en cristiano.
+///
+/// Primero lo que se reconocio («Impresora HP»), y si no, la categoria de la
+/// lista unica («Impresora»). Nunca la clave interna: `punto_acceso` no es
+/// castellano.
+String _queEs(Equipo equipo) {
+  if (equipo.tipo.isNotEmpty) return equipo.tipo;
+  final categoria = buscarCategoria(equipo.categoria);
+  if (categoria != null) return _conMayuscula(categoria.singular);
+  return equipo.fabricante;
+}
+
+/// _ultimoBarrido no dice «en linea»: dice si contesto la ultima vez que se
+/// miro.
+///
+/// La diferencia importa cuando el archivo se lee tres semanas despues. Y un
+/// aparato declarado a mano al que nunca se le paso un barrido no «no
+/// responde»: es que nadie le ha preguntado.
+String _ultimoBarrido(Equipo equipo) {
+  if (equipo.presente) return 'Respondio';
+  if (equipo.origen == 'manual' && equipo.ultimaVez.isEmpty) return 'Sin comprobar';
+  return 'No respondio';
+}
+
+String _comoSeConecta(Equipo equipo, _Ubicacion donde) {
+  if (donde.porElAire || equipo.conexion == 'wifi') return 'WiFi';
+  if (donde.porCable || equipo.conexion == 'cable') return 'Cable';
+  return '';
+}
+
+/// _comoSeSupoElCable traduce la procedencia del dato.
+///
+/// Lo tecleado y lo medido no se presentan igual: eso es lo que separa un
+/// inventario de una suposicion.
+String _comoSeSupoElCable(String origenDato) {
+  switch (origenDato) {
+    case 'manual':
+      return 'Declarado a mano';
+    case 'snmp':
+      return 'SNMP';
+    case 'lldp':
+      return 'LLDP';
+    case 'cdp':
+      return 'CDP';
+    case 'inferido':
+      return 'Deducido por conteo de MAC';
+    default:
+      return _conMayuscula(origenDato);
+  }
+}
+
+String _velocidad(int? mbps) {
+  if (mbps == null || mbps <= 0) return '';
+  if (mbps % 1000 == 0) return '${mbps ~/ 1000} Gbps';
+  return '$mbps Mbps';
+}
+
+String _conMayuscula(String texto) =>
+    texto.isEmpty ? texto : texto[0].toUpperCase() + texto.substring(1);
 
 // ------------------------------------------------------------------ apoyo ---
 

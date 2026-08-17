@@ -116,23 +116,34 @@ quietly vanish from the map.
 
 ### Saving the map
 
-The download icon on the map screen. Four formats:
+The download icon on the map screen. Six formats:
 
 | Format | What for |
 |---|---|
 | **PNG** | An image, to drop into a document or send over chat |
 | **SVG** | Vector: open it in Inkscape to move boxes around or annotate it |
 | **PDF** | To print and pin up, or to email |
-| **CSV** | For a spreadsheet, one row per port |
+| **ODS** | A LibreOffice spreadsheet, with two tabs |
+| **XLSX** | The same for Excel |
+| **CSV** | Plain text: both tables, one after the other |
 
-The file **lands on your machine and nowhere else**. MiRed uploads it to no
-cloud and sends it to no one: the browser builds it and it drops into your
-downloads folder like any other download. If you want somebody to have it, you
-attach it yourself.
+The three spreadsheets carry **two tables, not one**:
 
-The three drawing formats carry the site name and the date across the top —
-an undated network diagram is worthless a week later, because you can no longer
-tell which of the three is the current one.
+- **Aparatos** (devices) — one row per device: what it is, its IP and MAC, what
+  it hangs off, through which port, how certain that is and where it came from.
+- **Conexiones** (links) — one row per link, **each cable exactly once**. Free
+  ports are listed too, and so is anything connected over the air, which has no
+  port at all.
+
+Saving opens your desktop's save dialog and **you pick the folder and the
+name**. The file **stays on your machine and nowhere else**: MiRed uploads it to
+no cloud and sends it to no one. If you want somebody to have it, you attach it
+yourself.
+
+All six carry the site name and **the date the data was measured** across the
+top — not the date it was exported. An undated network diagram is worthless a
+week later, because you can no longer tell which of the three is the current
+one.
 
 ## 6. Bandwidth
 

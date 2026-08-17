@@ -9,6 +9,7 @@ import '../servicios/api.dart';
 import '../servicios/descarga.dart';
 import '../servicios/exportar_mapa.dart';
 import '../servicios/frescura.dart';
+import '../servicios/hoja_calculo.dart';
 import '../widgets/mensajes.dart';
 import 'equipo.dart';
 import 'mapa_plano.dart';
@@ -51,7 +52,7 @@ class PantallaMapa extends StatefulWidget {
   State<PantallaMapa> createState() => _PantallaMapaState();
 }
 
-enum _Formato { png, svg, pdf, csv, portapapeles }
+enum _Formato { png, svg, pdf, ods, xlsx, csv, portapapeles }
 
 class _PantallaMapaState extends State<PantallaMapa> {
   late Future<DatosMapa> _datos;
@@ -251,7 +252,10 @@ class _PantallaMapaState extends State<PantallaMapa> {
     if (creado != null) _recargar();
   }
 
-  /// _exportar arma el archivo y se lo entrega al navegador.
+  /// _exportar arma el archivo y pregunta al usuario donde guardarlo.
+  ///
+  /// El sitio lo elige quien exporta, en el cuadro de guardar del escritorio: un
+  /// mapa suele ir a la carpeta del cliente o del sitio, no a la de descargas.
   ///
   /// El plano de la exportacion se arma con los colores fijos de exportar, no
   /// con los del tema: lo que se guarda o se imprime va siempre sobre blanco,
@@ -288,29 +292,42 @@ class _PantallaMapaState extends State<PantallaMapa> {
         return;
       }
 
-      final plano = armarPlano(datos, coloresParaExportar);
-
       var donde = '';
       switch (formato) {
         case _Formato.png:
-          donde = await descargarArchivo(
-              '$base.png', 'image/png', await pngDelPlano(plano, encabezado));
+          donde = await descargarArchivo('$base.png', 'image/png',
+              await pngDelPlano(_planoParaExportar(datos), encabezado));
         case _Formato.svg:
-          donde = await descargarArchivo('$base.svg', 'image/svg+xml',
-              Uint8List.fromList(utf8.encode(svgDelPlano(plano, encabezado))));
-        case _Formato.pdf:
           donde = await descargarArchivo(
-              '$base.pdf', 'application/pdf', pdfDelPlano(plano, encabezado));
+              '$base.svg',
+              'image/svg+xml',
+              Uint8List.fromList(
+                  utf8.encode(svgDelPlano(_planoParaExportar(datos), encabezado))));
+        case _Formato.pdf:
+          donde = await descargarArchivo('$base.pdf', 'application/pdf',
+              pdfDelPlano(_planoParaExportar(datos), encabezado));
+        case _Formato.ods:
+          donde = await descargarArchivo(
+              '$base.ods',
+              'application/vnd.oasis.opendocument.spreadsheet',
+              odsDelMapa(datos, encabezado, momento));
+        case _Formato.xlsx:
+          donde = await descargarArchivo(
+              '$base.xlsx',
+              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              xlsxDelMapa(datos, encabezado, momento));
         case _Formato.csv:
+          // Con marca de codificacion: sin ella Excel abre el archivo con la
+          // codificacion local del equipo y los acentos salen rotos.
           donde = await descargarArchivo('$base.csv', 'text/csv;charset=utf-8',
-              Uint8List.fromList(utf8.encode(csvDelMapa(datos, encabezado))));
+              csvEnBytes(csvDelMapa(datos, encabezado)));
         case _Formato.portapapeles:
           break; // Resuelto arriba.
       }
 
-      // En el programa de escritorio se dice DONDE quedo. Un archivo guardado en
-      // un sitio que el usuario no sabe cual es no sirve de nada; en web no hace
-      // falta, porque el navegador ya lo anuncia a su manera.
+      // Se dice DONDE quedo aunque lo haya elegido el usuario: el cuadro pudo
+      // haberse abierto en otra carpeta de la que creia. Vacio significa que
+      // cerro el cuadro sin guardar, y cancelar no se avisa: ya lo sabe.
       if (donde.isNotEmpty && mounted) {
         mensajeAviso(context, 'Guardado en $donde');
       }
@@ -320,6 +337,13 @@ class _PantallaMapaState extends State<PantallaMapa> {
       if (mounted) setState(() => _exportando = false);
     }
   }
+
+  /// _planoParaExportar arma el dibujo con los colores fijos de exportar.
+  ///
+  /// Solo lo necesitan los tres formatos que dibujan. Las hojas de calculo no
+  /// llevan posiciones, y calcularselas seria trabajo tirado.
+  Plano _planoParaExportar(DatosMapa datos) =>
+      armarPlano(datos, coloresParaExportar);
 
   /// _enPalabras deja una fecha ISO legible, sin la T ni la zona horaria.
   static String _enPalabras(String iso) {
@@ -375,12 +399,31 @@ class _PantallaMapaState extends State<PantallaMapa> {
                 ),
                 PopupMenuDivider(),
                 PopupMenuItem(
+                  value: _Formato.ods,
+                  child: ListTile(
+                    dense: true,
+                    leading: Icon(Icons.table_chart_outlined),
+                    title: Text('ODS'),
+                    subtitle: Text('LibreOffice Calc: aparatos y conexiones, '
+                        'en dos hojas'),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: _Formato.xlsx,
+                  child: ListTile(
+                    dense: true,
+                    leading: Icon(Icons.grid_on_outlined),
+                    title: Text('XLSX'),
+                    subtitle: Text('Excel: aparatos y conexiones, en dos hojas'),
+                  ),
+                ),
+                PopupMenuItem(
                   value: _Formato.csv,
                   child: ListTile(
                     dense: true,
                     leading: Icon(Icons.table_view_outlined),
                     title: Text('CSV'),
-                    subtitle: Text('Para una hoja de calculo'),
+                    subtitle: Text('Texto plano: las dos tablas, una tras otra'),
                   ),
                 ),
                 PopupMenuItem(

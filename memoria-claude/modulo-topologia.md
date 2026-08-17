@@ -54,14 +54,69 @@ El calculo de posiciones y el pintor viven en
 comparten el dibujo y la exportacion: si cada uno calculara lo suyo, el archivo
 guardado y la pantalla podrian discrepar.
 
-`interfaz/lib/servicios/exportar_mapa.dart` genera los cuatro formatos. El PNG lo
-dibuja Flutter con el mismo pintor; el **SVG y el PDF se escriben a mano**, sin
+`interfaz/lib/servicios/exportar_mapa.dart` genera los formatos. El PNG lo dibuja
+Flutter con el mismo pintor; el **SVG y el PDF se escriben a mano**, sin
 biblioteca de terceros —son cajas, lineas y texto, la parte facil de los dos
 formatos—. El PDF usa las fuentes base 14 (Helvetica), asi que no incrusta
 fuentes y pesa unos 4 KB.
 
-Todo se arma **en el navegador** y se baja al equipo: no sube a ninguna nube ni
-pasa por el servidor. Ver [[mired]].
+### La hoja de calculo son DOS tablas (cambiado el 2026-08-17)
+No una. Cada tabla tiene **un solo sujeto**, y esa es toda la idea:
+
+| Hoja | Un renglon es | Columnas |
+|---|---|---|
+| **Aparatos** | un aparato | Aparato · Que es · IP · MAC · Ultimo barrido · Conexion · Cuelga de · Puerto · Que tan seguro · Como se supo |
+| **Conexiones** | una conexion | De · Por · A · Entra por · Estado · Velocidad · Como se supo |
+
+Reglas que no se pueden romper sin volver al problema de origen:
+- **Cada cable UNA vez.** Se apunta el `id` del cable al emitirlo. Recorrer
+  puertos lo sacaba dos veces —las dos puntas son puertos— y nadie podia saber
+  que «dvr → switch» y «switch → dvr» eran el mismo.
+- **Los puertos se llaman como en el mapa**: `LAN 3`, `WAN 1`, via
+  `nombreDePuerto`. Nunca «puerto 3».
+- **Lo inalambrico va en Conexiones**, aunque la hoja se llame asi: el WiFi no
+  tiene puertos y una tabla que recorriera puertos lo perderia entero.
+- **Los puertos libres y lo sin ubicar salen**, diciendolo en su columna. Una
+  hoja que calla lo que no supo se lee como si estuviera completa.
+- **Las dos tablas salen del mismo `ArbolDeclarado` que dibuja el plano**, y en
+  el orden en que el mapa se lee. Por eso la clase es publica.
+
+Cuidado con la raiz: un aparato sin padre en el arbol **solo cuelga de un cable
+que le APUNTE**. Un cable que sale de el lo cuelga a el del otro, no al reves;
+tomarlo por bueno ponia al modem colgando del switch que alimenta.
+
+`interfaz/lib/servicios/hoja_calculo.dart` las entrega en tres formatos —**ODS y
+XLSX con una pestana por tabla**, CSV con las dos seguidas— y
+`interfaz/lib/servicios/zip.dart` arma el ZIP a mano (metodo «guardado», sin
+comprimir, con su CRC-32), porque un ODS y un XLSX son un ZIP con XML dentro. El
+CSV sale con marca de codificacion o Excel rompe los acentos. Caso de prueba
+fijo: `interfaz/test/red_de_casa.dart`.
+
+Todo se arma **dentro del programa** y se guarda en el equipo: no sube a ninguna
+nube ni pasa por el servidor. Ver [[mired]].
+
+### Donde se guarda lo exportado (cambiado el 2026-08-17)
+Lo elige **el usuario**, en el cuadro de guardar del escritorio. Antes se
+escribia derecho en la carpeta de descargas y solo se avisaba de la ruta:
+funcionaba, pero obligaba a ir a buscar el archivo y moverlo a mano al sitio
+donde de verdad iba (la carpeta del cliente, del sitio).
+
+`interfaz/lib/servicios/descarga_generica.dart` abre el cuadro con
+**`file_selector`**, el plugin oficial del equipo de Flutter (BSD, sin
+contagio de licencia). Es la **unica dependencia de terceros de la exportacion**
+—el SVG y el PDF se siguen escribiendo a mano— y se admitio porque un cuadro de
+guardar nativo no se escribe a mano: es el dialogo GTK del sistema, con los
+marcadores del usuario y la confirmacion de sobrescritura incluidos. Viaja en el
+`.deb` como `usr/share/mired/escritorio/lib/libfile_selector_linux_plugin.so`.
+
+Tres detalles que ya estan resueltos y conviene no volver a romper:
+- **Cancelar devuelve cadena vacia, no excepcion.** Cerrar el cuadro sin guardar
+  no es un error y no debe acabar en el modal de problema.
+- **La extension se repone** si el usuario la borra al teclear el nombre: GTK no
+  la pone sola y el archivo quedaria sin abrir con nada.
+- **El titulo del cuadro sale en ingles** («Save File»): lo lleva escrito el
+  plugin y la API no deja cambiarlo. Lo unico de ese cuadro que decide MiRed es
+  la etiqueta del filtro, que si va en espanol.
 
 ## Pendiente
 - **Nunca se ha probado contra un switch real.** Toda la logica esta cubierta por

@@ -369,15 +369,20 @@ Offset finDeEtiqueta(LineaPlano linea) =>
 final ColorScheme coloresParaExportar =
     ColorScheme.fromSeed(seedColor: const Color(0xFF1565C0), brightness: Brightness.light);
 
-/// _ArbolDeclarado ordena lo que se declaro a mano como lo que es: un arbol.
+/// ArbolDeclarado ordena lo que se declaro a mano como lo que es: un arbol.
 ///
 /// El cable que alguien tecleo dice quien cuelga de quien. **El padre es el
 /// aparato del que SALE el cable**, que es como lo declaro la persona: se para
 /// en el modem, toca su puerto y elige el switch. Con eso alcanza para dibujar
 /// cada aparato una sola vez, y para que el puerto por donde sube el cable se
 /// vea ocupado en los dos extremos.
-class _ArbolDeclarado {
-  _ArbolDeclarado(this.datos) {
+///
+/// Es publico porque **la hoja de calculo se arma del mismo arbol que el
+/// dibujo**. Si cada uno resolviera por su cuenta quien cuelga de quien, la
+/// pestana de aparatos podria decir una cosa y el mapa otra, que es exactamente
+/// lo que este proyecto evita compartiendo el plano entre pantalla y archivo.
+class ArbolDeclarado {
+  ArbolDeclarado(this.datos) {
     final conPuertos = datos.conPuertosDeclarados;
     for (final equipo in conPuertos) {
       _tienePuertos.add(equipo.id);
@@ -447,6 +452,17 @@ class _ArbolDeclarado {
   /// tiene puertos declarados, o le cuelga algo por el aire.
   bool esCabecera(int equipoId) =>
       _tienePuertos.contains(equipoId) || (_clientes[equipoId]?.isNotEmpty ?? false);
+
+  /// De quien cuelga este aparato, si cuelga de alguno.
+  int? padreDe(int equipoId) => _padreDe[equipoId];
+
+  /// Lo que cuelga de esta antena por el aire.
+  List<EnlaceInalambrico> clientesDe(int equipoId) =>
+      _clientes[equipoId] ?? const <EnlaceInalambrico>[];
+
+  /// La otra punta de un cable, mirando desde uno de los dos aparatos.
+  int? otroExtremo(EnlaceFisico cable, int equipoId) =>
+      _otroExtremo(cable, equipoId);
 
   /// El equipo que cuelga de este puerto, si es un aparato con puertos propios.
   Equipo? hijoEn(int equipoId, PuertoFisico puerto) {
@@ -843,7 +859,7 @@ Plano armarPlano(DatosMapa datos, ColorScheme colores) {
   //
   // **Cada aparato se dibuja UNA vez** y el puerto por donde sube al de la
   // izquierda no se repite como caja: esa conexion ya es la linea que llega.
-  final arbol = _ArbolDeclarado(datos);
+  final arbol = ArbolDeclarado(datos);
   if (arbol.raices.isNotEmpty) {
     if (y > margen) y += separacionY * 2;
     for (final raiz in arbol.raices) {

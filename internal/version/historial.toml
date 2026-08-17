@@ -434,3 +434,11 @@ fecha = "2026-08-15"
 tipo = "ajuste"
 modulo = "Proyecto"
 notas = "Puesta al dia del proyecto: la memoria refleja lo entregado —19 modulos, 207 pruebas en Go, 76 en Flutter y 63 comprobaciones de humo, donde decia 15 modulos y las cuentas de hace tres dias— y se anotan dos tripwires nuevos en gotchas: que rehacer una tabla en SQLite para cambiar un CHECK dispara los ON DELETE CASCADE de los hijos si se suelta el padre primero, y que un puerto se llama por su tipo y su numero. Tambien se corrige el comentario y la revision de respaldo de internal/version, que seguian diciendo 15 modulos y Rev 20; ese valor solo lo usa `go run`, porque al compilar de verdad lo fija construir.sh desde el historial."
+
+[[sistema]]
+version = "1.19"
+revision = 39
+fecha = "2026-08-17"
+tipo = "change"
+modulo = "Mapa"
+notas = "Lo exportado se guarda DONDE DIGA EL USUARIO: al exportar el mapa se abre el cuadro de guardar del escritorio, con la carpeta de descargas solo como punto de partida. Antes el archivo caia derecho en Descargas y solo se avisaba de la ruta, asi que habia que ir a buscarlo y moverlo a mano a la carpeta del sitio. Y la hoja de calculo pasa a ser DOS TABLAS en vez de una: «Aparatos» —un renglon por aparato, con que es, de donde cuelga y con que certeza— y «Conexiones» —un renglon por conexion, cada cable UNA vez, con los puertos libres y lo que cuelga por el aire—. Se entregan en ODS y XLSX con una pestana por tabla, y en CSV con las dos seguidas. La tabla unica de antes no habia quien la leyera: cada renglon podia ser un puerto medido, uno declarado o un aparato sin ubicar, y las celdas vacias significaban «no aplica» en unas filas y «no se sabe» en otras; encima cada cable salia dos veces (una por punta), los aparatos por WiFi no salian —el WiFi no tiene puertos y la tabla recorria puertos— y los puertos se llamaban «puerto 3» cuando el mapa ya dice «LAN 3». Las dos tablas se arman del mismo arbol que dibuja el plano y en el mismo orden en que el mapa se lee. El ZIP del ODS y del XLSX se escribe a mano, como el PDF; la unica dependencia nueva es file_selector, el plugin oficial de Flutter para el cuadro de guardar."

@@ -136,22 +136,32 @@ mayoría de los sitios chicos.
 
 ### Guardar el mapa
 
-En la pantalla del mapa, el ícono de la flecha hacia abajo. Cuatro formatos:
+En la pantalla del mapa, el ícono de la flecha hacia abajo. Seis formatos:
 
 | Formato | Para qué |
 |---|---|
 | **PNG** | Una imagen, para pegarla en un documento o mandarla por chat |
 | **SVG** | Vectorial: se abre en Inkscape y se le mueven cajas o se le anota |
 | **PDF** | Para imprimirlo y colgarlo, o mandarlo por correo |
-| **CSV** | Para una hoja de cálculo, con una fila por puerto |
+| **ODS** | Hoja de cálculo de LibreOffice, con dos pestañas |
+| **XLSX** | Lo mismo para Excel |
+| **CSV** | Texto plano: las dos tablas, una tras otra |
 
-El archivo **se baja a su equipo y nada más**. MiRed no lo sube a ninguna nube ni
-lo manda a ningún lado: lo arma el navegador y cae en su carpeta de descargas,
-como cualquier otra descarga. Si quiere hacérselo llegar a alguien, lo adjunta
-usted.
+Las tres hojas de cálculo llevan **dos tablas, no una**:
 
-Los tres formatos de dibujo llevan arriba de qué sitio es el mapa y de qué día,
-porque un plano de red sin fecha, a la semana, ya no se sabe si es el bueno.
+- **Aparatos** — un renglón por aparato: qué es, su IP y su MAC, de qué cuelga,
+  por qué puerto, qué tan seguro es ese dato y de dónde salió.
+- **Conexiones** — un renglón por conexión, **cada cable una sola vez**. Van
+  también los puertos libres y lo que cuelga por el aire, que no tiene puerto.
+
+Al guardar se abre el cuadro del escritorio y **usted elige la carpeta y el
+nombre**. El archivo **se queda en su equipo y nada más**: MiRed no lo sube a
+ninguna nube ni lo manda a ningún lado. Si quiere hacérselo llegar a alguien, lo
+adjunta usted.
+
+Los seis llevan arriba de qué sitio es el mapa y **de qué día son los datos** —no
+de cuándo se exportó—, porque un plano de red sin fecha, a la semana, ya no se
+sabe si es el bueno.
 
 ## 6. Medir quién consume
 

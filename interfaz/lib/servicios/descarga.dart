@@ -1,6 +1,6 @@
 library;
 
-/// descarga guarda un archivo en el equipo y abre enlaces en el navegador.
+/// descarga pregunta donde guardar un archivo y abre enlaces en el navegador.
 ///
 /// Antes esto era una exportacion condicional, porque la interfaz se compilaba
 /// tambien a web y ahi guardar un archivo es cosa del navegador. **MiRed ya no

@@ -1,16 +1,21 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mired_interfaz/modelos/modelos.dart';
 import 'package:mired_interfaz/pantallas/mapa_plano.dart';
 import 'package:mired_interfaz/servicios/exportar_mapa.dart';
+import 'package:mired_interfaz/servicios/hoja_calculo.dart';
+
+import 'red_de_casa.dart';
 
 /// Pruebas de la exportacion del mapa.
 ///
-/// El SVG y el PDF se escriben a mano, byte por byte. Un PDF con un
-/// desplazamiento mal calculado en la tabla de referencias abre en un visor
-/// tolerante y revienta en otro, asi que aqui se comprueba la estructura del
-/// archivo, no solo que la funcion no lance excepcion.
+/// El SVG, el PDF, el ODS y el XLSX se escriben a mano, byte por byte. Un PDF
+/// con un desplazamiento mal calculado en la tabla de referencias —o un ZIP con
+/// un indice que no cuadra— abre en un lector tolerante y revienta en otro, asi
+/// que aqui se comprueba la ESTRUCTURA del archivo, no solo que la funcion no
+/// lance excepcion.
 void main() {
   final datos = DatosMapa(
     mapa: const MapaPuertos(
@@ -75,21 +80,38 @@ void main() {
     subtitulo: 'Exportado el 2026-08-13',
   );
 
-  test('el CSV lleva encabezado, lo confirmado, el grupo y lo sin ubicar', () {
-    final renglones = const LineSplitter().convert(csvDelMapa(datos));
+  test('la hoja de calculo son DOS tablas, no una mezclada', () {
+    final tablas = tablasDelMapa(datos);
 
-    expect(renglones.first, startsWith('switch,ip_switch,puerto'));
-
-    expect(renglones.any((r) => r.contains('Gi0/5') && r.contains('confirmado')), isTrue);
-    expect(renglones.any((r) => r.contains('Gi0/7') && r.contains('grupo')), isTrue);
-    // El equipo 9 no cuelga de ningun puerto: tiene que salir marcado, no
-    // desaparecer.
-    expect(renglones.any((r) => r.contains('sin ubicar')), isTrue);
-    // Un nombre con coma va entrecomillado o parte el renglon en dos columnas.
-    expect(renglones.any((r) => r.contains('"Camara del pasillo, ala norte «ñ»"')), isTrue);
+    expect(tablas.map((tabla) => tabla.nombre), ['Aparatos', 'Conexiones']);
+    // Cada tabla tiene un sujeto: un renglon es un aparato, o es una conexion.
+    // Nunca las dos cosas segun la fila, que era el problema de la tabla unica.
+    expect(tablas.first.encabezados.first, 'Aparato');
+    expect(tablas.last.encabezados.first, 'De');
+    for (final tabla in tablas) {
+      for (final fila in tabla.filas) {
+        expect(fila.length, tabla.encabezados.length,
+            reason: 'un renglon con otro numero de columnas descuadra la hoja');
+      }
+    }
   });
 
-  test('el CSV dice de cuando son los datos, como los otros tres formatos', () {
+  test('la tabla de aparatos dice de donde cuelga cada uno y con que certeza', () {
+    final aparatos = tablasDelMapa(datos).first;
+    String filaDe(String aparato) =>
+        aparatos.filas.firstWhere((fila) => fila.first.contains(aparato)).join('|');
+
+    expect(filaDe('Impresora de contabilidad'), contains('Gi0/5'));
+    expect(filaDe('Impresora de contabilidad'), contains('Puerto exacto'));
+    expect(filaDe('Impresora de contabilidad'), contains('SNMP'));
+
+    // El equipo 9 no cuelga de ningun puerto: tiene que salir DICIENDOLO, no
+    // desaparecer ni salir con las celdas en blanco, que se lee como si el
+    // inventario estuviera completo.
+    expect(filaDe('Camara del pasillo'), contains('Sin ubicar'));
+  });
+
+  test('el CSV lleva las dos tablas, con su titulo y de cuando son los datos', () {
     // Es la regla del proyecto: todo reporte que salga de MiRed dice de que
     // momento es. Un archivo suelto sin fecha, a la semana, ya no se sabe si
     // sirve — y el CSV es el que mas facil acaba en el correo de alguien.
@@ -100,7 +122,24 @@ void main() {
     // Con un renglon en blanco detras, para que la hoja de calculo siga
     // encontrando los encabezados como una fila.
     expect(renglones[1], isEmpty);
-    expect(renglones[2], startsWith('switch,ip_switch,puerto'));
+
+    // El CSV no tiene pestanas: las dos tablas van seguidas y cada una dice como
+    // se llama, o quien la abre no sabe donde termina una y empieza la otra.
+    expect(renglones.any((r) => r.startsWith('APARATOS')), isTrue);
+    expect(renglones.any((r) => r.startsWith('CONEXIONES')), isTrue);
+    expect(renglones.any((r) => r.startsWith('Aparato,Que es,IP')), isTrue);
+    expect(renglones.any((r) => r.startsWith('De,Por,A,Entra por')), isTrue);
+
+    // Un nombre con coma va entrecomillado o parte el renglon en dos columnas.
+    expect(renglones.any((r) => r.contains('"Camara del pasillo, ala norte «ñ»"')),
+        isTrue);
+  });
+
+  test('el CSV sale con la marca de codificacion, o Excel rompe los acentos', () {
+    // Sin estos tres bytes, Excel en Windows abre el archivo con la codificacion
+    // local del equipo y «Camara» sale como «CÃ¡mara».
+    final bytes = csvEnBytes(csvDelMapa(datos, encabezado));
+    expect(bytes.sublist(0, 3), [0xEF, 0xBB, 0xBF]);
   });
 
   test('el SVG sale bien formado y con una caja por nodo del plano', () {
@@ -246,4 +285,149 @@ void main() {
       expect(png.sublist(0, 8), [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
     });
   });
+
+  // ------------------------------------------ la hoja contra la red de casa ---
+  //
+  // Los datos armados a mano de arriba no tienen raiz, ni WiFi, ni puertos
+  // libres. La red de casa si, y es donde la primera version de la hoja fallo.
+
+  group('la hoja de calculo de la red de casa', () {
+    final casa = laCasa();
+
+    test('cada cable sale UNA vez, no una por punta', () {
+      final conexiones = tablasDelMapa(casa).last;
+
+      // Cinco puertos declarados en el switch mas el del modem: seis renglones
+      // de cable, no once. Antes cada cable salia dos veces —«dvr → switch» y
+      // «switch → dvr»— y no habia forma de saber que eran el mismo.
+      final cables = conexiones.filas
+          .where((fila) => fila[4] == 'Ocupado')
+          .map((fila) => '${fila[0]} ${fila[1]} ${fila[2]}')
+          .toList();
+      expect(cables.length, 4);
+      expect(cables.toSet().length, cables.length);
+      expect(cables.where((cable) => cable.contains('dvr')).length, 1);
+    });
+
+    test('el modem es la raiz: no cuelga del switch al que alimenta', () {
+      final aparatos = tablasDelMapa(casa).first;
+      final modem =
+          aparatos.filas.firstWhere((fila) => fila.first == 'MODEM TELMEX');
+      final interruptor =
+          aparatos.filas.firstWhere((fila) => fila.first == 'switch 5ptos');
+
+      // El cable modem→switch cuelga al switch DEL modem, no al reves. Leerlo al
+      // reves ponia al modem colgando del switch que alimenta, justo lo
+      // contrario de lo que dibuja el mapa.
+      expect(modem[6], 'Raiz de la red');
+      expect(interruptor[6], 'MODEM TELMEX');
+      expect(interruptor[7], 'LAN 1');
+    });
+
+    test('lo que cuelga por el aire tambien sale, con su antena y su red', () {
+      final tablas = tablasDelMapa(casa);
+      final porElAire =
+          tablas.first.filas.where((fila) => fila[5] == 'WiFi').toList();
+
+      // Cuatro equipos colgados de la antena. En la tabla vieja no salia ninguno
+      // de los cuatro: como el WiFi no tiene puertos y la tabla iba por puertos,
+      // desaparecian del archivo aunque el mapa los dibujara.
+      expect(porElAire.length, 4);
+      expect(porElAire.every((fila) => fila[6] == 'AP ubiquiti'), isTrue);
+      expect(porElAire.every((fila) => fila[7] == 'WiFi «casa»'), isTrue);
+      expect(tablas.last.filas.where((fila) => fila[4] == 'Por el aire').length, 4);
+    });
+
+    test('el puerto libre y lo sin ubicar se dicen, no se callan', () {
+      final tablas = tablasDelMapa(casa);
+
+      final libre = tablas.last.filas.where((fila) => fila[4] == 'Libre').toList();
+      expect(libre.length, 1);
+      expect(libre.single[1], 'LAN 4');
+
+      final perdido =
+          tablas.first.filas.firstWhere((fila) => fila[6] == 'Sin ubicar');
+      expect(perdido.first, '192.168.1.71');
+    });
+
+    test('los puertos se llaman como en el mapa: LAN 3, no «puerto 3»', () {
+      final conexiones = tablasDelMapa(casa).last;
+      final aLaPc =
+          conexiones.filas.firstWhere((fila) => fila[2] == 'pc tuxor');
+
+      // El mapa rotula ese cable «LAN 3 → LAN 1». La hoja tiene que decir lo
+      // mismo: si una pantalla llama al puerto de dos maneras, no hay dato.
+      expect(aLaPc[1], 'LAN 3');
+      expect(aLaPc[3], 'LAN 1');
+    });
+  });
+
+  // ------------------------------------------------------ ODS, XLSX y su ZIP ---
+
+  group('las hojas de calculo son paquetes bien armados', () {
+    final casa = laCasa();
+    final momento = DateTime.utc(2026, 8, 17, 9, 30);
+
+    test('el ODS lleva el mimetype primero y una hoja por tabla', () {
+      final ods = odsDelMapa(casa, encabezado, momento);
+      final texto = latin1.decode(ods);
+
+      _comprobarZip(ods, 4);
+      // El mimetype tiene que ir el PRIMERO y sin comprimir, o el lector no
+      // reconoce el paquete como una hoja de calculo.
+      expect(texto.indexOf('mimetype'), 30);
+      expect(texto.indexOf('application/vnd.oasis.opendocument.spreadsheet'),
+          lessThan(100));
+      expect(texto, contains('<table:table table:name="Aparatos">'));
+      expect(texto, contains('<table:table table:name="Conexiones">'));
+    });
+
+    test('el XLSX declara sus dos hojas y las lleva dentro', () {
+      final xlsx = xlsxDelMapa(casa, encabezado, momento);
+      final texto = latin1.decode(xlsx);
+
+      _comprobarZip(xlsx, 6);
+      expect(texto, contains('<sheet name="Aparatos"'));
+      expect(texto, contains('<sheet name="Conexiones"'));
+      expect(texto, contains('xl/hojas/hoja1.xml'));
+      expect(texto, contains('xl/hojas/hoja2.xml'));
+      // Cada celda lleva su texto dentro, sin tabla compartida aparte.
+      expect(texto, contains('<c r="A5" t="inlineStr">'));
+    });
+
+    test('el mismo mapa exportado dos veces da el mismo archivo', () {
+      // La fecha entra como dato, no la pregunta el reloj: sin eso dos
+      // exportaciones del mismo mapa darian archivos distintos y no habria forma
+      // de comparar nada.
+      expect(odsDelMapa(casa, encabezado, momento),
+          odsDelMapa(casa, encabezado, momento));
+    });
+  });
+}
+
+/// _comprobarZip revisa que el indice del final del paquete cuadre.
+///
+/// Un ZIP se lee de atras hacia adelante: el bloque final dice cuantas entradas
+/// hay y donde empieza el indice. Si ese numero esta mal, unos lectores abren el
+/// archivo y otros lo dan por corrupto — el mismo peligro que la tabla de
+/// referencias del PDF.
+void _comprobarZip(Uint8List paquete, int cuantasEntradas) {
+  expect(paquete.sublist(0, 4), [0x50, 0x4B, 0x03, 0x04], reason: 'no empieza como un ZIP');
+
+  final fin = paquete.length - 22; // el bloque final, sin comentario
+  expect(paquete.sublist(fin, fin + 4), [0x50, 0x4B, 0x05, 0x06]);
+
+  int leer2(int donde) => paquete[donde] | (paquete[donde + 1] << 8);
+  int leer4(int donde) =>
+      paquete[donde] |
+      (paquete[donde + 1] << 8) |
+      (paquete[donde + 2] << 16) |
+      (paquete[donde + 3] << 24);
+
+  expect(leer2(fin + 10), cuantasEntradas);
+  final inicioIndice = leer4(fin + 16);
+  expect(leer4(fin + 12), paquete.length - 22 - inicioIndice,
+      reason: 'el tamano del indice no cuadra con donde empieza');
+  expect(paquete.sublist(inicioIndice, inicioIndice + 4), [0x50, 0x4B, 0x01, 0x02],
+      reason: 'el indice no empieza donde el bloque final dice');
 }

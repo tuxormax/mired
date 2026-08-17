@@ -91,12 +91,12 @@ Tres pruebas lo vigilan: que el binario y el historial digan la misma version,
 que la revision **no tenga huecos ni repetidos**, y que sembrar mil veces no
 duplique filas.
 
-## Estado real (2026-08-15, v1.19 Rev 37)
+## Estado real (2026-08-17, v1.19 Rev 39)
 **Las 10 fases cerradas**, salvo firmar los paquetes. Los **19 modulos**: los 15
 del plan mas el **catalogo comunitario** (16), la **escucha del aire** (17), los
 **enlaces inalambricos** (18) y las **credenciales por equipo** (19).
 
-Lo hecho despues de cerrar el plan (Rev 21-37, todo del 2026-08-15):
+Lo hecho despues de cerrar el plan (Rev 21-39):
 - **Reconocimiento de verdad** (Rev 21-27): lista IEEE completa —52 977
   prefijos, antes 99— y huellas activas: titulo y encabezados de su pagina,
   certificado TLS, banner SSH, mDNS, UPnP, ONVIF y los protocolos propios de
@@ -116,6 +116,12 @@ Lo hecho despues de cerrar el plan (Rev 21-37, todo del 2026-08-15):
 - **Que no se coma el equipo** (Rev 34): mientras se edita el mapa la agenda de
   esa red se para, las cinco escuchas de red van a la vez y no en fila, y el
   barrido de puertos baja de 128 a 48 conexiones a la vez.
+- **Lo exportado, usable** (Rev 39): se guarda **donde diga el usuario** —cuadro
+  de guardar del escritorio, no la carpeta de descargas a la fuerza— y la hoja de
+  calculo pasa a ser **dos tablas** («Aparatos» y «Conexiones») en **ODS, XLSX y
+  CSV**. La tabla unica de antes metia en el mismo renglon un aparato, un puerto
+  y un cable; sacaba cada cable dos veces y perdia entero lo que cuelga por el
+  aire. Ver [[modulo-topologia]].
 
 Lo que ya estaba:
 1. Cimientos: servidor + sonda, una base SQLite por red, autenticacion con
@@ -127,8 +133,8 @@ Lo que ya estaba:
 4. SNMP v1/v2c/v3, tabla de MAC del switch, **LLDP y CDP**, enlaces entre
    switches dibujados en el mapa, **controladora WiFi UniFi** (el WiFi cuelga de
    su antena), mapa de puertos y perfil de capacidades.
-5. Mapa visual en Flutter con exportacion a **PNG, SVG, PDF y CSV** (cerrada el
-   2026-08-13) y **edicion manual del cableado** (modulo 15, 2026-08-14): dar de
+5. Mapa visual en Flutter con exportacion a **PNG, SVG, PDF y hoja de calculo
+   (ODS, XLSX y CSV)** (cerrada el 2026-08-13) y **edicion manual del cableado** (modulo 15, 2026-08-14): dar de
    alta lo que ningun escaneo ve, declarar puertos y conectarlas tocandolas, con
    modo edicion aparte de solo mirar. Ver [[modulo-topologia-manual]].
 6. Catalogo abierto de dispositivos en `.toml`, con 15 definiciones semilla y el
@@ -168,8 +174,8 @@ puerto espejo; y **conectar puertos tocandolas con el raton en la ventana** (la
 API entera y el dibujo del plano si estan cubiertos por pruebas). El switch administrable sigue
 siendo el riesgo abierto mas grande.
 
-## Cobertura (2026-08-15)
-**207 pruebas en Go y 76 en Flutter**, sobre ~27 000 lineas de Go y ~14 900 de
+## Cobertura (2026-08-17)
+**207 pruebas en Go y 86 en Flutter**, sobre ~27 000 lineas de Go y ~14 900 de
 Dart, en 15 paquetes. Mas `herramientas/probar.sh` con **63 comprobaciones**:
 construye el `.deb`, lo desempaqueta y recorre el flujo completo. Es la unica que
 prueba lo que de verdad se entrega.
@@ -346,9 +352,11 @@ verifica la otra. Ver [[gotchas]].
 ## Regla del usuario: nada sale a servicios externos por su cuenta (2026-08-13)
 Lo exportado (mapas y demas archivos) **se guarda en el equipo y punto**: sin
 Google Drive, sin subida a ninguna nube, sin envio automatico. El PNG, el SVG y
-el PDF se arman **dentro del navegador** —el PNG con Flutter, el SVG y el PDF
+el PDF se arman **dentro del programa** —el PNG con Flutter, el SVG y el PDF
 escritos a mano en `interfaz/lib/servicios/exportar_mapa.dart`, sin biblioteca de
-terceros— y ni siquiera pasan por el servidor.
+terceros— y ni siquiera pasan por el servidor. **Donde queda el archivo lo elige
+el usuario** en el cuadro de guardar del escritorio, desde el 2026-08-17; el
+detalle, en [[modulo-topologia]].
 
 **Aclarado el 2026-08-13: la regla es solo para archivos.** Los cuatro destinos
 de aviso de la fase 7 (ntfy, Telegram, correo SMTP, webhook) **se quedan como

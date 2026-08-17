@@ -266,3 +266,36 @@ reconocible** (7) y se busque ESE.
 Y cambiar de pestana en una prueba resulto necesitar **dos esperas distintas**:
 la del reloj falso para la animacion y la del reloj de verdad para la respuesta.
 Las dos cosas quedaron en [[gotchas]].
+
+## 2026-08-17 — El CSV del mapa no habia quien lo leyera
+**Problema:** el usuario exporto el mapa de su casa a CSV y la tabla no se
+entendia. Eran ocho renglones para cinco cables, con la mitad de las celdas
+vacias.
+
+**Causa:** una sola tabla para tres cosas distintas. Cada renglon podia ser un
+puerto medido por SNMP, un puerto declarado a mano o un aparato sin ubicar, y
+todos compartian columnas: las celdas en blanco significaban «no aplica» en unas
+filas y «no se sabe» en otras, sin forma de distinguirlas. Encima:
+- **cada cable salia dos veces**, una por punta, porque la tabla recorria
+  puertos y las dos puntas son puertos;
+- las columnas se leian **al reves** en la mitad de las filas: en «dvr | puerto 1
+  | switch 5ptos» el encabezado decia que la primera columna era el switch;
+- **lo que cuelga por el aire no salia**: el WiFi no tiene puertos, y una tabla
+  que recorre puertos no lo ve. Cuatro aparatos del mapa faltaban en el archivo;
+- los puertos se llamaban «puerto 3» cuando el mapa ya los llama **LAN 3**.
+
+**Solucion:** **dos tablas, una por sujeto** —«Aparatos» (un renglon por aparato:
+que es, de donde cuelga, con que certeza) y «Conexiones» (un renglon por
+conexion, cada cable UNA vez, con los puertos libres y el WiFi dentro)—, y tres
+formatos donde entregarlas: **ODS y XLSX con una pestana por tabla**, y CSV con
+las dos seguidas, que es lo mas parecido que ese formato permite. Las dos tablas
+salen del **mismo [[modulo-topologia]] `ArbolDeclarado` que dibuja el mapa**, y en
+el mismo orden en que el mapa se lee. Ver [[modulo-topologia]].
+
+**Lo que se llevo por delante:** al probar contra la red de casa aparecio que el
+modem salia «colgando» del switch al que alimenta. Un aparato sin padre en el
+arbol aceptaba como suyo cualquier cable que lo tocara, incluido el que SALE de
+el. Ahora, sin padre, solo cuenta un cable que le APUNTE; si no hay ninguno, es
+la raiz. La red de casa quedo como caso de prueba fijo en
+`interfaz/test/red_de_casa.dart`: es la unica que trae raiz, WiFi, puerto libre y
+aparato sin ubicar de una vez.
