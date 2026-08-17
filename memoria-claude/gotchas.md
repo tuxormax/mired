@@ -421,3 +421,33 @@ Las dos corren las columnas y las dos son silenciosas:
 Escribirlos es mas facil que leerlos, y el proyecto hace las dos cosas:
 `interfaz/lib/servicios/hoja_calculo.dart` los escribe,
 `internal/importacion/lector.go` los lee.
+
+## El color NO se escribe en las pantallas
+
+MiRed es verde de terminal sobre negro, y ese verde vive en **un solo sitio**:
+`verdeDeMiRed` y `esquemaOscuroDeMiRed`, en `interfaz/lib/principal.dart`. Se
+toca ahi y se repinta la aplicacion entera.
+
+En una pantalla se usa `Theme.of(contexto).colorScheme.…`, **nunca** un
+`Colors.green` ni un `Colors.lightGreenAccent`: un verde de la paleta de Material
+al lado del verde del programa no se lee como otro color, se lee como un error de
+pintura. Ya paso con el icono de la agenda y con los puntos de «presente».
+
+Dos apuntes del tema oscuro:
+- **Los tonos van escritos, no salen de la semilla.** `ColorScheme.fromSeed`
+  saca un terciario **azul** girando la rueda de color, y un turquesa suelto
+  rompe el conjunto. Se parte de la semilla y se fijan a mano los que se ven.
+- **El rojo se queda rojo.** Es el unico color que no es verde en toda la
+  aplicacion: un aviso de que algo se rompio no se pinta del color de la marca.
+
+## Arriba del panel de redes solo va lo de TODO el programa
+
+La barra de la pantalla de redes es para lo que no pertenece a ninguna red:
+usuarios, catalogo de dispositivos, actualizar y la cuenta. Lo que se usa
+trabajando sobre UNA red —las credenciales SNMP con las que se le pregunta a sus
+switches, su controladora WiFi— se llega desde la pantalla de esa red.
+
+Ojo con el matiz: **esas dos cosas se guardan una sola vez y las comparten todas
+las redes** (viven en el catalogo, no en la base de cada red, para no repetirlas
+sitio por sitio). Por eso sus pantallas lo dicen en el titulo. Se llega a ellas
+desde una red porque es donde se necesitan, no porque sean de esa red.

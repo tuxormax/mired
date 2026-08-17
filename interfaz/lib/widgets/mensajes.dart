@@ -31,11 +31,14 @@ Future<void> mensajeError(BuildContext contexto, ErrorMiRed problema, {String? p
       canPop: false,
       child: StatefulBuilder(
         builder: (contextoEstado, redibujar) => AlertDialog(
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.error_outline, color: Colors.red),
-              SizedBox(width: 8),
-              Text('Error'),
+              // El rojo sale del tema, no de la paleta de Material: es el unico
+              // color que NO es verde en toda la aplicacion, y tiene que ser
+              // exactamente el mismo rojo en los dos temas.
+              Icon(Icons.error_outline, color: Theme.of(contextoEstado).colorScheme.error),
+              const SizedBox(width: 8),
+              const Text('Error'),
             ],
           ),
           content: SizedBox(

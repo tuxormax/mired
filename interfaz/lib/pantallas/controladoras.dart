@@ -70,7 +70,22 @@ class _PantallaControladorasState extends State<PantallaControladoras> {
 
   @override
   Widget build(BuildContext contexto) => Scaffold(
-        appBar: AppBar(title: const Text('Controladoras WiFi')),
+        appBar: AppBar(
+          // Se llega aqui desde una red, asi que hay que decirlo: lo que se
+          // toque en esta pantalla cambia para todas. Sin este renglon, alguien
+          // creeria que esta editando algo de la red desde la que entro.
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Controladoras WiFi'),
+              Text(
+                'Se comparten entre TODAS las redes: una controladora suele atender varios sitios',
+                style: Theme.of(contexto).textTheme.labelSmall,
+              ),
+            ],
+          ),
+        ),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: _crear,
           icon: const Icon(Icons.add),

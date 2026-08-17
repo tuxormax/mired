@@ -69,7 +69,22 @@ class _PantallaCredencialesState extends State<PantallaCredenciales> {
 
   @override
   Widget build(BuildContext contexto) => Scaffold(
-        appBar: AppBar(title: const Text('Credenciales SNMP')),
+        appBar: AppBar(
+          // Se llega aqui desde una red, asi que hay que decirlo: lo que se
+          // toque en esta pantalla cambia para todas. Sin este renglon, alguien
+          // creeria que esta editando algo de la red desde la que entro.
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Credenciales SNMP'),
+              Text(
+                'Se comparten entre TODAS las redes: se guardan una vez y se prueban en orden',
+                style: Theme.of(contexto).textTheme.labelSmall,
+              ),
+            ],
+          ),
+        ),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: _crear,
           icon: const Icon(Icons.add),

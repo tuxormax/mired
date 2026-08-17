@@ -7,8 +7,6 @@ import '../servicios/frescura.dart';
 import '../servicios/trayectoria.dart';
 import '../widgets/mensajes.dart';
 import 'catalogo.dart';
-import 'controladoras.dart';
-import 'credenciales.dart';
 import 'entrar.dart';
 import 'red.dart';
 import 'usuarios.dart';
@@ -78,22 +76,10 @@ class _PantallaRedesState extends State<PantallaRedes> {
       appBar: AppBar(
         title: const Text('MiRed'),
         actions: [
-          if (usuario?.superadmin == true)
-            IconButton(
-              tooltip: 'Credenciales SNMP',
-              icon: const Icon(Icons.vpn_key_outlined),
-              onPressed: () => Navigator.of(contexto).push(
-                MaterialPageRoute<void>(builder: (_) => const PantallaCredenciales()),
-              ),
-            ),
-          if (usuario?.superadmin == true)
-            IconButton(
-              tooltip: 'Controladoras WiFi',
-              icon: const Icon(Icons.wifi_tethering),
-              onPressed: () => Navigator.of(contexto).push(
-                MaterialPageRoute<void>(builder: (_) => const PantallaControladoras()),
-              ),
-            ),
+          // Aqui arriba SOLO va lo que es de todo el programa. Lo que se usa
+          // trabajando sobre UNA red —las credenciales con las que se le
+          // pregunta a sus switches, su controladora WiFi— vive en la pantalla
+          // de esa red, que es donde se necesita. Ver [[modulo-programa]].
           if (usuario?.superadmin == true)
             IconButton(
               tooltip: 'Usuarios',

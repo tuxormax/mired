@@ -11,6 +11,8 @@ import '../servicios/frescura.dart';
 import '../servicios/trayectoria.dart';
 import '../widgets/mensajes.dart';
 import 'alertas.dart';
+import 'controladoras.dart';
+import 'credenciales.dart';
 import 'equipo.dart';
 import 'importar.dart';
 import 'mapa.dart';
@@ -205,6 +207,21 @@ class _PantallaRedState extends State<PantallaRed> {
     }
   }
 
+  /// _puedeAdministrar dice si este usuario puede tocar lo que se comparte entre
+  /// redes.
+  ///
+  /// Las credenciales SNMP y las controladoras **se guardan una sola vez y las
+  /// usan todas las redes**: una controladora suele atender varios sitios y
+  /// repetirla red por red es la forma segura de que una quede desactualizada.
+  /// Se llega a ellas desde aqui porque es donde se necesitan —trabajando sobre
+  /// una red—, pero editarlas sigue siendo cosa del superadministrador.
+  bool get _puedeAdministrar => Api.instancia.usuario?.superadmin == true;
+
+  Future<void> _abrir(Widget pantalla) async {
+    await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => pantalla));
+    if (mounted) _recargar();
+  }
+
   /// _importar sube una hoja entera de aparatos.
   ///
   /// Es el alta a mano pero de 23 en 23: una instalacion documentada en una hoja
@@ -354,9 +371,32 @@ class _PantallaRedState extends State<PantallaRed> {
               onSelected: (opcion) {
                 if (opcion == 'borrar') _borrar();
                 if (opcion == 'importar') _importar();
+                if (opcion == 'credenciales') _abrir(const PantallaCredenciales());
+                if (opcion == 'controladoras') _abrir(const PantallaControladoras());
               },
-              itemBuilder: (_) => const [
-                PopupMenuItem(
+              itemBuilder: (_) => [
+                if (_puedeAdministrar) ...const [
+                  PopupMenuItem(
+                    value: 'credenciales',
+                    child: ListTile(
+                      dense: true,
+                      leading: Icon(Icons.vpn_key_outlined),
+                      title: Text('Credenciales SNMP'),
+                      subtitle: Text('Con que se le pregunta a los switches'),
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'controladoras',
+                    child: ListTile(
+                      dense: true,
+                      leading: Icon(Icons.wifi_tethering),
+                      title: Text('Controladoras WiFi'),
+                      subtitle: Text('Quien sabe que cuelga de cada antena'),
+                    ),
+                  ),
+                  PopupMenuDivider(),
+                ],
+                const PopupMenuItem(
                   value: 'importar',
                   child: ListTile(
                     dense: true,
@@ -365,8 +405,8 @@ class _PantallaRedState extends State<PantallaRed> {
                     subtitle: Text('CSV, ODS o XLSX'),
                   ),
                 ),
-                PopupMenuDivider(),
-                PopupMenuItem(
+                const PopupMenuDivider(),
+                const PopupMenuItem(
                   value: 'borrar',
                   child: ListTile(
                     dense: true,
@@ -402,7 +442,7 @@ class _PantallaRedState extends State<PantallaRed> {
                   ? 'Barridos automaticos encendidos'
                   : 'Programar barridos automaticos',
               icon: Icon(_red.programado ? Icons.schedule : Icons.schedule_outlined),
-              color: _red.programado ? Colors.lightGreenAccent : null,
+              color: _red.programado ? Theme.of(contexto).colorScheme.primary : null,
               onPressed: _configurarAgenda,
             ),
             IconButton(
@@ -960,7 +1000,7 @@ class _TarjetaEquipo extends StatelessWidget {
         leading: Icon(
           equipo.presente ? Icons.circle : Icons.circle_outlined,
           size: 14,
-          color: equipo.presente ? Colors.green : colores.outline,
+          color: equipo.presente ? colores.primary : colores.outline,
         ),
         // La IP va del tamano del renglon de abajo, no en gris chiquito: en una
         // red es LO que identifica a un aparato —el nombre puede faltar, estar
@@ -1383,7 +1423,9 @@ class _DialogoPresenciaState extends State<_DialogoPresencia> {
                     dense: true,
                     leading: Icon(
                       evento.presente ? Icons.login : Icons.logout,
-                      color: evento.presente ? Colors.green : Colors.grey,
+                      color: evento.presente
+                          ? Theme.of(contexto).colorScheme.primary
+                          : Theme.of(contexto).colorScheme.outline,
                     ),
                     title: Text(evento.presente ? 'Se conecto' : 'Dejo de responder'),
                     subtitle: Text(evento.momento),

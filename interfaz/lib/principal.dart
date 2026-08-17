@@ -63,6 +63,63 @@ void _reportarGlobal(Object problema, StackTrace? pila) {
   mostrarProblema(contexto, problema, pila: pila?.toString());
 }
 
+/// verdeDeMiRed es el color del programa: el verde de terminal.
+///
+/// Se eligio a proposito y no es decoracion: MiRed es una herramienta de red que
+/// se mira sobre fondo negro, y el verde de fosforo es el idioma de ese mundo
+/// desde que existen las terminales. **Es la semilla del tema entero**, asi que
+/// tocarlo aqui repinta la aplicacion completa; no hay colores sueltos
+/// repartidos por las pantallas.
+///
+/// Un apunte al cambiarlo: `ColorScheme.fromSeed` no usa el color tal cual, saca
+/// de el una paleta entera. Un verde demasiado brillante como semilla devuelve
+/// pasteles lavados en el tema claro, asi que este esta un punto por debajo del
+/// verde puro de pantalla.
+const Color verdeDeMiRed = Color(0xFF00C853);
+
+/// esquemaOscuroDeMiRed es el tema de verdad: verde de fosforo sobre negro.
+///
+/// **Los tonos van escritos y no salen de la semilla.** `ColorStheme.fromSeed`
+/// arma una paleta correcta pero descafeinada: el verde acaba en menta pastel y
+/// —lo peor— el tono terciario sale AZUL, porque Material lo calcula girando la
+/// rueda de color. En una herramienta que quiere parecer una terminal, un
+/// turquesa suelto en los chips rompe el conjunto entero.
+///
+/// Asi que se parte de la semilla —para que los treinta y tantos colores que
+/// nadie nombra sigan siendo coherentes— y se fijan a mano los seis que se ven:
+/// los verdes, los fondos y el rojo del error. **El rojo se queda rojo**: un
+/// aviso de que algo se rompio no se pinta del color de la marca.
+final ColorScheme esquemaOscuroDeMiRed = ColorScheme.fromSeed(
+  seedColor: verdeDeMiRed,
+  brightness: Brightness.dark,
+).copyWith(
+  primary: const Color(0xFF00E676),
+  onPrimary: const Color(0xFF00150A),
+  primaryContainer: const Color(0xFF00522E),
+  onPrimaryContainer: const Color(0xFF7CFFB4),
+  secondary: const Color(0xFF69F0AE),
+  onSecondary: const Color(0xFF00150A),
+  secondaryContainer: const Color(0xFF13351F),
+  onSecondaryContainer: const Color(0xFFA8FFCC),
+  // El terciario tambien verde, un punto mas frio, para que la paleta no se
+  // salga nunca de la familia.
+  tertiary: const Color(0xFF3DDC97),
+  onTertiary: const Color(0xFF00150A),
+  tertiaryContainer: const Color(0xFF11402C),
+  onTertiaryContainer: const Color(0xFFB6FFDA),
+  // Casi negro, no gris: el verde solo se ve verde de verdad sobre negro.
+  surface: const Color(0xFF080B09),
+  onSurface: const Color(0xFFD7E8DC),
+  onSurfaceVariant: const Color(0xFF9BB3A3),
+  surfaceContainerLowest: const Color(0xFF050705),
+  surfaceContainerLow: const Color(0xFF0C110E),
+  surfaceContainer: const Color(0xFF101711),
+  surfaceContainerHigh: const Color(0xFF161F19),
+  surfaceContainerHighest: const Color(0xFF1C2820),
+  outline: const Color(0xFF3C5546),
+  outlineVariant: const Color(0xFF243329),
+);
+
 class AplicacionMiRed extends StatelessWidget {
   const AplicacionMiRed({super.key});
 
@@ -75,16 +132,13 @@ class AplicacionMiRed extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF7B2D8E),
+          seedColor: verdeDeMiRed,
           brightness: Brightness.light,
         ),
       ),
       darkTheme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF7B2D8E),
-          brightness: Brightness.dark,
-        ),
+        colorScheme: esquemaOscuroDeMiRed,
       ),
       home: const PantallaArranque(),
     );

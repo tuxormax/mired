@@ -748,7 +748,9 @@ class _DialogoElegirEquipoState extends State<DialogoElegirEquipo> {
                           leading: Icon(
                             equipo.presente ? Icons.circle : Icons.circle_outlined,
                             size: 12,
-                            color: equipo.presente ? Colors.green : null,
+                            color: equipo.presente
+                                ? Theme.of(contexto).colorScheme.primary
+                                : null,
                           ),
                           title: Text(equipo.comoSeLlama),
                           subtitle: Text([
