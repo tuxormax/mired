@@ -360,6 +360,30 @@ void main() {
       expect(perdido.first, '192.168.1.71');
     });
 
+    test('la hoja lleva las contrasenas de los aparatos', () {
+      // Decision del usuario: «si se exporta el mapa de la red tambien va la
+      // contrasena, no importa que se vea». Sin ellas el archivo no sirve para
+      // mudar una instalacion a otro equipo ni para entregarsela a nadie.
+      final tablas = tablasDelMapa(casa, credenciales: const [
+        CredencialEquipo(
+            id: 1, equipoId: 1, tipo: 'web', usuario: 'admin',
+            clave: 'laClaveDelModem', direccion: 'http://192.168.1.254'),
+      ]);
+      final aparatos = tablas.first;
+      final modem =
+          aparatos.filas.firstWhere((fila) => fila.first == 'MODEM TELMEX');
+
+      expect(aparatos.encabezados, contains('Clave'));
+      expect(celda(aparatos, modem, 'Usuario'), 'admin');
+      expect(celda(aparatos, modem, 'Clave'), 'laClaveDelModem');
+      expect(celda(aparatos, modem, 'Direccion del panel'), 'http://192.168.1.254');
+
+      // Y el que no tiene, sale vacio: no se inventa nada.
+      final switchTonto =
+          aparatos.filas.firstWhere((fila) => fila.first == 'switch 5ptos');
+      expect(celda(aparatos, switchTonto, 'Clave'), isEmpty);
+    });
+
     test('los puertos se llaman como en el mapa: LAN 3, no «puerto 3»', () {
       final conexiones = tablasDelMapa(casa).last;
       final aLaPc =

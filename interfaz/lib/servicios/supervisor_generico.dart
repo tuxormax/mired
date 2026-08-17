@@ -52,6 +52,23 @@ class Servicios {
     return '$casa/.local/share/mired';
   }
 
+  /// carpetaDeConfiguracion es donde va lo que NO son datos: hoy, la llave con
+  /// la que se cifran las contrasenas de los aparatos.
+  ///
+  /// **Separada de los datos a proposito.** La carpeta de datos es lo unico que
+  /// hay que respaldar, y esos respaldos acaban en discos, en la nube y en
+  /// correos: si la llave viajara ahi dentro, cifrar no protegeria de nada.
+  ///
+  /// Sin esto el servidor cae a `/etc/mired/llave-secretos`, que es lo correcto
+  /// cuando corre como servicio del sistema y **imposible** cuando lo lanza el
+  /// programa, porque esa carpeta es de root. Guardar la contrasena de un
+  /// aparato fallaba siempre con «permission denied», y solo se notaba la
+  /// primera vez que hacia falta cifrar algo.
+  static String get carpetaDeConfiguracion {
+    final casa = Platform.environment['HOME'] ?? '/tmp';
+    return '$casa/.config/mired';
+  }
+
   /// arrancar deja MiRed listo para usarse, o deja claro por que no lo esta.
   ///
   /// El parametro dice a que servidor apunta el programa. Si no es el de este
@@ -157,12 +174,16 @@ class Servicios {
 
   Map<String, String> _entorno() {
     final datos = carpetaDeDatos;
+    final configuracion = carpetaDeConfiguracion;
     return {
       ...Platform.environment,
       'MIRED_DATOS': datos,
       // Solo a este equipo: como programa, MiRed no tiene por que quedar
       // expuesto a la red sin que nadie lo haya pedido.
       'MIRED_ESCUCHA': '127.0.0.1:$_puerto',
+      // La llave del cifrado, en la carpeta de configuracion y NO en la de
+      // datos: respaldar los datos no puede llevarse con que descifrarlos.
+      'MIRED_LLAVE_SECRETOS': '$configuracion/llave-secretos',
       'MIRED_SOCKET_SONDA': '$datos/sonda.sock',
       'MIRED_SOCKET_DPI': '$datos/dpi.sock',
       // El catalogo de dispositivos: se LEE lo que instalo el paquete, pero lo

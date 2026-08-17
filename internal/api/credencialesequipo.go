@@ -146,3 +146,35 @@ func (a *API) borrarCredencialEquipo(escritor http.ResponseWriter, peticion *htt
 		fmt.Sprintf("Borrar la credencial %d en %s", id, clave))
 	responderOk(escritor, map[string]any{"borrado": true})
 }
+
+// credencialesParaExportar entrega TODAS las credenciales de la red con sus
+// contrasenas en claro.
+//
+// Es lo que permite que el mapa exportado sirva para mudar una instalacion a
+// otro equipo. Sale con permiso de escritura y **deja una sola linea en la
+// bitacora** —«exportar con contrasenas»— en vez de una por clave: es una
+// operacion, no cincuenta.
+func (a *API) credencialesParaExportar(escritor http.ResponseWriter, peticion *http.Request) {
+	if !a.exigeEscritura(escritor, peticion, "Exportar con contrasenas") {
+		return
+	}
+	clave, _ := autenticacion.RedActivaDe(peticion.Context())
+
+	var credenciales []basedatos.CredencialEquipo
+	err := a.Datos.ConRed(peticion.Context(), clave, func(base *basedatos.Base) error {
+		var err error
+		credenciales, err = base.TodasLasCredencialesConClave(peticion.Context(), a.Secretos)
+		return err
+	})
+	if err != nil {
+		a.responderError(escritor, peticion, contextoError{
+			Modulo: "Credenciales", Accion: "Exportar con contrasenas", Causa: CausaArchivo,
+			Tabla: "credenciales_equipo", Codigo: http.StatusInternalServerError,
+		}, "No se pudieron leer las claves guardadas para la exportacion.", err)
+		return
+	}
+
+	a.anotarActividad(peticion, "Credenciales",
+		fmt.Sprintf("EXPORTAR %d credenciales con su clave de %s", len(credenciales), clave))
+	responderOk(escritor, credenciales)
+}

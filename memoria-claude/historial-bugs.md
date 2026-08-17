@@ -333,3 +333,28 @@ propiedades y la hoja exportada.
   el punto y coma del Excel en espanol y la marca de codificacion. Obligar a
   reescribir una hoja que lleva anos en uso es la forma mas facil de que nadie
   use el importador.
+
+## 2026-08-17 — No se podia guardar la contrasena de un aparato
+**Problema:** al guardar la clave del modem, modal de error: *«no se pudo
+escribir la llave: open /etc/mired/llave-secretos: permission denied»*.
+
+**Causa:** corriendo como programa de escritorio, el servidor lo lanza el usuario
+—no root— y `/etc/mired` es del sistema. El programa YA le decia al servidor que
+escribiera en la carpeta del usuario para las bases y para el catalogo, con este
+comentario en el codigo: *«corriendo como programa no hay permiso para tocar /etc
+ni /var/lib»*. **De la llave del cifrado nadie se acordo**, y se quedaba con el
+valor por omision, que es el bueno cuando MiRed corre como servicio de systemd.
+
+Solo se noto ese dia porque **la llave se crea la primera vez que hace falta
+cifrar algo**, y hasta entonces nadie habia guardado la clave de un aparato. El
+mismo fallo habria tumbado importar una hoja con la columna CLAVE.
+
+**Solucion:** el programa pasa `MIRED_LLAVE_SECRETOS` apuntando a
+`~/.config/mired/llave-secretos`. En **configuracion** y no en datos, a
+proposito: la carpeta de datos es la que se respalda, y esos respaldos acaban en
+discos y en la nube; con la llave dentro, cifrar no protegeria de nada. No hubo
+nada que migrar —se comprobo que la llave nunca llego a crearse—.
+
+**Lo que enseño:** cuando se decide «esto lo escribe el programa en la carpeta
+del usuario», hay que repasar **todas** las rutas del servidor de una vez, no la
+que se estaba mirando. Quedaron dos y se arreglo una.

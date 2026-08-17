@@ -100,6 +100,7 @@ recableados}`. Ver [[modulo-importacion]].
 | `DELETE /api/redes/{clave}/inalambricos/{enlace}` | escritura | descuelga un equipo de su antena |
 | `PUT /api/redes/{clave}/equipos/{equipo}/credencial` | escritura | guarda como se entra al aparato; **la clave vacia NO borra la que habia** |
 | `GET /api/redes/{clave}/equipos/{equipo}/credencial/clave` | escritura | **la unica puerta por donde sale una clave**, y queda anotado quien la pidio |
+| `GET /api/redes/{clave}/credenciales/para-exportar` | escritura | TODAS con su clave **en claro**, solo para exportar. Deja una linea en la bitacora |
 | `DELETE /api/redes/{clave}/credenciales/{credencial}` | escritura | olvida una credencial |
 
 - **El catalogo lo cambia el superadministrador**, no quien tenga escritura en

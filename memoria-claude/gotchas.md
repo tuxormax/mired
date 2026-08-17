@@ -540,3 +540,38 @@ palabra SNMP dejaria fuera al que la busca. La regla es:
 
 Hecho asi en `interfaz/lib/pantallas/credenciales.dart`, que es el caso mas duro
 del programa. Al tocar cualquier formulario, mismo trato.
+
+## Corriendo como programa, NADA se escribe en /etc ni en /var/lib
+
+El servidor lo lanza el usuario, no root. Todo lo que el servidor escriba tiene
+que ir a la carpeta del usuario, y se lo dice el programa por entorno
+(`supervisor_generico.dart`, `_entorno()`):
+
+| Que | Donde | Variable |
+|---|---|---|
+| Bases de datos | `~/.local/share/mired` | `MIRED_DATOS` |
+| Catalogo propio y de la comunidad | `~/.local/share/mired/dispositivos*` | `MIRED_DISPOSITIVOS*` |
+| **Llave del cifrado** | `~/.config/mired/llave-secretos` | `MIRED_LLAVE_SECRETOS` |
+
+**La llave va en CONFIGURACION y no en datos.** La carpeta de datos es la que se
+respalda, y un respaldo acaba en un disco o en la nube: con la llave dentro,
+cifrar no protegeria de nada.
+
+Al agregar cualquier ruta nueva que el servidor escriba, **repasar esta tabla
+entera**. La de la llave se olvido y el fallo tardo cuatro dias en aparecer,
+porque la llave se crea la primera vez que hace falta cifrar algo.
+
+## Lo exportado LLEVA las contrasenas, en claro
+
+Decision del usuario, tomada a sabiendas: «si se exporta el mapa de la red
+tambien va la contrasena, **no importa que se vea**». Sin ellas el archivo no
+sirve para lo que se exporta —mudar una instalacion a otro equipo, entregarsela a
+alguien, tener un respaldo de verdad—.
+
+Consecuencias que hay que respetar al tocar esto:
+- **En la base siguen cifradas.** Lo unico que las saca en claro es
+  `TodasLasCredencialesConClave`, que **solo** usa la exportacion y **deja una
+  linea en la bitacora**. Ningun listado las manda.
+- Si el servidor no las puede dar, la exportacion **no se cae**: sale sin ellas.
+  Un mapa sin claves sirve; no tener mapa, no.
+- Una clave que no se puede descifrar no tumba el archivo entero: se deja vacia.

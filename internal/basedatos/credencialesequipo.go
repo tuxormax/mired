@@ -197,3 +197,48 @@ func esTipoDeCredencial(tipo string) bool {
 	}
 	return false
 }
+
+// TodasLasCredencialesConClave devuelve las credenciales de la red **con sus
+// contrasenas en claro**.
+//
+// Existe para una sola cosa: exportar la red. El usuario lo pidio asi —«si se
+// exporta el mapa de la red tambien va la contrasena, no importa que se vea»—
+// porque una instalacion documentada a medias no sirve para mudarla a otro
+// equipo ni para entregarsela a nadie.
+//
+// **Es la unica lectura masiva de secretos que hay**, y por eso: no la usa
+// ningun listado, solo la exportacion, y quien la llama deja constancia en la
+// bitacora. Todo lo demas manda las credenciales SIN clave.
+func (b *Base) TodasLasCredencialesConClave(ctx context.Context,
+	caja *secreto.Caja) ([]CredencialEquipo, error) {
+	filas, err := b.QueryContext(ctx, `
+		SELECT id, equipo_id, tipo, COALESCE(usuario, ''), clave,
+		       COALESCE(direccion, ''), COALESCE(notas, ''), creada
+		  FROM credenciales_equipo
+		 ORDER BY equipo_id, tipo`)
+	if err != nil {
+		return nil, fmt.Errorf("no se pudieron leer las credenciales: %w", err)
+	}
+	defer filas.Close()
+
+	credenciales := []CredencialEquipo{}
+	for filas.Next() {
+		var c CredencialEquipo
+		var guardada sql.NullString
+		if err := filas.Scan(&c.ID, &c.EquipoID, &c.Tipo, &c.Usuario, &guardada,
+			&c.Direccion, &c.Notas, &c.Creada); err != nil {
+			return nil, err
+		}
+		c.TieneClave = guardada.Valid && guardada.String != ""
+		if c.TieneClave && caja != nil {
+			// Una clave que no se puede descifrar NO tumba la exportacion: se
+			// deja vacia y las demas salen. Perder el archivo entero por una
+			// fila seria peor que entregarlo con un hueco.
+			if claro, err := caja.Descifrar(guardada.String); err == nil {
+				c.Clave = claro
+			}
+		}
+		credenciales = append(credenciales, c)
+	}
+	return credenciales, filas.Err()
+}

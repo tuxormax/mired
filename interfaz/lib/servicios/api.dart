@@ -517,6 +517,19 @@ class Api {
     return CredencialEquipo.desdeJson(datos as Map<String, dynamic>);
   }
 
+  /// Todas las credenciales de la red **con su clave en claro**, para exportar.
+  ///
+  /// Es la unica lectura masiva de secretos que hay: la exportacion lleva las
+  /// contrasenas para que sirva de respaldo y para poder mudar una instalacion
+  /// a otro equipo. El servidor lo deja anotado en la bitacora.
+  Future<List<CredencialEquipo>> credencialesParaExportar(String clave) async {
+    final datos = await obtener('/api/redes/$clave/credenciales/para-exportar')
+        as List<dynamic>;
+    return datos
+        .map((fila) => CredencialEquipo.desdeJson(fila as Map<String, dynamic>))
+        .toList();
+  }
+
   /// Borra la credencial guardada de un equipo. Se llama distinto de
   /// [borrarCredencial], que es la de SNMP: son dos cosas diferentes y
   /// confundirlas seria borrar la que no es.

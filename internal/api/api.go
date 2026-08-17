@@ -140,6 +140,9 @@ func (a *API) Rutas() http.Handler {
 	mux.Handle("PUT /api/redes/{clave}/equipos/{equipo}/credencial", a.conRed(a.guardarCredencialEquipo))
 	mux.Handle("GET /api/redes/{clave}/equipos/{equipo}/credencial/clave", a.conRed(a.verClaveDeEquipo))
 	mux.Handle("DELETE /api/redes/{clave}/credenciales/{credencial}", a.conRed(a.borrarCredencialEquipo))
+	// Las claves EN CLARO, solo para exportar la red. Es la unica lectura masiva
+	// de secretos que existe y deja constancia en la bitacora.
+	mux.Handle("GET /api/redes/{clave}/credenciales/para-exportar", a.conRed(a.credencialesParaExportar))
 
 	// El aire: que redes inalambricas se oyen desde este equipo. Va con la red
 	// activa porque el cruce con el inventario —de que aparato es cada antena—

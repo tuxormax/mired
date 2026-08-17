@@ -17,7 +17,7 @@ a heredar la AGPL de otro.
 
 ## Estado del desarrollo
 
-Actualizado el **2026-08-17**, en **v1.20 Rev 48**.
+Actualizado el **2026-08-17**, en **v1.20 Rev 50**.
 
 | Fase | Estado | Nota |
 |---|---|---|
@@ -32,19 +32,34 @@ Actualizado el **2026-08-17**, en **v1.20 Rev 48**.
 | 9 — Publicacion | ⚠️ parcial | AGPL-3.0, repo publico, documentacion (ES y EN) y **paquetes publicados como release** (2026-08-14). **Falta firmar los paquetes**: por ahora solo llevan huella SHA-256 |
 | 10 — Inspeccion profunda | ✅ terminada | `mired-dpi` en el mismo paquete pero APAGADO: nombre del servidor por TLS, HTTP y DNS. Falta probarlo con un puerto espejo real |
 
+Fuera del plan de las diez fases, el **modulo 20 — importar una hoja de
+aparatos** (Rev 40): una instalacion documentada en una hoja de calculo se sube
+en CSV, ODS o XLSX, con vista previa antes de escribir nada.
+
 **Probado de verdad:** el `dpkg -i` en un equipo y **el programa abriéndose desde
 el menú y levantando sus servicios** (2026-08-13), el primer acceso creando el
 administrador, el descubrimiento contra la red real de casa, los barridos
 programados corriendo solos, el motor de alertas, el catálogo de dispositivos, el
 receptor de flujos, y el `.deb` desempaquetado corriendo desde su propio árbol.
 
+Y **el mapa de la casa usado de verdad** (2026-08-17), que es de donde salió casi
+todo lo del día: la exportación se guarda donde diga el usuario, la hoja de
+cálculo pasó a ser dos tablas, se importan hojas de aparatos, las credenciales
+son de cada red, el programa es verde sobre negro, cada red lleva su menú a la
+izquierda y las llaves están en una sola lista escrita para quien no sabe de
+redes. Nada de eso salió de un plan: salió de mirar la pantalla.
+
 **NO probado todavía:** que los servicios mueran al cerrar la ventana; un escaneo
-completo lanzado desde el programa; SNMP y CDP contra un switch administrable real; la controladora UniFi
-contra una de verdad (sólo contra un servidor de mentira que imita las dos
-generaciones); la inspección profunda contra un puerto espejo real; y **conectar puertos
-tocándolos con el ratón en la ventana** (la API entera y el dibujo del plano sí
-están cubiertos por pruebas). El switch administrable sigue siendo el
-riesgo abierto más grande del proyecto.
+completo lanzado desde el programa; SNMP y CDP contra un switch administrable real
+—y con él, el botón «Probar ahora» de una credencial, que hoy solo se ha visto
+contestar «no contestó ninguno»—; la controladora UniFi contra una de verdad
+(sólo contra un servidor de mentira que imita las dos generaciones); la
+inspección profunda contra un puerto espejo real; **importar una hoja de verdad
+desde el programa** (el flujo entero sí está cubierto por pruebas y por el guion
+de humo, pero nadie ha subido todavía un archivo con el ratón); y **conectar
+puertos tocándolos con el ratón en la ventana** (la API entera y el dibujo del
+plano sí están cubiertos). El switch administrable sigue siendo el riesgo abierto
+más grande del proyecto.
 
 ### Todo dato dice de cuándo es
 
@@ -78,7 +93,7 @@ de darla por buena** no es opcional en este proyecto.
 nunca se reinicia. No es versionado semántico: X no sube porque un cambio sea
 grande, sube cuando hay un módulo más.
 
-Hoy son **20 módulos** → **v1.20**, y la revisión va por la **48**.
+Hoy son **20 módulos** → **v1.20**, y la revisión va por la **50**.
 
 > Redes · Subredes · Equipos · Escaneo y agenda · Presencia · Mapa de puertos ·
 > Mapa visual · Alertas · Consumo · Inspección profunda · Usuarios · Credenciales

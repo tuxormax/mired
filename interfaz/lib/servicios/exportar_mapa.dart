@@ -476,11 +476,17 @@ String _colorPdf(Color color) {
 /// Las dos salen del mismo [ArbolDeclarado] que dibuja el mapa y **en el mismo
 /// orden en que el mapa se lee**: de la raiz hacia afuera, y lo que no se supo
 /// ubicar al final. Asi la hoja y el dibujo se recorren igual.
-List<Tabla> tablasDelMapa(DatosMapa datos) {
+List<Tabla> tablasDelMapa(DatosMapa datos,
+    {List<CredencialEquipo> credenciales = const []}) {
   final arbol = ArbolDeclarado(datos);
   final orden = _aparatosEnOrdenDelMapa(datos, arbol);
+  // Las claves van por id de equipo, para pegarlas a su renglon.
+  final porEquipo = <int, CredencialEquipo>{};
+  for (final credencial in credenciales) {
+    porEquipo.putIfAbsent(credencial.equipoId, () => credencial);
+  }
   return [
-    _tablaDeAparatos(datos, arbol, orden),
+    _tablaDeAparatos(datos, arbol, orden, porEquipo),
     _tablaDeConexiones(datos, arbol, orden),
   ];
 }
@@ -490,22 +496,29 @@ List<Tabla> tablasDelMapa(DatosMapa datos) {
 /// **Empieza diciendo de cuando son los datos**, igual que los otros formatos.
 /// Es la regla del proyecto: todo reporte que salga de MiRed dice de que momento
 /// es, porque un archivo suelto sin fecha, a la semana, ya no se sabe si sirve.
-String csvDelMapa(DatosMapa datos, [EncabezadoMapa? encabezado]) =>
-    csvDeTablas(tablasDelMapa(datos), titulo: _tituloDeUnaLinea(encabezado));
+String csvDelMapa(DatosMapa datos,
+        [EncabezadoMapa? encabezado, List<CredencialEquipo> credenciales = const []]) =>
+    csvDeTablas(tablasDelMapa(datos, credenciales: credenciales),
+        titulo: _tituloDeUnaLinea(encabezado));
 
 /// odsDelMapa y xlsxDelMapa entregan lo mismo con una pestana por tabla.
-Uint8List odsDelMapa(DatosMapa datos, EncabezadoMapa encabezado, DateTime momento) =>
-    odsDeTablas(tablasDelMapa(datos), momento, titulo: _tituloDeUnaLinea(encabezado));
+Uint8List odsDelMapa(DatosMapa datos, EncabezadoMapa encabezado, DateTime momento,
+        {List<CredencialEquipo> credenciales = const []}) =>
+    odsDeTablas(tablasDelMapa(datos, credenciales: credenciales), momento,
+        titulo: _tituloDeUnaLinea(encabezado));
 
-Uint8List xlsxDelMapa(DatosMapa datos, EncabezadoMapa encabezado, DateTime momento) =>
-    xlsxDeTablas(tablasDelMapa(datos), momento, titulo: _tituloDeUnaLinea(encabezado));
+Uint8List xlsxDelMapa(DatosMapa datos, EncabezadoMapa encabezado, DateTime momento,
+        {List<CredencialEquipo> credenciales = const []}) =>
+    xlsxDeTablas(tablasDelMapa(datos, credenciales: credenciales), momento,
+        titulo: _tituloDeUnaLinea(encabezado));
 
 String _tituloDeUnaLinea(EncabezadoMapa? encabezado) =>
     encabezado == null ? '' : '${encabezado.titulo} — ${encabezado.subtitulo}';
 
 // --------------------------------------------------- la tabla de aparatos ---
 
-Tabla _tablaDeAparatos(DatosMapa datos, ArbolDeclarado arbol, List<Equipo> orden) =>
+Tabla _tablaDeAparatos(DatosMapa datos, ArbolDeclarado arbol, List<Equipo> orden,
+        Map<int, CredencialEquipo> credenciales) =>
     Tabla(
       nombre: 'Aparatos',
       explicacion: 'Un renglon por aparato: que es, de donde cuelga y que tan '
@@ -522,13 +535,22 @@ Tabla _tablaDeAparatos(DatosMapa datos, ArbolDeclarado arbol, List<Equipo> orden
         'Puerto',
         'Que tan seguro',
         'Como se supo',
+        // Las llaves del aparato van EN la hoja: sin ellas, el archivo no sirve
+        // para mudar la instalacion a otro equipo ni para entregarsela a nadie.
+        // Que se vean es la decision del usuario, tomada a sabiendas.
+        'Acceso',
+        'Usuario',
+        'Clave',
+        'Direccion del panel',
       ],
       filas: [
-        for (final equipo in orden) _filaDeAparato(datos, arbol, equipo),
+        for (final equipo in orden)
+          _filaDeAparato(datos, arbol, equipo, credenciales[equipo.id]),
       ],
     );
 
-List<String> _filaDeAparato(DatosMapa datos, ArbolDeclarado arbol, Equipo equipo) {
+List<String> _filaDeAparato(DatosMapa datos, ArbolDeclarado arbol, Equipo equipo,
+    CredencialEquipo? credencial) {
   final donde = _dondeCuelga(datos, arbol, equipo);
   return [
     equipo.comoSeLlama,
@@ -544,6 +566,10 @@ List<String> _filaDeAparato(DatosMapa datos, ArbolDeclarado arbol, Equipo equipo
     donde.puerto,
     donde.seguridad,
     donde.comoSeSupo,
+    credencial == null ? '' : credencial.tipo,
+    credencial?.usuario ?? '',
+    credencial?.clave ?? '',
+    credencial?.direccion ?? '',
   ];
 }
 

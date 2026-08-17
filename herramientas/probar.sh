@@ -368,6 +368,22 @@ pedir -X PUT "$API/api/redes/$CLAVE/equipos/$MANUAL" \
     && paso "rechaza una forma de conexion que no existe" \
     || falla "acepto una conexion que la columna no admite"
 
+# La clave de un aparato se guarda cifrada, y la exportacion la lleva EN CLARO
+# a proposito: sin ella el archivo no sirve para mudar una instalacion.
+pedir -X PUT "$API/api/redes/$CLAVE/equipos/$MANUAL/credencial" \
+     -d '{"tipo":"web","usuario":"admin","clave":"laDelModem","direccion":"http://192.168.1.254"}' \
+    | grep -q '"ok":true' \
+    && paso "se guarda la clave de un aparato" \
+    || falla "no se pudo guardar la clave del aparato"
+
+pedir "$API/api/redes/$CLAVE/equipos" | grep -q '"laDelModem"' \
+    && falla "la clave viajo en el listado de equipos" \
+    || paso "y NO viaja en el listado de equipos"
+
+pedir "$API/api/redes/$CLAVE/credenciales/para-exportar" | grep -q '"laDelModem"' \
+    && paso "pero si sale, descifrada, para exportar la red" \
+    || falla "la exportacion no pudo descifrar la clave"
+
 pedir -X DELETE "$API/api/redes/$CLAVE/equipos/$MANUAL" | grep -q '"borrado":true' \
     && paso "borra el equipo declarado a mano" \
     || falla "no se pudo borrar el equipo declarado"

@@ -263,6 +263,26 @@ class _PantallaMapaState extends State<PantallaMapa> {
   Future<void> _exportar(_Formato formato, DatosMapa datos) async {
     setState(() => _exportando = true);
     try {
+      // Las contrasenas de los aparatos van DENTRO de lo exportado. Es lo que
+      // convierte la hoja en un respaldo de verdad y en algo que se puede
+      // entregar o mudar a otro equipo; sin ellas, la instalacion queda
+      // documentada a medias. Van en claro, y se sabe: el archivo hay que
+      // tratarlo como se trata un llavero.
+      //
+      // Si el servidor no las da —permisos, o una llave que no descifra— la
+      // exportacion NO se cae: sale sin ellas. Un mapa sin claves sigue siendo
+      // util; no tener mapa, no.
+      var credenciales = const <CredencialEquipo>[];
+      if (formato != _Formato.png && formato != _Formato.svg &&
+          formato != _Formato.pdf) {
+        try {
+          credenciales =
+              await Api.instancia.credencialesParaExportar(widget.red.clave);
+        } catch (_) {
+          // Sin claves, pero con mapa.
+        }
+      }
+
       final momento = DateTime.now();
       final sello = momento.toIso8601String().substring(0, 16).replaceAll(':', '');
       final base = 'mapa-${widget.red.clave}-$sello';
@@ -284,7 +304,8 @@ class _PantallaMapaState extends State<PantallaMapa> {
       );
 
       if (formato == _Formato.portapapeles) {
-        await Clipboard.setData(ClipboardData(text: csvDelMapa(datos, encabezado)));
+        await Clipboard.setData(
+            ClipboardData(text: csvDelMapa(datos, encabezado, credenciales)));
         if (mounted) {
           mensajeAviso(context,
               'Mapa copiado como CSV: ya se puede pegar en una hoja de calculo.');
@@ -310,17 +331,17 @@ class _PantallaMapaState extends State<PantallaMapa> {
           donde = await descargarArchivo(
               '$base.ods',
               'application/vnd.oasis.opendocument.spreadsheet',
-              odsDelMapa(datos, encabezado, momento));
+              odsDelMapa(datos, encabezado, momento, credenciales: credenciales));
         case _Formato.xlsx:
           donde = await descargarArchivo(
               '$base.xlsx',
               'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-              xlsxDelMapa(datos, encabezado, momento));
+              xlsxDelMapa(datos, encabezado, momento, credenciales: credenciales));
         case _Formato.csv:
           // Con marca de codificacion: sin ella Excel abre el archivo con la
           // codificacion local del equipo y los acentos salen rotos.
           donde = await descargarArchivo('$base.csv', 'text/csv;charset=utf-8',
-              csvEnBytes(csvDelMapa(datos, encabezado)));
+              csvEnBytes(csvDelMapa(datos, encabezado, credenciales)));
         case _Formato.portapapeles:
           break; // Resuelto arriba.
       }
