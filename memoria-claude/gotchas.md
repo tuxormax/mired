@@ -532,6 +532,11 @@ palabra SNMP dejaria fuera al que la busca. La regla es:
    «respondieron 2 switches».
 6. **Poner el valor tipico en el hueco del campo** (`public`) y **el nombre solo
    si de verdad hace falta**: si casi siempre hay uno, se le pone uno solo.
+7. **Explicar QUE ES, no solo como se llama.** Saber el nombre de algo no es
+   entenderlo: la Rev 46 dejo escrito «en el switch aparece como *community*» y
+   la primera reaccion del usuario fue «¿que es eso de community?». La respuesta
+   va **plegada y en la propia pantalla**, que es donde se hace la pregunta, no
+   en un manual aparte que nadie va a abrir.
 
 Hecho asi en `interfaz/lib/pantallas/credenciales.dart`, que es el caso mas duro
 del programa. Al tocar cualquier formulario, mismo trato.

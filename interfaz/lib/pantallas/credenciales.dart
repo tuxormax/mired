@@ -213,6 +213,7 @@ class _DialogoCredencialState extends State<_DialogoCredencial> {
   bool _ocupado = false;
   bool _probando = false;
   bool _tecnicoAbierto = false;
+  bool _explicacionAbierta = false;
   PruebaDeCredencial? _resultado;
 
   @override
@@ -337,6 +338,7 @@ class _DialogoCredencialState extends State<_DialogoCredencial> {
                     'direccion IP en el navegador, y busque la seccion «SNMP».',
                     style: tema.textTheme.bodySmall,
                   ),
+                  _queEsEsto(contexto),
                 ] else ...[
                   TextFormField(
                     controller: _usuario,
@@ -501,6 +503,62 @@ class _DialogoCredencialState extends State<_DialogoCredencial> {
               ? const SizedBox(
                   height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
               : const Text('Guardar'),
+        ),
+      ],
+    );
+  }
+
+  /// _queEsEsto contesta la pregunta que se hace cualquiera al llegar aqui.
+  ///
+  /// La pantalla ya decia COMO se llama el campo en el switch («community») y
+  /// DONDE buscarlo, pero no QUE ES. El usuario lo pregunto en cuanto lo vio, y
+  /// tenia razon: saber el nombre de algo no es entenderlo.
+  ///
+  /// Va plegado porque quien ya lo sabe no tiene por que leerlo cada vez, y va
+  /// AQUI y no en un manual aparte porque es donde se hace la pregunta.
+  Widget _queEsEsto(BuildContext contexto) {
+    final tema = Theme.of(contexto);
+
+    Widget parrafo(String texto) => Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Text(texto, style: tema.textTheme.bodySmall),
+        );
+
+    return ExpansionTile(
+      initiallyExpanded: _explicacionAbierta,
+      onExpansionChanged: (abierto) => _explicacionAbierta = abierto,
+      tilePadding: EdgeInsets.zero,
+      childrenPadding: EdgeInsets.zero,
+      title: Text('¿Que es esto de la «community»?',
+          style: tema.textTheme.bodyMedium?.copyWith(color: tema.colorScheme.primary)),
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            parrafo(
+                'Es la contrasena de lectura del switch, y nada mas. El nombre es lo '
+                'unico raro: cuando se invento SNMP, en los ochenta, se llamaba '
+                '«comunidad» al grupo de aparatos que compartian la misma clave. Se '
+                'quedo el nombre.'),
+            parrafo(
+                'Casi siempre hay dos: la de LECTURA —suele venir como «public»— para '
+                'preguntarle cosas, y la de ESCRITURA —«private»— para cambiarle la '
+                'configuracion. MiRed solo necesita la de lectura: con ella se le puede '
+                'preguntar, no tocar nada. No le ponga la de escritura, que seria darle '
+                'permiso para cambiarle el switch sin ninguna necesidad.'),
+            parrafo(
+                'Si nadie la ha cambiado nunca, es «public». Escribalo tal cual y pulse '
+                '«Probar ahora»: si contesta, era esa.'),
+            parrafo(
+                'Ojo: NO es una contrasena seria. En SNMP v1 y v2c viaja en claro por el '
+                'cable y cualquiera que escuche la red la ve, asi que nunca reutilice '
+                'aqui una que use para otra cosa. Eso es justo lo que arregla el v3, el '
+                'de usuario y cifrado, que esta en las opciones tecnicas de abajo.'),
+            parrafo(
+                'Y si su switch es de los sencillos —de los que se enchufan y ya, sin '
+                'pagina de configuracion— no tiene community ninguna: no hay nada que '
+                'poner aqui, y MiRed funciona igual sin el mapa de puertos.'),
+          ]),
         ),
       ],
     );

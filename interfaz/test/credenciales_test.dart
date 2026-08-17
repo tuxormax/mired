@@ -93,6 +93,29 @@ void main() {
     expect(find.textContaining('Opciones tecnicas'), findsOneWidget);
   });
 
+  testWidgets('explica QUE es la community, no solo como se llama',
+      (probador) async {
+    // Saber el nombre de algo no es entenderlo: el usuario pregunto «¿que es eso
+    // de community?» en cuanto vio la pantalla. La respuesta va aqui, donde se
+    // hace la pregunta, y no en un manual aparte.
+    await abrirElDialogo(probador);
+
+    expect(find.textContaining('¿Que es esto de la «community»?'), findsOneWidget);
+    // Plegado: quien ya lo sabe no tiene por que leerlo cada vez.
+    expect(find.textContaining('contrasena de lectura del switch, y nada mas'),
+        findsNothing);
+
+    await probador.tap(find.textContaining('¿Que es esto'));
+    await probador.pumpAndSettle();
+
+    expect(find.textContaining('contrasena de lectura del switch, y nada mas'),
+        findsOneWidget);
+    // Las dos cosas que de verdad importan: que la de escritura NO se pone, y
+    // que en v1/v2c la clave viaja en claro.
+    expect(find.textContaining('No le ponga la de escritura'), findsOneWidget);
+    expect(find.textContaining('viaja en claro'), findsOneWidget);
+  });
+
   testWidgets('lo tecnico sigue ahi para quien lo busca', (probador) async {
     await abrirElDialogo(probador);
     await probador.tap(find.textContaining('Opciones tecnicas'));
@@ -102,7 +125,7 @@ void main() {
     expect(find.text('Version de SNMP'), findsOneWidget);
     // Y el nombre real del campo esta escrito, no escondido: es como lo llama el
     // manual del switch, que es donde va a tener que buscarlo.
-    expect(find.textContaining('«community»'), findsOneWidget);
+    expect(find.textContaining('aparece como «community»'), findsOneWidget);
   });
 
   testWidgets('se puede probar antes de guardar, y dice cuantos contestaron',
