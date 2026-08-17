@@ -142,6 +142,13 @@ class Equipo {
   final String modelo;
   final String notas;
 
+  /// Donde ESTA el aparato: «farmacia», «cons 5», «rack del site».
+  ///
+  /// No es lo mismo que de donde cuelga. Un aparato puede colgar del puerto 7 del
+  /// switch y estar en el consultorio 4: lo primero es el cableado y lo segundo
+  /// es el sitio, y quien va a desconectarlo necesita el segundo.
+  final String ubicacion;
+
   /// `descubierto` o `manual`. Un switch no administrable NUNCA va a salir en un
   /// escaneo —no tiene direccion—, asi que hay que poder distinguir "no
   /// contesto" de "no existe".
@@ -181,6 +188,7 @@ class Equipo {
     required this.ultimaVez,
     required this.puertos,
     this.modelo = '',
+    this.ubicacion = '',
     this.notas = '',
     this.origen = 'descubierto',
     this.conexion = '',
@@ -206,6 +214,7 @@ class Equipo {
             .map((fila) => PuertoEquipo.desdeJson(fila as Map<String, dynamic>))
             .toList(),
         modelo: json['modelo'] as String? ?? '',
+        ubicacion: json['ubicacion'] as String? ?? '',
         notas: json['notas'] as String? ?? '',
         origen: json['origen'] as String? ?? 'descubierto',
         conexion: json['conexion'] as String? ?? '',
@@ -1411,4 +1420,168 @@ class Consumo {
       );
 
   bool get hayAlgo => puertos.isNotEmpty || porFlujos.isNotEmpty;
+}
+
+// ------------------------------------------------------------ importacion ---
+
+/// Lo que se haria con un renglon de una hoja que se va a importar.
+///
+/// Viene del servidor **antes** de escribir nada: la pantalla lo ensena renglon
+/// por renglon y quien importa decide. Importar a ciegas 23 aparatos y descubrir
+/// despues que tres estaban mal significa borrarlos a mano de uno en uno.
+class RenglonImportado {
+  final int renglon;
+  final String nombre;
+
+  /// `crear`, `actualizar` o `rechazar`.
+  final String accion;
+
+  /// Por que se rechaza, en cristiano y diciendo que hacer.
+  final String motivo;
+
+  /// Se importa igual, pero conviene mirarlo.
+  final String aviso;
+
+  final String tipo;
+  final String cuelgaDe;
+  final String puerto;
+  final String ubicacion;
+  final String ip;
+
+  const RenglonImportado({
+    required this.renglon,
+    required this.nombre,
+    required this.accion,
+    this.motivo = '',
+    this.aviso = '',
+    this.tipo = '',
+    this.cuelgaDe = '',
+    this.puerto = '',
+    this.ubicacion = '',
+    this.ip = '',
+  });
+
+  factory RenglonImportado.desdeJson(Map<String, dynamic> json) {
+    // El puerto llega partido en tipo y numero, como se guarda; aqui se junta
+    // como se lee en el aparato: «LAN 7».
+    final numero = json['puertoNumero'] as int? ?? 0;
+    final tipoPuerto = json['puertoTipo'] as String? ?? '';
+    return RenglonImportado(
+      renglon: json['renglon'] as int? ?? 0,
+      nombre: json['nombre'] as String? ?? '',
+      accion: json['accion'] as String? ?? 'rechazar',
+      motivo: json['motivo'] as String? ?? '',
+      aviso: json['aviso'] as String? ?? '',
+      tipo: json['tipo'] as String? ?? '',
+      cuelgaDe: json['cuelgaDe'] as String? ?? '',
+      puerto: numero == 0 ? '' : nombreDePuerto(tipoPuerto, numero),
+      ubicacion: json['ubicacion'] as String? ?? '',
+      ip: json['ip'] as String? ?? '',
+    );
+  }
+
+  bool get seRechaza => accion == 'rechazar';
+  bool get seActualiza => accion == 'actualizar';
+}
+
+/// El plan entero: que se haria con el archivo, sin haber tocado nada.
+class PlanImportacion {
+  final List<RenglonImportado> renglones;
+
+  /// Columnas del archivo que MiRed no entiende. Se dicen en vez de callarlas:
+  /// quien capturo «RESPONSABLE» tiene que enterarse de que no se guardo.
+  final List<String> ignoradas;
+  final List<String> reconocidas;
+
+  final int crear;
+  final int actualizar;
+  final int rechazar;
+  final int cables;
+
+  /// Cuantos renglones traen contrasena, para poder avisar de que el ARCHIVO la
+  /// lleva en claro aunque en la base quede cifrada.
+  final int conClave;
+
+  const PlanImportacion({
+    this.renglones = const [],
+    this.ignoradas = const [],
+    this.reconocidas = const [],
+    this.crear = 0,
+    this.actualizar = 0,
+    this.rechazar = 0,
+    this.cables = 0,
+    this.conClave = 0,
+  });
+
+  factory PlanImportacion.desdeJson(Map<String, dynamic> json) => PlanImportacion(
+        renglones: ((json['renglones'] as List<dynamic>?) ?? [])
+            .map((fila) => RenglonImportado.desdeJson(fila as Map<String, dynamic>))
+            .toList(),
+        ignoradas: ((json['ignoradas'] as List<dynamic>?) ?? [])
+            .map((valor) => valor as String)
+            .toList(),
+        reconocidas: ((json['reconocidas'] as List<dynamic>?) ?? [])
+            .map((valor) => valor as String)
+            .toList(),
+        crear: json['crear'] as int? ?? 0,
+        actualizar: json['actualizar'] as int? ?? 0,
+        rechazar: json['rechazar'] as int? ?? 0,
+        cables: json['cables'] as int? ?? 0,
+        conClave: json['conClave'] as int? ?? 0,
+      );
+
+  bool get hayAlgoQueImportar => crear > 0 || actualizar > 0;
+}
+
+/// Lo que de verdad se hizo al importar.
+class ResumenImportacion {
+  final int creados;
+  final int actualizados;
+  final int saltados;
+  final int rechazados;
+  final int puertos;
+  final int cables;
+  final int credenciales;
+
+  /// Puertos que ya llevaban un cable a otro sitio y se quedaron con el del
+  /// archivo. Es el unico caso en que importar PISA un dato que ya estaba, asi
+  /// que se dice aparte.
+  final int recableados;
+
+  const ResumenImportacion({
+    this.creados = 0,
+    this.actualizados = 0,
+    this.saltados = 0,
+    this.rechazados = 0,
+    this.puertos = 0,
+    this.cables = 0,
+    this.credenciales = 0,
+    this.recableados = 0,
+  });
+
+  factory ResumenImportacion.desdeJson(Map<String, dynamic> json) => ResumenImportacion(
+        creados: json['creados'] as int? ?? 0,
+        actualizados: json['actualizados'] as int? ?? 0,
+        saltados: json['saltados'] as int? ?? 0,
+        rechazados: json['rechazados'] as int? ?? 0,
+        puertos: json['puertos'] as int? ?? 0,
+        cables: json['cables'] as int? ?? 0,
+        credenciales: json['credenciales'] as int? ?? 0,
+        recableados: json['recableados'] as int? ?? 0,
+      );
+
+  /// Como se cuenta lo que paso, en una frase.
+  String get enPalabras {
+    final partes = <String>[
+      if (creados > 0) '$creados ${creados == 1 ? 'aparato nuevo' : 'aparatos nuevos'}',
+      if (actualizados > 0) '$actualizados actualizados',
+      if (saltados > 0) '$saltados sin tocar',
+      if (cables > 0) '$cables ${cables == 1 ? 'cable' : 'cables'}',
+      if (puertos > 0) '$puertos puertos declarados',
+      if (credenciales > 0) '$credenciales accesos guardados',
+      if (recableados > 0) '$recableados puertos que ya tenian otro cable',
+    ];
+    if (partes.isEmpty) return 'No hubo nada que cambiar.';
+    return '${partes.join(', ')}.';
+  }
 }

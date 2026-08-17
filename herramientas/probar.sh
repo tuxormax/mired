@@ -372,6 +372,81 @@ pedir -X DELETE "$API/api/redes/$CLAVE/equipos/$MANUAL" | grep -q '"borrado":tru
     && paso "borra el equipo declarado a mano" \
     || falla "no se pudo borrar el equipo declarado"
 
+# ------------------------------------------------------- importar una hoja --
+#
+# Una instalacion documentada en una hoja de calculo no se captura formulario
+# por formulario. Se prueba con la hoja de una clinica de verdad: un switch
+# tonto, sus nodos colgados por numero de puerto y uno que cuelga de otro sitio.
+
+pedir "$API/api/redes/$CLAVE/importacion/plantilla" | grep -q 'NOMBRE,QUE_ES' \
+    && paso "la plantilla para importar se descarga" \
+    || falla "la plantilla no se pudo descargar"
+
+python3 - "$CARPETA" <<'FINPY'
+import base64, json, sys
+
+hoja = "\n".join([
+    "RED ALAMBRICA CLINICA ESQUIPULAS,,,,,,",
+    ",,,,,,",
+    "NOMBRE,QUE_ES,PUERTOS,CUELGA_DE,PUERTO,UBICACION,NOTAS",
+    "switch site,switch,24,,,site,",
+    "router,modem,4,switch site,1,site,",
+    "D01,pc,,switch site,5,admon,",
+    "D06,otro,,switch site,10,dental,fortinet lan 4",
+    "D19,otro,,router,2,usg,antena deco",
+    "inventado,cosa rara,,,,,",
+    "",
+])
+cuerpo = {"nombre": "clinica.csv",
+          "contenido": base64.b64encode(hoja.encode()).decode()}
+open(sys.argv[1] + "/importar.json", "w").write(json.dumps(cuerpo))
+cuerpo["repetidos"] = "actualizar"
+open(sys.argv[1] + "/importar-aplicar.json", "w").write(json.dumps(cuerpo))
+FINPY
+
+# La vista previa NO escribe: dice lo que pasaria y senala el renglon malo.
+VISTA=$(pedir -X POST "$API/api/redes/$CLAVE/importacion/vista-previa" \
+        -d "@$CARPETA/importar.json")
+echo "$VISTA" | grep -q '"crear":5' \
+    && paso "la vista previa de la hoja cuenta 5 altas" \
+    || falla "la vista previa no conto bien las altas"
+
+echo "$VISTA" | grep -q '"rechazar":1' \
+    && paso "y rechaza el renglon con una categoria inventada" \
+    || falla "la vista previa acepto una categoria que no existe"
+
+pedir "$API/api/redes/$CLAVE/composicion" | grep -q '"switch_simple"' \
+    && falla "la vista previa escribio en la base" \
+    || paso "la vista previa no escribio nada"
+
+RESUMEN=$(pedir -X POST "$API/api/redes/$CLAVE/importacion" \
+          -d "@$CARPETA/importar-aplicar.json")
+echo "$RESUMEN" | grep -q '"creados":5' \
+    && paso "la hoja se importa: 5 aparatos de una vez" \
+    || falla "la hoja no se importo"
+
+echo "$RESUMEN" | grep -q '"cables":4' \
+    && paso "y quedan sus 4 cables dibujados" \
+    || falla "los cables de la hoja no se crearon"
+
+# El dato por el que se busca en una instalacion con rosetas: donde ESTA, que no
+# es lo mismo que de donde cuelga.
+pedir "$API/api/redes/$CLAVE/equipos" | grep -q '"ubicacion":"dental"' \
+    && paso "la ubicacion de cada nodo se guardo" \
+    || falla "la ubicacion no se guardo"
+
+# El switch tonto quedo con sus 24 puertos, asi que los libres se ven en el mapa.
+pedir "$API/api/redes/$CLAVE/topologia-manual" | grep -q '"numero":24' \
+    && paso "el switch quedo con sus 24 puertos, libres incluidos" \
+    || falla "los puertos del switch importado no se declararon"
+
+# Volver a subir la misma hoja no puede duplicar nada: es lo que pasa de verdad
+# cuando alguien corrige un dato y la vuelve a mandar.
+pedir -X POST "$API/api/redes/$CLAVE/importacion" -d "@$CARPETA/importar-aplicar.json" \
+    | grep -q '"creados":0' \
+    && paso "volver a subir la hoja no duplica aparatos" \
+    || falla "la segunda importacion duplico aparatos"
+
 pedir "$API/api/redes/$CLAVE/consumo" | grep -q '"explicacion"' \
     && paso "el consumo responde y se explica" || falla "el consumo fallo"
 

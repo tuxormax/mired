@@ -59,6 +59,10 @@ class PropiedadesDelEquipo extends StatelessWidget {
                 ? 'Sin reconocer'
                 : nombreDeCategoria(equipo.categoria)),
         RenglonDeFicha(etiqueta: 'Modelo', valor: equipo.modelo),
+        // Donde ESTA, que no es de donde cuelga. En una instalacion con rosetas
+        // es lo primero que se busca: quien va a desconectarlo necesita el sitio,
+        // no el numero de puerto.
+        RenglonDeFicha(etiqueta: 'Donde esta', valor: equipo.ubicacion),
         RenglonDeFicha(etiqueta: 'Nombre descubierto', valor: equipo.nombre),
         RenglonDeFicha(etiqueta: 'MAC', valor: equipo.mac),
         RenglonDeFicha(etiqueta: 'Fabricante', valor: equipo.fabricante),

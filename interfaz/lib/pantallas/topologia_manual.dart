@@ -34,6 +34,7 @@ class _DialogoEquipoManualState extends State<DialogoEquipoManual> {
   final _modelo = TextEditingController();
   final _notas = TextEditingController();
   final _ip = TextEditingController();
+  final _ubicacion = TextEditingController();
 
   /// Arranca en el switch no administrable: es la razon numero uno por la que
   /// alguien abre este formulario, porque es lo unico que ningun escaneo ve.
@@ -48,6 +49,7 @@ class _DialogoEquipoManualState extends State<DialogoEquipoManual> {
     _modelo.dispose();
     _notas.dispose();
     _ip.dispose();
+    _ubicacion.dispose();
     super.dispose();
   }
 
@@ -70,6 +72,7 @@ class _DialogoEquipoManualState extends State<DialogoEquipoManual> {
         'tipo': _categoria.singular,
         'modelo': _modelo.text.trim(),
         'notas': _notas.text.trim(),
+        'ubicacion': _ubicacion.text.trim(),
         'ip': _ip.text.trim(),
         'conexion': _categoria.preguntaConexion ? _conexion : '',
         'puertos': _categoria.declaraPuertos ? _puertos : 0,
@@ -153,6 +156,21 @@ class _DialogoEquipoManualState extends State<DialogoEquipoManual> {
                   decoration: const InputDecoration(
                     labelText: 'Modelo (opcional)',
                     hintText: 'TP-Link SG108, Router Telmex HG6145F3...',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                    counterText: '',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Donde ESTA, que no es lo mismo que de donde cuelga. En una
+                // instalacion con rosetas es el dato por el que se busca:
+                // «que hay en el consultorio 4».
+                TextField(
+                  controller: _ubicacion,
+                  maxLength: 120, // lo mismo que acepta la columna
+                  decoration: const InputDecoration(
+                    labelText: 'Donde esta (opcional)',
+                    hintText: 'Farmacia, consultorio 5, rack del site...',
                     border: OutlineInputBorder(),
                     isDense: true,
                     counterText: '',
@@ -254,6 +272,7 @@ class DialogoFicha extends StatefulWidget {
 class _DialogoFichaState extends State<DialogoFicha> {
   late final TextEditingController _modelo;
   late final TextEditingController _notas;
+  late final TextEditingController _ubicacion;
   late String _conexion;
   bool _guardando = false;
 
@@ -262,6 +281,7 @@ class _DialogoFichaState extends State<DialogoFicha> {
     super.initState();
     _modelo = TextEditingController(text: widget.equipo.modelo);
     _notas = TextEditingController(text: widget.equipo.notas);
+    _ubicacion = TextEditingController(text: widget.equipo.ubicacion);
     _conexion = widget.equipo.conexion;
   }
 
@@ -269,6 +289,7 @@ class _DialogoFichaState extends State<DialogoFicha> {
   void dispose() {
     _modelo.dispose();
     _notas.dispose();
+    _ubicacion.dispose();
     super.dispose();
   }
 
@@ -276,7 +297,10 @@ class _DialogoFichaState extends State<DialogoFicha> {
     setState(() => _guardando = true);
     try {
       await Api.instancia.guardarFicha(widget.clave, widget.equipo.id,
-          modelo: _modelo.text.trim(), notas: _notas.text.trim(), conexion: _conexion);
+          modelo: _modelo.text.trim(),
+          notas: _notas.text.trim(),
+          ubicacion: _ubicacion.text.trim(),
+          conexion: _conexion);
       if (mounted) Navigator.of(context).pop(true);
     } catch (problema, pila) {
       if (mounted) {
@@ -301,6 +325,20 @@ class _DialogoFichaState extends State<DialogoFicha> {
                 decoration: const InputDecoration(
                   labelText: 'Modelo',
                   hintText: 'TP-Link SG108, Dell Latitude 5420...',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                  counterText: '',
+                ),
+              ),
+              const SizedBox(height: 12),
+              // El mismo campo, con el mismo tope, que el alta a mano: si un
+              // formulario acepta lo que el otro no, el dato acaba sucio.
+              TextField(
+                controller: _ubicacion,
+                maxLength: 120,
+                decoration: const InputDecoration(
+                  labelText: 'Donde esta',
+                  hintText: 'Farmacia, consultorio 5, rack del site...',
                   border: OutlineInputBorder(),
                   isDense: true,
                   counterText: '',

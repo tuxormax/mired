@@ -37,10 +37,16 @@ type Equipo struct {
 	// manda el usuario y la direccion del panel, que es lo que se quiere ver de
 	// un vistazo, y la clave solo cuando alguien la pide expresamente.
 	Credenciales []CredencialEquipo `json:"credenciales,omitempty"`
-	// Modelo y Notas los escribe una persona. No salen de ningun barrido: son lo
-	// que sabe quien tiene el aparato delante.
+	// Modelo, Notas y Ubicacion los escribe una persona. No salen de ningun
+	// barrido: son lo que sabe quien tiene el aparato delante.
 	Modelo string `json:"modelo"`
 	Notas  string `json:"notas"`
+	// Ubicacion es DONDE ESTA el aparato: «farmacia», «cons 5», «rack del site».
+	//
+	// No es lo mismo que de donde cuelga. Un aparato puede colgar del puerto 7
+	// del switch y estar en el consultorio 4; lo primero es el cableado y lo
+	// segundo es el sitio, y quien va a desconectarlo necesita el segundo.
+	Ubicacion string `json:"ubicacion"`
 	// Origen es "descubierto" o "manual". Un switch no administrable NUNCA va a
 	// salir en un escaneo —no tiene direccion—, y sin esto no habria forma de
 	// distinguir "no contesto" de "no existe".
@@ -493,7 +499,8 @@ func (b *Base) ListarEquipos(ctx context.Context, soloPresentes bool) ([]Equipo,
 		       COALESCE(nombre, ''), COALESCE(alias, ''), COALESCE(tipo, ''),
 		       COALESCE(subred, ''), COALESCE(metodo, ''), presente,
 		       primera_vez, ultima_vez, COALESCE(modelo, ''), COALESCE(notas, ''),
-		       origen, COALESCE(conexion, ''), COALESCE(categoria, '')
+		       origen, COALESCE(conexion, ''), COALESCE(categoria, ''),
+		       COALESCE(ubicacion, '')
 		  FROM equipos
 		 WHERE estatus = 1`
 	if soloPresentes {
@@ -515,7 +522,7 @@ func (b *Base) ListarEquipos(ctx context.Context, soloPresentes bool) ([]Equipo,
 		if err := filas.Scan(&e.ID, &e.Identidad, &e.IP, &e.MAC, &e.Fabricante,
 			&e.Nombre, &e.Alias, &e.Tipo, &e.Subred, &e.Metodo, &presente,
 			&e.PrimeraVez, &e.UltimaVez, &e.Modelo, &e.Notas, &e.Origen,
-			&e.Conexion, &e.Categoria); err != nil {
+			&e.Conexion, &e.Categoria, &e.Ubicacion); err != nil {
 			return nil, err
 		}
 		e.Presente = presente == 1

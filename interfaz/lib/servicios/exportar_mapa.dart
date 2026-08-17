@@ -513,6 +513,7 @@ Tabla _tablaDeAparatos(DatosMapa datos, ArbolDeclarado arbol, List<Equipo> orden
       encabezados: const [
         'Aparato',
         'Que es',
+        'Donde esta',
         'IP',
         'MAC',
         'Ultimo barrido',
@@ -532,6 +533,9 @@ List<String> _filaDeAparato(DatosMapa datos, ArbolDeclarado arbol, Equipo equipo
   return [
     equipo.comoSeLlama,
     _queEs(equipo),
+    // Donde ESTA, aparte de donde cuelga: son dos preguntas distintas y la hoja
+    // tiene que poder contestar las dos.
+    equipo.ubicacion,
     equipo.ip,
     equipo.mac,
     _ultimoBarrido(equipo),

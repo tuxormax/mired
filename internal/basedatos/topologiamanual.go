@@ -114,12 +114,14 @@ type EquipoManual struct {
 	Categoria string `json:"categoria"`
 	// Tipo es como se lee. Lo manda la interfaz junto con la categoria, sacado de
 	// la misma lista, para que la ficha no muestre la clave cruda.
-	Tipo     string `json:"tipo"`
-	Modelo   string `json:"modelo"`
-	Notas    string `json:"notas"`
-	IP       string `json:"ip"`
-	MAC      string `json:"mac"`
-	Conexion string `json:"conexion"`
+	Tipo   string `json:"tipo"`
+	Modelo string `json:"modelo"`
+	Notas  string `json:"notas"`
+	// Ubicacion es DONDE ESTA: «farmacia», «cons 5». No es de donde cuelga.
+	Ubicacion string `json:"ubicacion"`
+	IP        string `json:"ip"`
+	MAC       string `json:"mac"`
+	Conexion  string `json:"conexion"`
 	// Puertos permite crear el switch con sus puertos de una vez, que es como lo
 	// piensa quien lo esta capturando: "es un switch de ocho".
 	Puertos int `json:"puertos"`
@@ -128,9 +130,10 @@ type EquipoManual struct {
 // FichaEquipo son los campos que una persona puede corregir de cualquier equipo,
 // venga de un escaneo o no.
 type FichaEquipo struct {
-	Modelo   string `json:"modelo"`
-	Notas    string `json:"notas"`
-	Conexion string `json:"conexion"`
+	Modelo    string `json:"modelo"`
+	Notas     string `json:"notas"`
+	Ubicacion string `json:"ubicacion"`
+	Conexion  string `json:"conexion"`
 }
 
 // ------------------------------------------------------- equipos a mano --
@@ -190,13 +193,14 @@ func (b *Base) CrearEquipoManual(ctx context.Context, datos EquipoManual) (Equip
 		// identifica por nada que se haya medido.
 		resultado, err := tx.ExecContext(ctx, `
 			INSERT INTO equipos (identidad, ip, mac, nombre, alias, tipo, categoria, modelo,
-			                     notas, origen, conexion, metodo, presente, primera_vez,
-			                     ultima_vez, estatus)
-			VALUES ('', ?, ?, NULL, ?, ?, ?, ?, ?, 'manual', ?, 'manual', 1, ?, ?, 1)`,
+			                     notas, ubicacion, origen, conexion, metodo, presente,
+			                     primera_vez, ultima_vez, estatus)
+			VALUES ('', ?, ?, NULL, ?, ?, ?, ?, ?, ?, 'manual', ?, 'manual', 1, ?, ?, 1)`,
 			strings.TrimSpace(datos.IP), nuloSiVacio(normalizarMAC(datos.MAC)), nombre,
 			nuloSiVacio(strings.TrimSpace(datos.Tipo)), nuloSiVacio(strings.TrimSpace(datos.Categoria)),
 			nuloSiVacio(strings.TrimSpace(datos.Modelo)),
-			nuloSiVacio(strings.TrimSpace(datos.Notas)), nuloSiVacio(datos.Conexion),
+			nuloSiVacio(strings.TrimSpace(datos.Notas)),
+			nuloSiVacio(strings.TrimSpace(datos.Ubicacion)), nuloSiVacio(datos.Conexion),
 			momento, momento)
 		if err != nil {
 			return fmt.Errorf("no se pudo dar de alta el equipo: %w", err)
@@ -236,16 +240,20 @@ func (b *Base) ActualizarFicha(ctx context.Context, equipoID int64, ficha FichaE
 	if len(ficha.Notas) > 2000 {
 		return errors.New("las notas no pueden pasar de 2000 caracteres")
 	}
+	if len(ficha.Ubicacion) > 120 {
+		return errors.New("la ubicacion no puede pasar de 120 caracteres")
+	}
 	if err := validarConexion(ficha.Conexion); err != nil {
 		return err
 	}
 
 	resultado, err := b.ExecContext(ctx, `
 		UPDATE equipos
-		   SET modelo = ?, notas = ?, conexion = ?, modificado = ?
+		   SET modelo = ?, notas = ?, ubicacion = ?, conexion = ?, modificado = ?
 		 WHERE id = ? AND estatus = 1`,
 		nuloSiVacio(strings.TrimSpace(ficha.Modelo)),
 		nuloSiVacio(strings.TrimSpace(ficha.Notas)),
+		nuloSiVacio(strings.TrimSpace(ficha.Ubicacion)),
 		nuloSiVacio(ficha.Conexion), Ahora(), equipoID)
 	if err != nil {
 		return fmt.Errorf("no se pudo guardar la ficha del equipo: %w", err)
@@ -277,11 +285,12 @@ func leerEquipo(ctx context.Context, tx *sql.Tx, equipoID int64) (Equipo, error)
 		       COALESCE(nombre, ''), COALESCE(alias, ''), COALESCE(tipo, ''),
 		       COALESCE(subred, ''), COALESCE(metodo, ''), presente,
 		       primera_vez, ultima_vez, COALESCE(modelo, ''), COALESCE(notas, ''),
-		       origen, COALESCE(conexion, ''), COALESCE(categoria, '')
+		       origen, COALESCE(conexion, ''), COALESCE(categoria, ''),
+		       COALESCE(ubicacion, '')
 		  FROM equipos WHERE id = ?`, equipoID).
 		Scan(&e.ID, &e.Identidad, &e.IP, &e.MAC, &e.Fabricante, &e.Nombre, &e.Alias,
 			&e.Tipo, &e.Subred, &e.Metodo, &presente, &e.PrimeraVez, &e.UltimaVez,
-			&e.Modelo, &e.Notas, &e.Origen, &e.Conexion, &e.Categoria)
+			&e.Modelo, &e.Notas, &e.Origen, &e.Conexion, &e.Categoria, &e.Ubicacion)
 	if err != nil {
 		return Equipo{}, fmt.Errorf("no se pudo releer el equipo: %w", err)
 	}

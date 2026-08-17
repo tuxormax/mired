@@ -163,6 +163,43 @@ Los seis llevan arriba de qué sitio es el mapa y **de qué día son los datos**
 de cuándo se exportó—, porque un plano de red sin fecha, a la semana, ya no se
 sabe si es el bueno.
 
+### Subir una hoja que ya tenía
+
+Si la instalación ya está documentada en una hoja de cálculo —lo normal en un
+sitio cableado por alguien— no hace falta capturarla aparato por aparato. En la
+pantalla de la red, menú **⋮ → Importar aparatos de una hoja**.
+
+Se descarga la plantilla, se llena y se sube. Acepta **CSV, ODS y XLSX**.
+
+| Columna | ¿Obligatoria? | Qué se escribe |
+|---|---|---|
+| `NOMBRE` | **sí** | Cómo se llama: `D01`, `serv1`, `switch site` |
+| `QUE_ES` | **sí** | switch, modem, router, pc, camara, impresora, telefono, servidor, punto de acceso, tv, almacenamiento, otro |
+| `PUERTOS` | no | Solo para switches y modems: cuántos tiene |
+| `CUELGA_DE` | no | El **nombre** del aparato del que cuelga |
+| `PUERTO` | no | El puerto **de ese** aparato: `7`, `LAN 7`, `WAN 1` |
+| `UBICACION` | no | Dónde está: `farmacia`, `cons 5` |
+| `IP` · `MAC` · `MODELO` · `NOTAS` | no | Cuando se sepan |
+| `ACCESO` · `USUARIO` · `CLAVE` · `DIRECCION` | no | Cómo se entra a su panel. La clave se guarda **cifrada** |
+
+Tres cosas que conviene saber:
+
+- **El switch también lleva su renglón**, y los demás cuelgan de él poniéndolo en
+  `CUELGA_DE`. El orden de los renglones da igual.
+- **Nada se guarda hasta que usted lo diga.** Al elegir el archivo se muestra, con
+  el número de renglón de su hoja, qué se va a crear, qué ya existía y qué no se
+  puede importar y por qué.
+- Si su hoja viene de otro sitio, **no hace falta reescribirla**: se reconocen
+  encabezados como `NODO`, `OBSERVACIONES` o `CONECTADO_A`, el punto y coma que
+  pone Excel en español y los acentos.
+
+Si el archivo trae contraseñas, MiRed las guarda cifradas pero **el archivo las
+lleva en claro**: conviene borrarlo después de importar. La pantalla lo avisa.
+
+Volver a subir la misma hoja no duplica nada: lo que ya existe se actualiza o se
+deja como está, según lo que usted elija, y **una celda vacía nunca borra un dato
+que ya estaba**.
+
 ## 6. Medir quién consume
 
 Hay dos formas y no se estorban:

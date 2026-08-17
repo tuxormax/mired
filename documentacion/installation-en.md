@@ -145,6 +145,45 @@ top — not the date it was exported. An undated network diagram is worthless a
 week later, because you can no longer tell which of the three is the current
 one.
 
+### Uploading a sheet you already had
+
+If the site is already documented in a spreadsheet — the usual case for anything
+cabled by somebody — you do not have to type it in device by device. On the
+network screen: **⋮ → Importar aparatos de una hoja** (import devices from a
+sheet).
+
+Download the template, fill it in and upload it. **CSV, ODS and XLSX** are all
+accepted.
+
+| Column | Required? | What goes in it |
+|---|---|---|
+| `NOMBRE` | **yes** | What it is called: `D01`, `serv1`, `switch site` |
+| `QUE_ES` | **yes** | switch, modem, router, pc, camara, impresora, telefono, servidor, punto de acceso, tv, almacenamiento, otro |
+| `PUERTOS` | no | Switches and modems only: how many ports it has |
+| `CUELGA_DE` | no | The **name** of the device it hangs off |
+| `PUERTO` | no | The port **on that device**: `7`, `LAN 7`, `WAN 1` |
+| `UBICACION` | no | Where it physically is: `farmacia`, `cons 5` |
+| `IP` · `MAC` · `MODELO` · `NOTAS` | no | Whenever you know them |
+| `ACCESO` · `USUARIO` · `CLAVE` · `DIRECCION` | no | How to get into its panel. The password is stored **encrypted** |
+
+Three things worth knowing:
+
+- **The switch gets its own row too**, and everything else hangs off it by naming
+  it in `CUELGA_DE`. Row order does not matter.
+- **Nothing is written until you say so.** Picking the file shows you, with the
+  row number from your own sheet, what will be created, what already exists and
+  what cannot be imported and why.
+- If your sheet comes from somewhere else, **you do not have to rewrite it**:
+  headers like `NODO`, `OBSERVACIONES` or `CONECTADO_A` are recognised, and so
+  are the semicolons a Spanish Excel writes and the accents it mangles.
+
+If the file carries passwords, MiRed stores them encrypted but **the file holds
+them in the clear**: delete it once you are done. The screen says so.
+
+Uploading the same sheet again duplicates nothing: what already exists is either
+updated or left alone, whichever you pick, and **an empty cell never erases data
+that was already there**.
+
 ## 6. Bandwidth
 
 Two ways, and they complement each other:

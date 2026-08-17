@@ -299,3 +299,37 @@ el. Ahora, sin padre, solo cuenta un cable que le APUNTE; si no hay ninguno, es
 la raiz. La red de casa quedo como caso de prueba fijo en
 `interfaz/test/red_de_casa.dart`: es la unica que trae raiz, WiFi, puerto libre y
 aparato sin ubicar de una vez.
+
+## 2026-08-17 — La hoja de una clinica no se podia meter en MiRed
+**Problema:** no es un fallo, es lo que faltaba. El usuario tenia la instalacion
+de una clinica documentada en una hoja de calculo desde hacia anos —23 rosetas,
+columnas `PUERTO | NODO | UBICACION | OBSERVACIONES`— y en MiRed habia que
+capturar eso aparato por aparato: 24 formularios y sus 24 cables.
+
+**Lo que la hoja no decia, y sin ello no se podia importar:**
+1. **El switch no aparecia en el archivo.** Los numeros 1-23 eran suyos, pero
+   nadie decia como se llamaba ni de cuantos puertos era.
+2. **No decia QUE ES cada nodo**, y la categoria de MiRed es lista cerrada:
+   inventarla rompe el contador de la red en silencio.
+3. **UBICACION no tenia donde caer**: la tabla `equipos` no tenia esa columna, y
+   meterla en las notas la revolvia con «se poncho de nuevo» y no dejaba
+   agrupar por sitio.
+4. Un renglon suelto decia `modem 2` en la columna PUERTO: **dos datos en una
+   celda**, porque ese nodo no colgaba del switch.
+
+**Solucion:** el **modulo 20, importacion** ([[modulo-importacion]]) con una
+plantilla de 14 columnas. `CUELGA_DE` en cada renglon resuelve de una vez el
+punto 1 y el 4 —el switch es un renglon mas y «modem 2» deja de ser un caso
+especial—, `QUE_ES` el 2, y el 3 se arreglo con la columna `ubicacion` de verdad
+(migracion red 0019), que ademas quedo en el alta a mano, la ficha, las
+propiedades y la hoja exportada.
+
+**Dos decisiones que valen mas que el codigo:**
+- **La vista previa no escribe nada.** Importar 23 aparatos y descubrir despues
+  que tres estaban mal es borrarlos a mano de uno en uno. Ahora se ve antes,
+  renglon por renglon, con el numero de renglon del ARCHIVO para poder
+  corregirlo.
+- **Se aceptan los encabezados ajenos** (`NODO`, `OBSERVACIONES`, `CONECTADO_A`),
+  el punto y coma del Excel en espanol y la marca de codificacion. Obligar a
+  reescribir una hoja que lleva anos en uso es la forma mas facil de que nadie
+  use el importador.

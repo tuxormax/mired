@@ -105,6 +105,12 @@ func (a *API) Rutas() http.Handler {
 	mux.Handle("POST /api/redes/{clave}/enlaces", a.conRed(a.crearEnlaceManual))
 	mux.Handle("DELETE /api/redes/{clave}/enlaces/{enlace}", a.conRed(a.borrarEnlaceManual))
 
+	// Importar una hoja de aparatos. Son dos pasos: la vista previa no escribe
+	// nada y dice que pasaria; aplicar escribe, y va todo en una transaccion.
+	mux.Handle("GET /api/redes/{clave}/importacion/plantilla", a.conRed(a.plantillaDeImportacion))
+	mux.Handle("POST /api/redes/{clave}/importacion/vista-previa", a.conRed(a.vistaPreviaImportacion))
+	mux.Handle("POST /api/redes/{clave}/importacion", a.conRed(a.aplicarImportacion))
+
 	// Alertas: lo que convierte el inventario en algo que avisa.
 	mux.Handle("GET /api/redes/{clave}/alertas", a.conRed(a.listarAlertas))
 	mux.Handle("POST /api/redes/{clave}/alertas/vistas", a.conRed(a.marcarAlertasVistas))

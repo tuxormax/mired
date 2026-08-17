@@ -17,10 +17,10 @@ var (
 	//
 	// Este valor y el de abajo son solo el respaldo para `go run`: al compilar de
 	// verdad los fija construir.sh leyendolos del historial.
-	Numero = "v1.19"
+	Numero = "v1.20"
 	// Revision sube en cada entrega y NUNCA se reinicia, tampoco al cambiar de
 	// version. Sale del historial, no de un argumento que alguien teclea.
-	Revision = "39"
+	Revision = "40"
 	// Build es el hash corto del commit con el que se compilo el binario.
 	Build = "desarrollo"
 )

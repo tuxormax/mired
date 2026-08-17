@@ -386,3 +386,38 @@ Un barrido pedido A MANO se lanza igual: eso lo pidio una persona a proposito.
 Al escribir pruebas de pantalla que dibujen el mapa, pasar
 `pausarAgendaAlEditar: false`: si no, la peticion queda en vuelo y la prueba
 falla por un reloj pendiente que no es ningun error.
+
+## `ubicacion` es DONDE ESTA, no de donde cuelga
+
+Son dos preguntas distintas y las dos hacen falta: un aparato puede colgar del
+puerto 7 del switch y estar en el consultorio 4. Lo primero es el cableado
+(`enlaces_fisicos`), lo segundo es el sitio (`equipos.ubicacion`), y quien va a
+desconectarlo necesita el segundo.
+
+No confundir con `equipos_snmp.ubicacion`, que es el `sysLocation` que **el
+aparato dice de si mismo**. La de `equipos` **la escribe una persona**, y un
+switch tonto no contesta nada y tambien esta en algun sitio.
+
+Si se toca, se toca en los CUATRO sitios a la vez —alta a mano, ficha,
+propiedades y hoja exportada—: es la regla de concordancia de la casa.
+
+## Al importar, una celda vacia NO borra
+
+Significa «no lo se», no «borralo». Quien deja MODELO en blanco no esta pidiendo
+que se borre lo que alguien tecleo hace un mes. Es la misma regla que ya seguia la
+clave de una credencial. Ver [[modulo-importacion]].
+
+## Leer un ODS o un XLSX tiene dos trampas de formato
+
+Las dos corren las columnas y las dos son silenciosas:
+
+- **ODS**: LibreOffice comprime las celdas vacias seguidas con
+  `number-columns-repeated="4"`. Ignorarlo desplaza todo lo que viene detras del
+  primer hueco.
+- **XLSX**: Excel **no escribe** las celdas vacias, y los textos viven en una
+  tabla compartida (`sharedStrings.xml`). Hay que colocar cada celda por la letra
+  de su referencia (`C2`) y resolver el indice del texto.
+
+Escribirlos es mas facil que leerlos, y el proyecto hace las dos cosas:
+`interfaz/lib/servicios/hoja_calculo.dart` los escribe,
+`internal/importacion/lector.go` los lee.

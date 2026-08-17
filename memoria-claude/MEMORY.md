@@ -2,7 +2,7 @@
 
 Proyecto en `/home/tuxor/www/mired`. Descubre los equipos de una red, dibuja el
 mapa y dice en que puerto de que switch esta cada aparato.
-En **v1.19 Rev 39** (2026-08-17).
+En **v1.20 Rev 40** (2026-08-17).
 **PROGRAMA DE ESCRITORIO en Flutter + tres binarios en Go + SQLite, una base por
 red, entregado en un `.deb`.** No hay interfaz web: el programa arranca sus
 servicios al abrirse y los mata al cerrarse.
@@ -20,6 +20,8 @@ Arrancado el 2026-08-12.
    [mired-capacidades](mired-capacidades.md).
    Si es del mapa, del cableado o de dar de alta algo que no sale en el escaneo →
    [modulo-topologia-manual](modulo-topologia-manual.md).
+   Si es de subir una hoja de aparatos, de la plantilla o de `ubicacion` →
+   [modulo-importacion](modulo-importacion.md).
    Si es del paquete opcional de inspeccion profunda →
    [modulo-inspeccion](modulo-inspeccion.md).
 5. Si hace falta ver **como lo resolvio otro**, y solo para leer →
@@ -28,7 +30,7 @@ Arrancado el 2026-08-12.
 
 ## Antes de dar algo por terminado
 Correr **`./herramientas/probar.sh`**: construye el `.deb`, lo desempaqueta
-aparte, levanta los servicios desde ahi y recorre el flujo completo (63
+aparte, levanta los servicios desde ahi y recorre el flujo completo (76
 comprobaciones). Correr los binarios del arbol de compilacion NO prueba lo mismo:
 no valida que el paquete lleve el programa, el catalogo ni la configuracion.
 
@@ -59,6 +61,10 @@ Para probar una instalacion **en limpio**: `sudo ./herramientas/desinstalar.sh`.
 - [modulo-topologia-manual](modulo-topologia-manual.md) — el modulo 15: declarar
   a mano equipos, puertos y cables que ningun escaneo ve, sin que se confundan con
   lo medido. **Leer antes de tocar el mapa o el escaneo de presencia.**
+- [modulo-importacion](modulo-importacion.md) — el modulo 20: subir una hoja de
+  aparatos (CSV, ODS o XLSX) y meterla de una vez, con vista previa antes de
+  escribir nada. **Leer antes de tocar el alta de equipos, la plantilla o la
+  columna `ubicacion`.**
 - [modulo-alertas](modulo-alertas.md) — que se vigila, la huella que evita
   repetir avisos, y los cuatro destinos de aviso.
 - [modulo-trafico](modulo-trafico.md) — ancho de banda por contadores del switch

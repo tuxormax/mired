@@ -12,6 +12,7 @@ import '../servicios/trayectoria.dart';
 import '../widgets/mensajes.dart';
 import 'alertas.dart';
 import 'equipo.dart';
+import 'importar.dart';
 import 'mapa.dart';
 import 'propiedades_equipo.dart';
 import 'topologia_manual.dart';
@@ -204,6 +205,17 @@ class _PantallaRedState extends State<PantallaRed> {
     }
   }
 
+  /// _importar sube una hoja entera de aparatos.
+  ///
+  /// Es el alta a mano pero de 23 en 23: una instalacion documentada en una hoja
+  /// de calculo no se captura formulario por formulario.
+  Future<void> _importar() async {
+    final huboCambios = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(builder: (_) => PantallaImportar(red: _red)),
+    );
+    if (huboCambios == true) _recargar();
+  }
+
   /// _agregarAMano da de alta un aparato que ningun barrido va a encontrar: el
   /// switch no administrable, el modem que no habla SNMP hacia la LAN.
   Future<void> _agregarAMano() async {
@@ -341,8 +353,19 @@ class _PantallaRedState extends State<PantallaRed> {
               icon: const Icon(Icons.more_vert),
               onSelected: (opcion) {
                 if (opcion == 'borrar') _borrar();
+                if (opcion == 'importar') _importar();
               },
               itemBuilder: (_) => const [
+                PopupMenuItem(
+                  value: 'importar',
+                  child: ListTile(
+                    dense: true,
+                    leading: Icon(Icons.upload_file_outlined),
+                    title: Text('Importar aparatos de una hoja'),
+                    subtitle: Text('CSV, ODS o XLSX'),
+                  ),
+                ),
+                PopupMenuDivider(),
                 PopupMenuItem(
                   value: 'borrar',
                   child: ListTile(

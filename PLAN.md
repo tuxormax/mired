@@ -17,7 +17,7 @@ a heredar la AGPL de otro.
 
 ## Estado del desarrollo
 
-Actualizado el **2026-08-17**, en **v1.19 Rev 39**.
+Actualizado el **2026-08-17**, en **v1.20 Rev 40**.
 
 | Fase | Estado | Nota |
 |---|---|---|
@@ -78,11 +78,12 @@ de darla por buena** no es opcional en este proyecto.
 nunca se reinicia. No es versionado semántico: X no sube porque un cambio sea
 grande, sube cuando hay un módulo más.
 
-Hoy son **19 módulos** → **v1.19**, y la revisión va por la **39**.
+Hoy son **20 módulos** → **v1.20**, y la revisión va por la **40**.
 
 > Redes · Subredes · Equipos · Escaneo y agenda · Presencia · Mapa de puertos ·
 > Mapa visual · Alertas · Consumo · Inspección profunda · Usuarios · Credenciales
-> SNMP · Controladoras WiFi · Catálogo de dispositivos · Topología manual
+> SNMP · Controladoras WiFi · Catálogo de dispositivos · Topología manual ·
+> Importación de hojas
 
 El historial vive en **`internal/version/historial.toml`**, y en un solo sitio:
 de ahí salen la versión y la revisión con que compila `construir.sh` —ya no se

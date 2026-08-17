@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -301,15 +302,58 @@ class Api {
   /// Guarda lo que una persona sabe del equipo. Sirve igual para lo descubierto
   /// y para lo declarado.
   Future<void> guardarFicha(String clave, int equipoId,
-          {required String modelo, required String notas, required String conexion}) =>
-      reemplazar('/api/redes/$clave/equipos/$equipoId',
-          {'modelo': modelo, 'notas': notas, 'conexion': conexion});
+          {required String modelo,
+          required String notas,
+          required String conexion,
+          String ubicacion = ''}) =>
+      reemplazar('/api/redes/$clave/equipos/$equipoId', {
+        'modelo': modelo,
+        'notas': notas,
+        'conexion': conexion,
+        'ubicacion': ubicacion,
+      });
 
   /// Solo borra los declarados a mano. Un equipo descubierto se marca ausente,
   /// nunca se borra: su historia es lo que despues permite avisar de que lleva
   /// dias sin aparecer.
   Future<void> borrarEquipoManual(String clave, int equipoId) =>
       borrar('/api/redes/$clave/equipos/$equipoId');
+
+  // ---------------------------------------------------------- importacion --
+  //
+  // Son DOS pasos a proposito: la vista previa no escribe nada y dice renglon
+  // por renglon lo que pasaria; aplicar escribe, y va todo en una transaccion.
+
+  /// La plantilla para llenar, tal como se descarga.
+  Future<({String nombre, String contenido})> plantillaDeImportacion(String clave) async {
+    final datos = await obtener('/api/redes/$clave/importacion/plantilla');
+    final mapa = datos as Map<String, dynamic>;
+    return (
+      nombre: mapa['nombre'] as String? ?? 'mired-plantilla-aparatos.csv',
+      contenido: mapa['contenido'] as String? ?? '',
+    );
+  }
+
+  /// Que pasaria con este archivo. No toca la base.
+  Future<PlanImportacion> vistaPreviaImportacion(
+      String clave, String nombre, Uint8List archivo) async {
+    final datos = await enviar('/api/redes/$clave/importacion/vista-previa', {
+      'nombre': nombre,
+      'contenido': base64Encode(archivo),
+    });
+    return PlanImportacion.desdeJson(datos as Map<String, dynamic>);
+  }
+
+  /// Aplica el archivo. [repetidos] es «actualizar» o «saltar».
+  Future<ResumenImportacion> importar(String clave, String nombre, Uint8List archivo,
+      {required String repetidos}) async {
+    final datos = await enviar('/api/redes/$clave/importacion', {
+      'nombre': nombre,
+      'contenido': base64Encode(archivo),
+      'repetidos': repetidos,
+    });
+    return ResumenImportacion.desdeJson(datos as Map<String, dynamic>);
+  }
 
   Future<PuertoFisico> agregarPuerto(String clave, int equipoId,
       {required int numero, required String tipo, int? velocidadMbps, String notas = ''}) async {

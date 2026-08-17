@@ -127,7 +127,7 @@ void main() {
     // se llama, o quien la abre no sabe donde termina una y empieza la otra.
     expect(renglones.any((r) => r.startsWith('APARATOS')), isTrue);
     expect(renglones.any((r) => r.startsWith('CONEXIONES')), isTrue);
-    expect(renglones.any((r) => r.startsWith('Aparato,Que es,IP')), isTrue);
+    expect(renglones.any((r) => r.startsWith('Aparato,Que es,Donde esta,IP')), isTrue);
     expect(renglones.any((r) => r.startsWith('De,Por,A,Entra por')), isTrue);
 
     // Un nombre con coma va entrecomillado o parte el renglon en dos columnas.
@@ -294,6 +294,11 @@ void main() {
   group('la hoja de calculo de la red de casa', () {
     final casa = laCasa();
 
+    /// Las columnas se buscan por su ENCABEZADO y no por su numero: agregar una
+    /// columna a la hoja no puede romper una prueba que hablaba de otra cosa.
+    String celda(Tabla tabla, List<String> fila, String encabezado) =>
+        fila[tabla.encabezados.indexOf(encabezado)];
+
     test('cada cable sale UNA vez, no una por punta', () {
       final conexiones = tablasDelMapa(casa).last;
 
@@ -319,22 +324,27 @@ void main() {
       // El cable modem→switch cuelga al switch DEL modem, no al reves. Leerlo al
       // reves ponia al modem colgando del switch que alimenta, justo lo
       // contrario de lo que dibuja el mapa.
-      expect(modem[6], 'Raiz de la red');
-      expect(interruptor[6], 'MODEM TELMEX');
-      expect(interruptor[7], 'LAN 1');
+      expect(celda(aparatos, modem, 'Cuelga de'), 'Raiz de la red');
+      expect(celda(aparatos, interruptor, 'Cuelga de'), 'MODEM TELMEX');
+      expect(celda(aparatos, interruptor, 'Puerto'), 'LAN 1');
     });
 
     test('lo que cuelga por el aire tambien sale, con su antena y su red', () {
       final tablas = tablasDelMapa(casa);
-      final porElAire =
-          tablas.first.filas.where((fila) => fila[5] == 'WiFi').toList();
+      final porElAire = tablas.first.filas
+          .where((fila) => celda(tablas.first, fila, 'Conexion') == 'WiFi')
+          .toList();
 
       // Cuatro equipos colgados de la antena. En la tabla vieja no salia ninguno
       // de los cuatro: como el WiFi no tiene puertos y la tabla iba por puertos,
       // desaparecian del archivo aunque el mapa los dibujara.
       expect(porElAire.length, 4);
-      expect(porElAire.every((fila) => fila[6] == 'AP ubiquiti'), isTrue);
-      expect(porElAire.every((fila) => fila[7] == 'WiFi «casa»'), isTrue);
+      expect(
+          porElAire.every((fila) => celda(tablas.first, fila, 'Cuelga de') == 'AP ubiquiti'),
+          isTrue);
+      expect(
+          porElAire.every((fila) => celda(tablas.first, fila, 'Puerto') == 'WiFi «casa»'),
+          isTrue);
       expect(tablas.last.filas.where((fila) => fila[4] == 'Por el aire').length, 4);
     });
 
@@ -345,8 +355,8 @@ void main() {
       expect(libre.length, 1);
       expect(libre.single[1], 'LAN 4');
 
-      final perdido =
-          tablas.first.filas.firstWhere((fila) => fila[6] == 'Sin ubicar');
+      final perdido = tablas.first.filas
+          .firstWhere((fila) => celda(tablas.first, fila, 'Cuelga de') == 'Sin ubicar');
       expect(perdido.first, '192.168.1.71');
     });
 

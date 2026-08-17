@@ -52,12 +52,28 @@ valida renueva el vencimiento.
 | `GET /api/redes/{clave}/topologia-manual` | lectura | puertos, cables y **contradicciones** contra lo medido |
 | `GET /api/redes/{clave}/composicion` | lectura | de que esta hecha la red: `{total, presentes, declarados, categorias[]}` |
 | `POST /api/redes/{clave}/equipos` | escritura | dar de alta un aparato que ningun escaneo ve |
-| `PUT /api/redes/{clave}/equipos/{equipo}` | escritura | ficha: `modelo`, `notas`, `conexion` |
+| `PUT /api/redes/{clave}/equipos/{equipo}` | escritura | ficha: `modelo`, `notas`, `ubicacion`, `conexion` |
 | `DELETE /api/redes/{clave}/equipos/{equipo}` | escritura | **solo si `origen = 'manual'`** |
 | `POST /api/redes/{clave}/equipos/{equipo}/puertos` | escritura | declarar un puerto |
 | `PUT/DELETE /api/redes/{clave}/puertos/{puerto}` | escritura | editar o quitar el puerto |
 | `POST /api/redes/{clave}/enlaces` | escritura | conectar; **siempre entra con `origen_dato = 'manual'`** |
 | `DELETE /api/redes/{clave}/enlaces/{enlace}` | escritura | desconectar |
+
+### Importar una hoja de aparatos (modulo 20, v1.20)
+| Metodo y ruta | Quien puede | Que hace |
+|---|---|---|
+| `GET /api/redes/{clave}/importacion/plantilla` | lectura | `{nombre, contenido}` — el CSV de ejemplo |
+| `POST /api/redes/{clave}/importacion/vista-previa` | escritura | el plan. **NO escribe nada** |
+| `POST /api/redes/{clave}/importacion` | escritura | aplica; `repetidos`: `actualizar` o `saltar` |
+
+El archivo va en el cuerpo como `{nombre, contenido}` con el contenido en
+**base64**, y **entero en los dos pasos**: el servidor no recuerda nada entre
+peticiones, asi que dos personas pueden importar a la vez sin pisarse. Tope de
+1 MB por peticion (`topeCuerpo`). La vista previa devuelve
+`{renglones[], reconocidas[], ignoradas[], crear, actualizar, rechazar, cables,
+conClave}` y aplicar devuelve
+`{creados, actualizados, saltados, rechazados, puertos, cables, credenciales,
+recableados}`. Ver [[modulo-importacion]].
 
 ## Reconocer que es cada aparato, y el aire
 
