@@ -2,7 +2,7 @@
 
 Proyecto en `/home/tuxor/www/mired`. Descubre los equipos de una red, dibuja el
 mapa y dice en que puerto de que switch esta cada aparato.
-En **v1.20 Rev 47** (2026-08-17).
+En **v1.20 Rev 48** (2026-08-17).
 **PROGRAMA DE ESCRITORIO en Flutter + tres binarios en Go + SQLite, una base por
 red, entregado en un `.deb`.** No hay interfaz web: el programa arranca sus
 servicios al abrirse y los mata al cerrarse.
@@ -61,6 +61,9 @@ Para probar una instalacion **en limpio**: `sudo ./herramientas/desinstalar.sh`.
 - [modulo-topologia-manual](modulo-topologia-manual.md) — el modulo 15: declarar
   a mano equipos, puertos y cables que ningun escaneo ve, sin que se confundan con
   lo medido. **Leer antes de tocar el mapa o el escaneo de presencia.**
+- [modulo-accesos](modulo-accesos.md) — la lista unica de llaves de una red:
+  SNMP, controladora WiFi y la clave del panel de cada aparato, en una sola
+  pantalla y diciendo de que aparato es cada una.
 - [modulo-importacion](modulo-importacion.md) — el modulo 20: subir una hoja de
   aparatos (CSV, ODS o XLSX) y meterla de una vez, con vista previa antes de
   escribir nada. **Leer antes de tocar el alta de equipos, la plantilla o la

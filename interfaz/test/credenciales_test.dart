@@ -20,11 +20,6 @@ class _ConRed extends HttpOverrides {
   HttpClient createHttpClient(SecurityContext? c) => super.createHttpClient(c);
 }
 
-const _casa = Red(
-    id: 1, clave: 'casa', nombre: 'casa', descripcion: '', equipos: 10,
-    equiposPresentes: 9, alertasAbiertas: 0, programado: false,
-    presenciaCadaSegundos: 60, profundoCadaMinutos: 360);
-
 void main() {
   late HttpServer servidor;
   var loQueSeMando = <String, dynamic>{};
@@ -67,13 +62,13 @@ void main() {
     probador.view.devicePixelRatio = 1;
     addTearDown(probador.view.reset);
 
+    // El dialogo se abre desde la lista de accesos, pero se prueba solo: lo que
+    // se vigila aqui es COMO pregunta, no quien lo abre.
     await probador.runAsync(() async {
       await probador.pumpWidget(const MaterialApp(
-          home: PantallaCredenciales(red: _casa)));
+          home: Scaffold(body: DialogoCredencialSNMP(clave: 'casa'))));
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
-    await probador.pump();
-    await probador.tap(find.text('Agregar la contrasena de un switch'));
     await probador.pumpAndSettle();
   }
 

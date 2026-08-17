@@ -1,231 +1,23 @@
 import 'package:flutter/material.dart';
 
-import '../modelos/modelos.dart';
 import '../servicios/api.dart';
 import '../servicios/trayectoria.dart';
 import '../widgets/mensajes.dart';
 
-/// PantallaControladoras administra las controladoras WiFi.
+/// DialogoControladora captura como se entra a la controladora del WiFi.
 ///
-/// Un punto de acceso no tiene puertos: tiene antenas, y quien sabe que aparato
-/// esta colgado de cual es la controladora. Sin dar de alta una, en una oficina
-/// moderna la mitad de los equipos —telefonos, portatiles, camaras— salen como
-/// "sin ubicar" en el mapa.
-class PantallaControladoras extends StatefulWidget {
-  const PantallaControladoras({super.key, required this.red});
-
-  /// La red de la que es esta controladora. **No se comparte**: la de un cliente
-  /// no atiende la red de otro.
-  final Red red;
-
-  @override
-  State<PantallaControladoras> createState() => _PantallaControladorasState();
-}
-
-class _PantallaControladorasState extends State<PantallaControladoras> {
-  late Future<List<Controladora>> _controladoras;
-
-  @override
-  void initState() {
-    super.initState();
-    _recargar();
-  }
-
-  void _recargar() {
-    setState(() {
-      _controladoras = Api.instancia.listarControladoras(widget.red.clave);
-    });
-  }
-
-  Future<void> _crear() async {
-    final creada = await showDialog<bool>(
-      context: context,
-      builder: (_) => _DialogoControladora(clave: widget.red.clave),
-    );
-    if (creada == true) _recargar();
-  }
-
-  Future<void> _borrar(Controladora controladora) async {
-    final confirma = await showDialog<bool>(
-      context: context,
-      builder: (contextoModal) => AlertDialog(
-        title: const Text('Borrar controladora'),
-        content: Text('Se dejara de preguntarle a "${controladora.nombre}". '
-            'Los equipos que solo se ubicaban por WiFi pasaran a "sin ubicar" en el mapa.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.of(contextoModal).pop(false),
-              child: const Text('Cancelar')),
-          FilledButton(
-              onPressed: () => Navigator.of(contextoModal).pop(true),
-              child: const Text('Borrar')),
-        ],
-      ),
-    );
-    if (confirma != true) return;
-
-    try {
-      await Api.instancia.borrarControladora(widget.red.clave, controladora.id);
-      _recargar();
-    } catch (problema, pila) {
-      if (mounted) await mostrarProblema(context, problema, pila: pila.toString());
-    }
-  }
-
-  @override
-  Widget build(BuildContext contexto) => Scaffold(
-        appBar: AppBar(
-          // De que red son, escrito: con varias instalaciones abiertas es lo
-          // unico que evita meterle a un cliente la credencial de otro.
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Quien manda el WiFi'),
-              Text(
-                'Controladoras WiFi · solo de la red ${widget.red.nombre}',
-                style: Theme.of(contexto).textTheme.labelSmall,
-              ),
-            ],
-          ),
-        ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: _crear,
-          icon: const Icon(Icons.add),
-          label: const Text('Nueva controladora'),
-        ),
-        body: FutureBuilder<List<Controladora>>(
-          future: _controladoras,
-          builder: (_, resultado) {
-            if (resultado.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (resultado.hasError) {
-              return Center(
-                child: TextButton(
-                  onPressed: () => mostrarProblema(contexto, resultado.error!),
-                  child: const Text('No se pudieron cargar las controladoras. Ver detalles'),
-                ),
-              );
-            }
-
-            final controladoras = resultado.data ?? [];
-            return ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
-              children: [
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.info_outline),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Lo que va por cable se sabe mirando los puertos del switch. Lo que '
-                            'va por WiFi no: una antena no tiene puertos, y quien sabe que '
-                            'telefono o que laptop esta colgado de cual es la controladora que '
-                            'las manda —una UniFi, un Cloud Key—.\n\n'
-                            'Es OPCIONAL, y solo hace falta si tiene una. Dandola de alta, el '
-                            'WiFi sale en el mapa igual que lo cableado: cada aparato bajo su '
-                            'antena y con el nombre de la red a la que se conecto. Sin ella, esos '
-                            'aparatos salen igual, pero como «sin ubicar».',
-                            style: Theme.of(contexto).textTheme.bodyMedium,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                if (controladoras.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Text(
-                      'Todavia no hay ninguna controladora.\n'
-                      'Sin ella, los equipos por WiFi salen como "sin ubicar".',
-                      textAlign: TextAlign.center,
-                    ),
-                  )
-                else
-                  Card(
-                    margin: EdgeInsets.zero,
-                    child: Column(
-                      children: [
-                        for (final controladora in controladoras)
-                          _Renglon(
-                            controladora: controladora,
-                            alBorrar: () => _borrar(controladora),
-                          ),
-                      ],
-                    ),
-                  ),
-              ],
-            );
-          },
-        ),
-      );
-}
-
-/// _Renglon muestra una controladora y, sobre todo, si esta contestando.
-///
-/// Que una controladora lleve dias sin contestar es un dato, no un silencio: sin
-/// decirlo aqui, el WiFi se iria del mapa poco a poco y nadie sabria por que.
-class _Renglon extends StatelessWidget {
-  const _Renglon({required this.controladora, required this.alBorrar});
-
-  final Controladora controladora;
-  final VoidCallback alBorrar;
-
-  @override
-  Widget build(BuildContext contexto) {
-    final colores = Theme.of(contexto).colorScheme;
-    final fallando = controladora.ultimoError.isNotEmpty;
-
-    return ListTile(
-      leading: Icon(
-        fallando ? Icons.wifi_off : Icons.wifi_tethering,
-        color: fallando ? colores.error : null,
-      ),
-      title: Text(controladora.nombre),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text([
-            controladora.url,
-            'sitio ${controladora.sitio}',
-            'usuario ${controladora.usuario}',
-          ].join(' · ')),
-          if (fallando)
-            Text('No contesto: ${controladora.ultimoError}',
-                style: TextStyle(color: colores.error))
-          else if (controladora.ultimoExito.isNotEmpty)
-            Text('Contesto por ultima vez el ${controladora.ultimoExito}')
-          else
-            const Text('Todavia no se le ha preguntado. Corra un escaneo completo.'),
-        ],
-      ),
-      isThreeLine: true,
-      trailing: IconButton(
-        tooltip: 'Borrar',
-        icon: const Icon(Icons.delete_outline),
-        onPressed: alBorrar,
-      ),
-    );
-  }
-}
-
-class _DialogoControladora extends StatefulWidget {
-  const _DialogoControladora({required this.clave});
+/// Una controladora no es un aparato mas: es quien SABE que hay colgado de cada
+/// antena. Sin ella, en una oficina la mitad de los equipos salen «sin ubicar».
+class DialogoControladora extends StatefulWidget {
+  const DialogoControladora({super.key, required this.clave});
 
   final String clave;
 
   @override
-  State<_DialogoControladora> createState() => _DialogoControladoraState();
+  State<DialogoControladora> createState() => DialogoControladoraState();
 }
 
-class _DialogoControladoraState extends State<_DialogoControladora> {
+class DialogoControladoraState extends State<DialogoControladora> {
   final _formulario = GlobalKey<FormState>();
   final _nombre = TextEditingController();
   final _url = TextEditingController(text: 'https://');

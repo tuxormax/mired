@@ -85,7 +85,7 @@ switch. You need:
 
 1. A **managed switch** with **SNMP enabled**.
 2. That credential loaded into MiRed: on **that network's** screen, left menu →
-   *Credenciales SNMP* → *Nueva credencial*. **Credentials belong to one network
+   *Accesos y contrasenas* → *Nuevo acceso* → «Todos». **Credentials belong to one network
    and are never shared**, so one client's community is never tried against
    another's switches. SNMP v2c and the read community (often `public`) is enough for
    most switches.
@@ -101,8 +101,9 @@ device hangs off which is the controller, not the access point. Without adding
 it, half the devices in a modern office — phones, laptops, cameras — show up as
 *"unplaced"* on the map.
 
-On **that network's** screen, left menu → *Controladoras WiFi* → *Nueva
-controladora* (also per network, never shared). It needs the same address you
+On **that network's** screen, left menu → *Accesos y contrasenas* → *Nuevo
+acceso*, pick the controller as the device and «Es la controladora del WiFi»
+(also per network, never shared). It needs the same address you
 use in your own browser (`https://192.168.1.10:8443`), a user — read-only is
 enough — and the *site*, which is called `default` on nearly every install.
 

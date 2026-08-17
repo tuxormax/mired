@@ -899,10 +899,16 @@ class DialogoCredencial extends StatefulWidget {
     required this.clave,
     required this.equipo,
     this.credencial,
+    this.tipoInicial,
   });
 
   final String clave;
   final Equipo equipo;
+
+  /// Como se entra, cuando ya se eligio antes. Lo manda la lista de accesos,
+  /// que pregunta «¿de que aparato?» y «¿como se entra?» antes de abrir esto:
+  /// volver a preguntarlo aqui seria preguntar dos veces lo mismo.
+  final String? tipoInicial;
 
   /// La que ya estaba, si se esta corrigiendo. Nunca trae la clave: eso solo
   /// viaja cuando alguien la pide expresamente.
@@ -925,7 +931,7 @@ class _DialogoCredencialState extends State<DialogoCredencial> {
   void initState() {
     super.initState();
     final anterior = widget.credencial;
-    _tipo = anterior?.tipo ?? 'web';
+    _tipo = anterior?.tipo ?? widget.tipoInicial ?? 'web';
     _usuario = TextEditingController(text: anterior?.usuario ?? '');
     _claveTexto = TextEditingController();
     _direccion = TextEditingController(

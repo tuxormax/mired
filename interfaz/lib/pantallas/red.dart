@@ -11,8 +11,7 @@ import '../servicios/frescura.dart';
 import '../servicios/trayectoria.dart';
 import '../widgets/mensajes.dart';
 import 'alertas.dart';
-import 'controladoras.dart';
-import 'credenciales.dart';
+import 'accesos.dart';
 import 'equipo.dart';
 import 'importar.dart';
 import 'mapa.dart';
@@ -517,19 +516,16 @@ class _PantallaRedState extends State<PantallaRed> {
 
           // Son de ESTA red y de ninguna otra: la comunidad SNMP de un cliente
           // no tiene nada que hacer contra los switches de otro.
+          // Una sola entrada: las llaves de los aparatos de esta red son UNA
+          // cosa, aunque por dentro se guarden de tres formas distintas. Ver
+          // [[modulo-accesos]].
           if (_puedeAdministrar) ...[
-            titulo('Como se le pregunta'),
+            titulo('Llaves'),
             opcion(
               icono: Icons.vpn_key_outlined,
-              texto: 'Credenciales SNMP',
-              explicacion: 'Solo de esta red',
-              alPulsar: () => _abrir(PantallaCredenciales(red: _red)),
-            ),
-            opcion(
-              icono: Icons.wifi_tethering,
-              texto: 'Controladoras WiFi',
-              explicacion: 'Solo de esta red',
-              alPulsar: () => _abrir(PantallaControladoras(red: _red)),
+              texto: 'Accesos y contrasenas',
+              explicacion: 'Con que se le pregunta a cada aparato',
+              alPulsar: () => _abrir(PantallaAccesos(red: _red)),
             ),
           ],
 

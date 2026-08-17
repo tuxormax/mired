@@ -5,201 +5,26 @@ import '../servicios/api.dart';
 import '../servicios/trayectoria.dart';
 import '../widgets/mensajes.dart';
 
-/// PantallaCredenciales administra las credenciales SNMP.
+/// DialogoCredencialSNMP captura la contrasena de lectura de los switches.
 ///
-/// Son lo unico que le falta a MiRed para poder decir en que puerto de que
-/// switch esta cada aparato: sin ellas el mapa de puertos no existe, por mas
-/// administrable que sea el switch.
-class PantallaCredenciales extends StatefulWidget {
-  const PantallaCredenciales({super.key, required this.red});
-
-  /// La red de la que son estas credenciales. **No se comparten**: la comunidad
-  /// de un cliente no tiene nada que hacer contra los switches de otro.
-  final Red red;
-
-  @override
-  State<PantallaCredenciales> createState() => _PantallaCredencialesState();
-}
-
-class _PantallaCredencialesState extends State<PantallaCredenciales> {
-  late Future<List<CredencialSNMP>> _credenciales;
-
-  @override
-  void initState() {
-    super.initState();
-    _recargar();
-  }
-
-  void _recargar() {
-    setState(() {
-      _credenciales = Api.instancia.listarCredenciales(widget.red.clave);
-    });
-  }
-
-  Future<void> _crear() async {
-    final creada = await showDialog<bool>(
-      context: context,
-      builder: (_) => _DialogoCredencial(clave: widget.red.clave),
-    );
-    if (creada == true) _recargar();
-  }
-
-  Future<void> _borrar(CredencialSNMP credencial) async {
-    final confirma = await showDialog<bool>(
-      context: context,
-      builder: (contextoModal) => AlertDialog(
-        title: const Text('Borrar credencial'),
-        content: Text('Se dejara de usar "${credencial.nombre}" para consultar switches. '
-            'Las redes que dependan de ella se quedaran sin mapa de puertos.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.of(contextoModal).pop(false),
-              child: const Text('Cancelar')),
-          FilledButton(
-              onPressed: () => Navigator.of(contextoModal).pop(true),
-              child: const Text('Borrar')),
-        ],
-      ),
-    );
-    if (confirma != true) return;
-
-    try {
-      await Api.instancia.borrarCredencial(widget.red.clave, credencial.id);
-      _recargar();
-    } catch (problema, pila) {
-      if (mounted) await mostrarProblema(context, problema, pila: pila.toString());
-    }
-  }
-
-  @override
-  Widget build(BuildContext contexto) => Scaffold(
-        appBar: AppBar(
-          // De que red son, escrito: con varias instalaciones abiertas es lo
-          // unico que evita meterle a un cliente la credencial de otro.
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Preguntarle a los switches'),
-              Text(
-                'Credenciales SNMP · solo de la red ${widget.red.nombre}',
-                style: Theme.of(contexto).textTheme.labelSmall,
-              ),
-            ],
-          ),
-        ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: _crear,
-          icon: const Icon(Icons.add),
-          label: const Text('Agregar la contrasena de un switch'),
-        ),
-        body: FutureBuilder<List<CredencialSNMP>>(
-          future: _credenciales,
-          builder: (_, resultado) {
-            if (resultado.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (resultado.hasError) {
-              return Center(
-                child: TextButton(
-                  onPressed: () => mostrarProblema(contexto, resultado.error!),
-                  child: const Text('No se pudieron cargar las credenciales. Ver detalles'),
-                ),
-              );
-            }
-
-            final credenciales = resultado.data ?? [];
-            return ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
-              children: [
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.info_outline),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Un switch «administrable» sabe que aparato tiene enchufado en '
-                                'cada uno de sus puertos, y puede decirlo — pero solo si le damos '
-                                'su contrasena de lectura. Eso es lo que se guarda aqui.',
-                                style: Theme.of(contexto).textTheme.bodyMedium,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Es OPCIONAL. Sin esto MiRed sigue encontrando todos los aparatos '
-                                'de la red; lo unico que no podra decir es de que puerto cuelga '
-                                'cada uno.',
-                                style: Theme.of(contexto).textTheme.bodyMedium,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Puede poner varias: se prueban en orden contra cada aparato y se '
-                                'usa la primera que conteste, asi que no hace falta decir cual va '
-                                'con cual switch.',
-                                style: Theme.of(contexto).textTheme.bodySmall,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                if (credenciales.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Text(
-                      'Todavia no hay ninguna credencial.\\n'
-                      'Sin ellas no se puede armar el mapa de puertos.',
-                      textAlign: TextAlign.center,
-                    ),
-                  )
-                else
-                  Card(
-                    margin: EdgeInsets.zero,
-                    child: Column(
-                      children: [
-                        for (final credencial in credenciales)
-                          ListTile(
-                            leading: const Icon(Icons.vpn_key_outlined),
-                            title: Text(credencial.nombre),
-                            subtitle: Text([
-                              'SNMP ${credencial.version}',
-                              if (credencial.usuario.isNotEmpty) 'usuario ${credencial.usuario}',
-                            ].join(' · ')),
-                            trailing: IconButton(
-                              tooltip: 'Borrar',
-                              icon: const Icon(Icons.delete_outline),
-                              onPressed: () => _borrar(credencial),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-              ],
-            );
-          },
-        ),
-      );
-}
-
-class _DialogoCredencial extends StatefulWidget {
-  const _DialogoCredencial({required this.clave});
+/// Es la unica credencial que NO es de un aparato concreto: se prueba contra
+/// todos y se usa la que conteste, porque cuando se captura todavia no se sabe
+/// cuales de los aparatos son switches administrables —eso es justo lo que MiRed
+/// va a averiguar con ella—. En la lista de accesos aparece como «Todos».
+///
+/// Escrita para que la entienda quien no sabe que es SNMP **sin quitarsela al
+/// que si**: un solo campo en cristiano, el nombre tecnico escrito al lado, lo
+/// demas plegado, y un boton para PROBARLA antes de guardar. Ver [[gotchas]].
+class DialogoCredencialSNMP extends StatefulWidget {
+  const DialogoCredencialSNMP({super.key, required this.clave});
 
   final String clave;
 
   @override
-  State<_DialogoCredencial> createState() => _DialogoCredencialState();
+  State<DialogoCredencialSNMP> createState() => _DialogoCredencialSNMPState();
 }
 
-class _DialogoCredencialState extends State<_DialogoCredencial> {
+class _DialogoCredencialSNMPState extends State<DialogoCredencialSNMP> {
   final _formulario = GlobalKey<FormState>();
   final _nombre = TextEditingController();
   final _comunidad = TextEditingController();
