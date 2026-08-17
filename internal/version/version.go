@@ -20,7 +20,7 @@ var (
 	Numero = "v1.20"
 	// Revision sube en cada entrega y NUNCA se reinicia, tampoco al cambiar de
 	// version. Sale del historial, no de un argumento que alguien teclea.
-	Revision = "44"
+	Revision = "45"
 	// Build es el hash corto del commit con el que se compilo el binario.
 	Build = "desarrollo"
 )

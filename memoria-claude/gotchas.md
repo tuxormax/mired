@@ -479,13 +479,33 @@ Es la regla de reparto y no es estetica:
 Debajo de 1 000 pixeles de ancho el menu se queda en iconos con su globito: las
 etiquetas no valen 260 pixeles del ancho de la tabla.
 
-## Una tabla ancha manda sobre el ancho de lectura, pero solo ella
+## Una PANTALLA usa el 100% del ancho. Un DIALOGO, no
 
-La pantalla de importar no lleva tope de ancho **porque la tabla del ejemplo
-tiene doce columnas** y con el tope quedaba cortada justo donde empieza a servir.
-Los parrafos si lo llevan (`anchoDeLectura`, 900): un renglon de texto que cruza
-1 900 pixeles no lo sigue el ojo de nadie.
+Decision del usuario (Rev 45), y va contra el consejo tipografico de siempre:
+**ninguna pantalla lleva tope de ancho**. En 1 280 se usan los 1 280 y en 1 920
+los 1 920; el contenido se acomoda en las lineas que necesite. Se probo con un
+tope de 900 para los parrafos —el ancho comodo de lectura— y se descarto: en un
+monitor grande dejaba media pantalla vacia.
 
-Cuidado al limitarlos: **dentro de un `Expanded` el ancho llega FIJADO** y un
-`ConstrainedBox` a secas no encoge nada. Hay que alinear primero
-(`Align(alignment: Alignment.centerLeft, …)`) y limitar dentro.
+Los `AlertDialog` **si** siguen acotados (420-720 segun el caso): un cuadro de
+dialogo de 1 920 pixeles de ancho no se lee, se recorre.
+
+Como se pide «todo el ancho» en Flutter, que no tiene porcentajes de CSS:
+
+| Lo que se quiere | Como se pide |
+|---|---|
+| repartir el hueco en partes | `Table` con `FlexColumnWidth(2)`, `(5)`… — es el `width: 40%` de una hoja de estilos |
+| que una tabla llene y ruede si no cabe | `LayoutBuilder` + `ConstrainedBox(minWidth: medidas.maxWidth)` dentro del scroll horizontal |
+| un porcentaje de lo que llega | `FractionallySizedBox(widthFactor: 0.5)` |
+| repartir entre hermanos | `Expanded(flex: …)` |
+| un tope calculado | `MediaQuery.sizeOf(contexto).width / 3` |
+
+Dos trampas que ya mordieron:
+- **`MediaQuery` es la VENTANA, no el hueco.** Dentro de un panel de 260 devuelve
+  1 920. Para «cuanto espacio tengo aqui» es `LayoutBuilder`.
+- **Dentro de un `Expanded` el ancho llega FIJADO** y un `ConstrainedBox` no lo
+  encoge. Hay que alinear primero (`Align(alignment: Alignment.centerLeft, …)`).
+
+Y `DataTable` **mide por su contenido**: en una pantalla ancha deja el hueco
+sobrante a la derecha con el texto apretado. Para una tabla con celdas de texto
+largo, `Table` con anchos flexibles.

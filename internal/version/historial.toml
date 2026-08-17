@@ -498,3 +498,11 @@ fecha = "2026-08-17"
 tipo = "change"
 modulo = "Credenciales SNMP"
 notas = "Las credenciales SNMP y las controladoras WiFi pasan a ser DE CADA RED: sus rutas cuelgan ya de la red (`/api/redes/{clave}/credenciales-snmp`), el escaneo las lee de la base de la red que esta barriendo y sus dos pantallas dicen en el titulo de que red son. Lo que hubiera compartido **no se pierde**: al arrancar con la version nueva se copia a TODAS las redes y se vacia el catalogo (`internal/basedatos/mudanza.go`). Se copia a todas y no se reparte a ojo porque eso es lo que habia —esas credenciales se usaban en todas—, y adivinar cual era de que sitio seria inventarse un dato; lo que sobre se borra desde la pantalla de su red, que es una decision de quien conoce la instalacion. La mudanza es irrepetible sin necesidad de una marca aparte: vaciar el catalogo es lo ultimo que hace, y solo si todas las redes recibieron su copia; si una falla no se vacia nada y al siguiente arranque se reintenta entero. Tampoco pisa lo que la red ya tuviera con ese nombre."
+
+[[sistema]]
+version = "1.20"
+revision = 45
+fecha = "2026-08-17"
+tipo = "change"
+modulo = "Interfaz"
+notas = "Las pantallas usan el 100% del ancho, sea el monitor de 1 280 o de 1 920: fuera el tope de 900 pixeles que llevaban los parrafos de la pantalla de importar. La tabla de columnas de la guia pasa de DataTable a Table con anchos flexibles —2, 5, 2 y 3 partes de lo que haya, que es lo que en una hoja de estilos serian porcentajes—, asi que reparte el hueco entero y el texto se acomoda en las lineas que necesite en vez de dejar media pantalla vacia a la derecha; las otras dos tablas piden un ancho minimo igual al hueco disponible, que es el equivalente a un ancho del 100% con desbordamiento lateral. El unico ancho que sigue calculado es el del motivo de un rechazo, y ahora es un TERCIO del ancho de la ventana en vez de 420 pixeles fijos: en 1 280 son los mismos 420 y en 1 920, 630. Los cuadros de dialogo se quedan acotados a proposito: uno de 1 920 pixeles no se lee, se recorre."

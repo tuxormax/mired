@@ -24,12 +24,6 @@ import '../widgets/mensajes.dart';
 /// renglon por renglon lo que pasaria, y solo entonces se importa. Importar a
 /// ciegas y descubrir despues que tres renglones estaban mal significa borrarlos
 /// a mano de uno en uno.
-/// anchoDeLectura es lo que mide un parrafo comodo de leer.
-///
-/// Unos noventa caracteres. Mas ancho y el ojo pierde el renglon al volver a la
-/// izquierda; es la razon por la que un periodico va en columnas.
-const double anchoDeLectura = 900;
-
 class PantallaImportar extends StatefulWidget {
   const PantallaImportar({super.key, required this.red});
 
@@ -209,12 +203,12 @@ class _PantallaImportarState extends State<PantallaImportar> {
           Text('Suba la instalacion que ya tiene documentada',
               style: tema.textTheme.headlineSmall),
           const SizedBox(height: 6),
-          _parrafo(
+          Text(
             'Si el sitio esta apuntado en una hoja de calculo —lo normal en algo '
             'cableado por alguien— no hace falta capturarlo aparato por aparato. '
             'De cada renglon salen el aparato, sus puertos, el cable que lo cuelga '
             'de su switch y hasta la clave de su panel.',
-            tema.textTheme.bodyMedium,
+            style: tema.textTheme.bodyMedium,
           ),
         ]),
       ),
@@ -237,7 +231,7 @@ class _PantallaImportarState extends State<PantallaImportar> {
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(titulo, style: tema.textTheme.titleSmall),
-                _parrafo(texto, tema.textTheme.bodyMedium),
+                Text(texto, style: tema.textTheme.bodyMedium),
               ]),
             ),
           ]),
@@ -430,16 +424,6 @@ class _PantallaImportarState extends State<PantallaImportar> {
     );
   }
 
-  /// _parrafo le pone al texto su ancho de lectura.
-  ///
-  /// La pantalla ocupa toda la ventana porque las tablas lo necesitan —el
-  /// ejemplo de llenado tiene doce columnas—, pero un renglon de texto que cruza
-  /// 1 900 pixeles no lo sigue el ojo de nadie.
-  Widget _parrafo(String texto, TextStyle? estilo) => ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: anchoDeLectura),
-        child: Text(texto, style: estilo),
-      );
-
   Widget _aviso(BuildContext contexto, IconData icono, String texto,
       {bool grave = false}) {
     final tema = Theme.of(contexto);
@@ -457,10 +441,18 @@ class _PantallaImportarState extends State<PantallaImportar> {
   /// algo sepa exactamente donde mirar en su hoja de calculo.
   Widget _laTabla(BuildContext contexto, PlanImportacion plan) {
     final tema = Theme.of(contexto);
+    // El motivo de un rechazo puede ser largo. En vez de un ancho fijo se le da
+    // un TERCIO del hueco: en una pantalla de 1 280 son 420 pixeles y en una de
+    // 1 920, 630. Sin tope, un motivo largo estiraria la tabla fuera de la
+    // pantalla; con tope fijo, en un monitor grande sobraria sitio a la derecha
+    // y el texto seguiria apretado en cinco lineas.
+    final anchoDelMotivo = MediaQuery.sizeOf(contexto).width / 3;
     return Card(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
+      // El truco para que una tabla ocupe TODO el ancho y siga pudiendo
+      // desbordarse: se le exige un ancho MINIMO igual al hueco disponible. Si
+      // le sobra, reparte; si le falta, el scroll de al lado la salva.
+      child: _aTodoLoAncho(
+        DataTable(
           columns: const [
             DataColumn(label: Text('Renglon')),
             DataColumn(label: Text('Aparato')),
@@ -484,7 +476,7 @@ class _PantallaImportarState extends State<PantallaImportar> {
                       ? ''
                       : '${renglon.cuelgaDe}  ·  ${renglon.puerto}')),
                   DataCell(Text(renglon.ubicacion)),
-                  DataCell(_queSeHace(contexto, renglon)),
+                  DataCell(_queSeHace(contexto, renglon, anchoDelMotivo)),
                 ],
               ),
           ],
@@ -493,7 +485,22 @@ class _PantallaImportarState extends State<PantallaImportar> {
     );
   }
 
-  Widget _queSeHace(BuildContext contexto, RenglonImportado renglon) {
+  /// _aTodoLoAncho hace que una tabla llene el hueco y, si no cabe, ruede.
+  ///
+  /// Es lo mas parecido a un `width: 100%` con `overflow-x: auto`: el
+  /// `LayoutBuilder` mide el hueco de verdad —no la ventana, que dentro de un
+  /// panel no es lo mismo— y el minimo obliga a la tabla a llenarlo.
+  Widget _aTodoLoAncho(Widget tabla) => LayoutBuilder(
+        builder: (_, medidas) => SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: medidas.maxWidth),
+            child: tabla,
+          ),
+        ),
+      );
+
+  Widget _queSeHace(BuildContext contexto, RenglonImportado renglon, double ancho) {
     final tema = Theme.of(contexto);
     if (renglon.seRechaza) {
       return Row(mainAxisSize: MainAxisSize.min, children: [
@@ -502,7 +509,7 @@ class _PantallaImportarState extends State<PantallaImportar> {
         // El motivo va a la vista y no en un globito: si hay que corregir el
         // archivo, hay que poder leerlo todo de un tiron.
         ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
+          constraints: BoxConstraints(maxWidth: ancho),
           child: Text(renglon.motivo,
               style: tema.textTheme.bodySmall?.copyWith(color: tema.colorScheme.error)),
         ),
@@ -515,7 +522,7 @@ class _PantallaImportarState extends State<PantallaImportar> {
       const Icon(Icons.warning_amber_outlined, size: 16),
       const SizedBox(width: 6),
       ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
+        constraints: BoxConstraints(maxWidth: ancho),
         child: Text('$texto — ${renglon.aviso}', style: tema.textTheme.bodySmall),
       ),
     ]);
@@ -534,10 +541,10 @@ class _PantallaImportarState extends State<PantallaImportar> {
         Text('Guia para llenar la hoja', style: tema.textTheme.titleLarge),
       ]),
       const SizedBox(height: 4),
-      _parrafo(
+      Text(
         'Esta guia sale de lo que el servidor acepta de verdad, no de un manual '
         'aparte: si un dia cambia una columna, cambia aqui sola.',
-        tema.textTheme.bodySmall,
+        style: tema.textTheme.bodySmall,
       ),
       const SizedBox(height: 16),
       _lasReglas(contexto),
@@ -554,11 +561,11 @@ class _PantallaImportarState extends State<PantallaImportar> {
         const SizedBox(height: 24),
         Text('Que se puede poner en QUE_ES', style: tema.textTheme.titleMedium),
         const SizedBox(height: 4),
-        _parrafo(
+        Text(
           'Es una lista cerrada, la misma con la que MiRed clasifica lo que '
           'descubre. Lo que no este aqui se rechaza en vez de inventar una '
           'categoria, que dejaria el contador de la red diciendo dos cosas.',
-          tema.textTheme.bodySmall,
+          style: tema.textTheme.bodySmall,
         ),
         const SizedBox(height: 12),
         _lasCategorias(contexto, plantilla),
@@ -581,18 +588,10 @@ class _PantallaImportarState extends State<PantallaImportar> {
             Icon(icono, size: 18, color: tema.colorScheme.primary),
             const SizedBox(width: 10),
             Expanded(
-              // El Expanded manda un ancho FIJO, asi que un ConstrainedBox a
-              // secas no encoge nada: hay que alinear primero a la izquierda.
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: anchoDeLectura),
-                  child: Text.rich(TextSpan(children: [
-                    TextSpan(text: '$titulo ', style: tema.textTheme.titleSmall),
-                    TextSpan(text: texto, style: tema.textTheme.bodyMedium),
-                  ])),
-                ),
-              ),
+              child: Text.rich(TextSpan(children: [
+                TextSpan(text: '$titulo ', style: tema.textTheme.titleSmall),
+                TextSpan(text: texto, style: tema.textTheme.bodyMedium),
+              ])),
             ),
           ]),
         );
@@ -629,51 +628,64 @@ class _PantallaImportarState extends State<PantallaImportar> {
     );
   }
 
+  /// _tablaDeColumnas reparte el ancho que haya entre las cuatro columnas.
+  ///
+  /// Va con `Table` y no con `DataTable` a proposito: un `DataTable` mide cada
+  /// columna por su contenido y deja el hueco sobrante a la derecha, que en una
+  /// pantalla de 1080 es media pantalla vacia con el texto apretado. `Table` con
+  /// `FlexColumnWidth` es lo que en una hoja de estilos serian anchos en
+  /// porcentaje: 2, 5, 2 y 3 partes de lo que haya, sea 1 280 o 1 920. El texto
+  /// se acomoda solo en las lineas que necesite.
   Widget _tablaDeColumnas(BuildContext contexto, PlantillaImportacion plantilla) {
     final tema = Theme.of(contexto);
+
+    Widget celda(Widget hijo) => Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: hijo,
+        );
+
     return Card(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columnSpacing: 24,
-          columns: const [
-            DataColumn(label: Text('Columna')),
-            DataColumn(label: Text('Que se escribe')),
-            DataColumn(label: Text('Ejemplo')),
-            DataColumn(label: Text('Tambien se acepta')),
-          ],
-          rows: [
-            for (final columna in plantilla.columnas)
-              DataRow(cells: [
-                DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
-                  Text(columna.clave,
-                      style: tema.textTheme.bodyMedium
-                          ?.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
-                  if (columna.obligatoria) ...[
-                    const SizedBox(width: 6),
-                    Tooltip(
-                      message: 'Sin esta columna el archivo no se puede importar',
-                      child: Text('obligatoria',
-                          style: tema.textTheme.labelSmall
-                              ?.copyWith(color: tema.colorScheme.error)),
-                    ),
-                  ],
-                ])),
-                DataCell(ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 420),
-                  child: Text(columna.ayuda),
-                )),
-                DataCell(Text(columna.ejemplo,
-                    style: tema.textTheme.bodySmall
-                        ?.copyWith(color: tema.colorScheme.primary))),
-                DataCell(ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 260),
-                  child: Text(columna.otrosNombres.join(', '),
-                      style: tema.textTheme.bodySmall),
-                )),
-              ]),
-          ],
+      child: Table(
+        columnWidths: const {
+          0: FlexColumnWidth(2),
+          1: FlexColumnWidth(5),
+          2: FlexColumnWidth(2),
+          3: FlexColumnWidth(3),
+        },
+        defaultVerticalAlignment: TableCellVerticalAlignment.top,
+        border: TableBorder(
+          horizontalInside: BorderSide(color: tema.colorScheme.outlineVariant),
         ),
+        children: [
+          TableRow(
+            decoration: BoxDecoration(color: tema.colorScheme.surfaceContainerHigh),
+            children: [
+              for (final titulo in const [
+                'Columna',
+                'Que se escribe',
+                'Ejemplo',
+                'Tambien se acepta'
+              ])
+                celda(Text(titulo, style: tema.textTheme.titleSmall)),
+            ],
+          ),
+          for (final columna in plantilla.columnas)
+            TableRow(children: [
+              celda(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(columna.clave, style: tema.textTheme.bodyMedium),
+                if (columna.obligatoria)
+                  Text('obligatoria',
+                      style: tema.textTheme.labelSmall
+                          ?.copyWith(color: tema.colorScheme.error)),
+              ])),
+              celda(Text(columna.ayuda)),
+              celda(Text(columna.ejemplo,
+                  style: tema.textTheme.bodySmall
+                      ?.copyWith(color: tema.colorScheme.primary))),
+              celda(Text(columna.otrosNombres.join(', '),
+                  style: tema.textTheme.bodySmall)),
+            ]),
+        ],
       ),
     );
   }
@@ -717,9 +729,8 @@ class _PantallaImportarState extends State<PantallaImportar> {
     if (usadas.isEmpty) return const SizedBox.shrink();
 
     return Card(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
+      child: _aTodoLoAncho(
+        DataTable(
           columnSpacing: 20,
           columns: [for (final clave in usadas) DataColumn(label: Text(clave))],
           rows: [
