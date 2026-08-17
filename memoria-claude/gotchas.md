@@ -451,3 +451,29 @@ Ojo con el matiz: **esas dos cosas se guardan una sola vez y las comparten todas
 las redes** (viven en el catalogo, no en la base de cada red, para no repetirlas
 sitio por sitio). Por eso sus pantallas lo dicen en el titulo. Se llega a ellas
 desde una red porque es donde se necesitan, no porque sean de esa red.
+
+## En la pantalla de una red: izquierda se HACE, pestanas se MIRA
+
+Es la regla de reparto y no es estetica:
+
+- **Menu de la izquierda** — acciones sobre esa red: escanear, ver el mapa,
+  alertas, la agenda, importar, borrar. **Con icono Y con su nombre escrito.**
+  «Escanear toda la red» y «solo presencia» son dos iconos que nadie distingue de
+  memoria, y equivocarse cuesta un barrido completo de la red.
+- **Pestanas de la derecha** — lo que se mira: equipos, puertos, consumo, WiFi y
+  que se revisa. Se cambia de una a otra constantemente; si estuvieran mezcladas
+  con las acciones, un clic de mas lanzaria un escaneo.
+
+Debajo de 1 000 pixeles de ancho el menu se queda en iconos con su globito: las
+etiquetas no valen 260 pixeles del ancho de la tabla.
+
+## Una tabla ancha manda sobre el ancho de lectura, pero solo ella
+
+La pantalla de importar no lleva tope de ancho **porque la tabla del ejemplo
+tiene doce columnas** y con el tope quedaba cortada justo donde empieza a servir.
+Los parrafos si lo llevan (`anchoDeLectura`, 900): un renglon de texto que cruza
+1 900 pixeles no lo sigue el ojo de nadie.
+
+Cuidado al limitarlos: **dentro de un `Expanded` el ancho llega FIJADO** y un
+`ConstrainedBox` a secas no encoge nada. Hay que alinear primero
+(`Align(alignment: Alignment.centerLeft, …)`) y limitar dentro.

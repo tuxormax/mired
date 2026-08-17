@@ -328,144 +328,222 @@ class _PantallaRedState extends State<PantallaRed> {
               ),
             ],
           ),
-          bottom: const TabBar(tabs: [
-            Tab(icon: Icon(Icons.devices_other), text: 'Equipos'),
-            Tab(icon: Icon(Icons.settings_input_component), text: 'Puertos'),
-            Tab(icon: Icon(Icons.speed), text: 'Consumo'),
-            Tab(icon: Icon(Icons.wifi), text: 'WiFi'),
-            Tab(icon: Icon(Icons.route_outlined), text: 'Que se revisa'),
-          ]),
-          actions: [
-            if (_escaneando)
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-                child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-              )
-            else
-              PopupMenuButton<String>(
-                tooltip: 'Escanear',
-                icon: const Icon(Icons.radar),
-                onSelected: (opcion) => _escanear(soloPresencia: opcion == 'presencia'),
-                itemBuilder: (_) => const [
-                  PopupMenuItem(
-                    value: 'completo',
-                    child: ListTile(
-                      leading: Icon(Icons.travel_explore),
-                      title: Text('Escanear toda la red'),
-                      subtitle: Text('Equipos, nombres y puertos'),
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'presencia',
-                    child: ListTile(
-                      leading: Icon(Icons.bolt),
-                      title: Text('Solo presencia'),
-                      subtitle: Text('Rapido: quien esta ahora'),
-                    ),
-                  ),
-                ],
-              ),
-            PopupMenuButton<String>(
-              tooltip: 'Mas',
-              icon: const Icon(Icons.more_vert),
-              onSelected: (opcion) {
-                if (opcion == 'borrar') _borrar();
-                if (opcion == 'importar') _importar();
-                if (opcion == 'credenciales') _abrir(const PantallaCredenciales());
-                if (opcion == 'controladoras') _abrir(const PantallaControladoras());
-              },
-              itemBuilder: (_) => [
-                if (_puedeAdministrar) ...const [
-                  PopupMenuItem(
-                    value: 'credenciales',
-                    child: ListTile(
-                      dense: true,
-                      leading: Icon(Icons.vpn_key_outlined),
-                      title: Text('Credenciales SNMP'),
-                      subtitle: Text('Con que se le pregunta a los switches'),
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'controladoras',
-                    child: ListTile(
-                      dense: true,
-                      leading: Icon(Icons.wifi_tethering),
-                      title: Text('Controladoras WiFi'),
-                      subtitle: Text('Quien sabe que cuelga de cada antena'),
-                    ),
-                  ),
-                  PopupMenuDivider(),
-                ],
-                const PopupMenuItem(
-                  value: 'importar',
-                  child: ListTile(
-                    dense: true,
-                    leading: Icon(Icons.upload_file_outlined),
-                    title: Text('Importar aparatos de una hoja'),
-                    subtitle: Text('CSV, ODS o XLSX'),
-                  ),
-                ),
-                const PopupMenuDivider(),
-                const PopupMenuItem(
-                  value: 'borrar',
-                  child: ListTile(
-                    dense: true,
-                    leading: Icon(Icons.delete_outline),
-                    title: Text('Eliminar esta red'),
-                  ),
-                ),
-              ],
-            ),
-            IconButton(
-              tooltip: 'Alertas',
-              icon: Badge(
-                isLabelVisible: _red.alertasAbiertas > 0,
-                label: Text('${_red.alertasAbiertas}'),
-                child: const Icon(Icons.notifications_outlined),
-              ),
-              onPressed: () async {
-                await Navigator.of(contexto).push(
-                  MaterialPageRoute<void>(builder: (_) => PantallaAlertas(red: _red)),
-                );
-                _recargar();
-              },
-            ),
-            IconButton(
-              tooltip: 'Ver el mapa de la red',
-              icon: const Icon(Icons.account_tree_outlined),
-              onPressed: () => Navigator.of(contexto).push(
-                MaterialPageRoute<void>(builder: (_) => PantallaMapa(red: _red)),
-              ),
-            ),
-            IconButton(
-              tooltip: _red.programado
-                  ? 'Barridos automaticos encendidos'
-                  : 'Programar barridos automaticos',
-              icon: Icon(_red.programado ? Icons.schedule : Icons.schedule_outlined),
-              color: _red.programado ? Theme.of(contexto).colorScheme.primary : null,
-              onPressed: _configurarAgenda,
-            ),
-            IconButton(
-              tooltip: 'Actualizar',
-              icon: const Icon(Icons.refresh),
-              onPressed: _recargar,
-            ),
-          ],
         ),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: _agregarSubred,
           icon: const Icon(Icons.add),
           label: const Text('Agregar subred'),
         ),
-        body: TabBarView(
+        // A la izquierda lo que se HACE con la red; a la derecha lo que se MIRA,
+        // en pestanas. Antes las acciones eran seis iconos sueltos arriba a la
+        // derecha, sin una palabra: habia que apuntar con el raton a cada uno
+        // para averiguar cual era cual.
+        body: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _pestanaEquipos(contexto),
-            _pestanaPuertos(contexto),
-            _pestanaConsumo(contexto),
-            const _PestanaAire(),
-            _pestanaSubredes(contexto),
+            LayoutBuilder(
+              builder: (_, medidas) => _menuDeLaRed(
+                contexto,
+                // En una ventana estrecha el menu se queda en iconos: comerse
+                // 230 pixeles de ancho de la tabla para poner las etiquetas
+                // seria pagar el texto con los datos.
+                conTexto: MediaQuery.sizeOf(contexto).width >= 1000,
+              ),
+            ),
+            const VerticalDivider(width: 1),
+            Expanded(
+              child: Column(
+                children: [
+                  const TabBar(tabs: [
+                    Tab(icon: Icon(Icons.devices_other), text: 'Equipos'),
+                    Tab(icon: Icon(Icons.settings_input_component), text: 'Puertos'),
+                    Tab(icon: Icon(Icons.speed), text: 'Consumo'),
+                    Tab(icon: Icon(Icons.wifi), text: 'WiFi'),
+                    Tab(icon: Icon(Icons.route_outlined), text: 'Que se revisa'),
+                  ]),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: TabBarView(
+                      children: [
+                        _pestanaEquipos(contexto),
+                        _pestanaPuertos(contexto),
+                        _pestanaConsumo(contexto),
+                        const _PestanaAire(),
+                        _pestanaSubredes(contexto),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// _menuDeLaRed es la columna de la izquierda: lo que se puede HACER con esta
+  /// red.
+  ///
+  /// Va con icono **y texto** porque son acciones, no destinos: «Solo presencia»
+  /// y «Escanear toda la red» son dos iconos que nadie distingue de memoria, y
+  /// equivocarse entre ellos cuesta un barrido completo de la red.
+  ///
+  /// Lo que se MIRA —equipos, puertos, consumo, WiFi y que se revisa— no esta
+  /// aqui: eso son pestanas, porque se cambia de una a otra constantemente y
+  /// mezclarlo con las acciones haria que un clic de mas lanzara un escaneo.
+  Widget _menuDeLaRed(BuildContext contexto, {required bool conTexto}) {
+    final tema = Theme.of(contexto);
+
+    Widget opcion({
+      required IconData icono,
+      required String texto,
+      required VoidCallback? alPulsar,
+      String? explicacion,
+      Widget? adorno,
+      Color? color,
+      bool encendida = false,
+    }) {
+      final pintado = color ?? (encendida ? tema.colorScheme.primary : null);
+      final dibujo = adorno ?? Icon(icono, color: pintado);
+      if (!conTexto) {
+        return IconButton(
+          tooltip: explicacion == null ? texto : '$texto — $explicacion',
+          icon: dibujo,
+          onPressed: alPulsar,
+        );
+      }
+      return ListTile(
+        dense: true,
+        leading: dibujo,
+        title: Text(texto, style: TextStyle(color: pintado)),
+        subtitle: explicacion == null
+            ? null
+            : Text(explicacion, style: tema.textTheme.labelSmall),
+        onTap: alPulsar,
+      );
+    }
+
+    Widget titulo(String texto) => conTexto
+        ? Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+            child: Text(texto.toUpperCase(),
+                style: tema.textTheme.labelSmall
+                    ?.copyWith(color: tema.colorScheme.onSurfaceVariant)),
+          )
+        : const Divider(indent: 12, endIndent: 12);
+
+    return SizedBox(
+      width: conTexto ? 260 : 64,
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          titulo('Mirar la red'),
+          if (_escaneando)
+            opcion(
+              icono: Icons.hourglass_top,
+              texto: 'Escaneando...',
+              explicacion: 'Espere a que termine',
+              alPulsar: null,
+              adorno: const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: Padding(
+                    padding: EdgeInsets.all(2),
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )),
+            )
+          else ...[
+            opcion(
+              icono: Icons.travel_explore,
+              texto: 'Escanear todo',
+              explicacion: 'Equipos, nombres y puertos',
+              alPulsar: () => _escanear(soloPresencia: false),
+            ),
+            opcion(
+              icono: Icons.bolt,
+              texto: 'Solo presencia',
+              explicacion: 'Rapido: quien esta ahora',
+              alPulsar: () => _escanear(soloPresencia: true),
+            ),
+          ],
+          opcion(
+            icono: Icons.account_tree_outlined,
+            texto: 'Ver el mapa',
+            alPulsar: () => Navigator.of(contexto).push(
+              MaterialPageRoute<void>(builder: (_) => PantallaMapa(red: _red)),
+            ),
+          ),
+          opcion(
+            icono: Icons.notifications_outlined,
+            texto: 'Alertas',
+            // El numero va pegado al icono y no solo en el texto: en modo
+            // estrecho el texto no esta, y ahi es cuando mas falta hace ver que
+            // hay algo sin mirar.
+            adorno: Badge(
+              isLabelVisible: _red.alertasAbiertas > 0,
+              label: Text('${_red.alertasAbiertas}'),
+              child: const Icon(Icons.notifications_outlined),
+            ),
+            explicacion: _red.alertasAbiertas > 0
+                ? '${_red.alertasAbiertas} sin ver'
+                : 'Ninguna sin ver',
+            alPulsar: () async {
+              await Navigator.of(contexto).push(
+                MaterialPageRoute<void>(builder: (_) => PantallaAlertas(red: _red)),
+              );
+              _recargar();
+            },
+          ),
+          opcion(
+            icono: _red.programado ? Icons.schedule : Icons.schedule_outlined,
+            texto: 'Barridos solos',
+            explicacion: _red.programado ? 'Encendidos' : 'Apagados',
+            encendida: _red.programado,
+            alPulsar: _configurarAgenda,
+          ),
+          opcion(
+            icono: Icons.refresh,
+            texto: 'Actualizar',
+            alPulsar: _recargar,
+          ),
+
+          titulo('Capturar'),
+          opcion(
+            icono: Icons.upload_file_outlined,
+            texto: 'Importar aparatos',
+            explicacion: 'De una hoja: CSV, ODS o XLSX',
+            alPulsar: _importar,
+          ),
+
+          // Estas dos NO son de esta red: se guardan una sola vez y las usan
+          // todas. Se llega a ellas desde aqui porque es donde se necesitan, y
+          // sus pantallas lo dicen en el titulo para que nadie se confunda.
+          if (_puedeAdministrar) ...[
+            titulo('Se comparte entre redes'),
+            opcion(
+              icono: Icons.vpn_key_outlined,
+              texto: 'Credenciales SNMP',
+              explicacion: 'Para preguntarle a los switches',
+              alPulsar: () => _abrir(const PantallaCredenciales()),
+            ),
+            opcion(
+              icono: Icons.wifi_tethering,
+              texto: 'Controladoras WiFi',
+              explicacion: 'Quien sabe que cuelga de cada una',
+              alPulsar: () => _abrir(const PantallaControladoras()),
+            ),
+          ],
+
+          titulo('Esta red'),
+          opcion(
+            icono: Icons.delete_outline,
+            texto: 'Eliminar esta red',
+            color: tema.colorScheme.error,
+            alPulsar: _borrar,
+          ),
+          const SizedBox(height: 80), // que el boton flotante no tape el ultimo
+        ],
       ),
     );
   }

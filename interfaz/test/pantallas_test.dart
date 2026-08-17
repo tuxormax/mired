@@ -74,6 +74,49 @@ void main() {
     expect(tomaDeErrores(), isNull);
   });
 
+  testWidgets('lo que se HACE con la red va a la izquierda, con su nombre',
+      (probador) async {
+    // Antes eran seis iconos sueltos arriba a la derecha: habia que apuntar con
+    // el raton a cada uno para averiguar cual era cual, y dos de ellos lanzaban
+    // un escaneo. Ahora van con su nombre escrito.
+    // Alta a proposito: el menu es una lista con secciones y en una ventana
+    // corta lo de abajo no se dibuja siquiera.
+    probador.view.physicalSize = const Size(1280, 1300);
+    probador.view.devicePixelRatio = 1;
+    addTearDown(probador.view.reset);
+
+    await dibujar(probador, PantallaRed(red: _red));
+
+    expect(find.text('Escanear todo'), findsOneWidget);
+    expect(find.text('Solo presencia'), findsOneWidget);
+    expect(find.text('Ver el mapa'), findsOneWidget);
+    expect(find.text('Alertas'), findsOneWidget);
+    expect(find.text('Importar aparatos'), findsOneWidget);
+    expect(find.text('Eliminar esta red'), findsOneWidget);
+    // Y las cinco pestanas siguen siendo pestanas: se cambia de una a otra
+    // constantemente, y mezclarlas con las acciones haria que un clic de mas
+    // lanzara un escaneo.
+    expect(find.text('Equipos'), findsOneWidget);
+    expect(tomaDeErrores(), isNull);
+  });
+
+  testWidgets('en una ventana estrecha el menu se queda en iconos',
+      (probador) async {
+    // Comerse 260 pixeles de ancho de la tabla para poner las etiquetas seria
+    // pagar el texto con los datos.
+    probador.view.physicalSize = const Size(880, 900);
+    probador.view.devicePixelRatio = 1;
+    addTearDown(probador.view.reset);
+
+    await dibujar(probador, PantallaRed(red: _red));
+
+    expect(find.text('Escanear todo'), findsNothing);
+    expect(find.byIcon(Icons.travel_explore), findsOneWidget);
+    expect(find.byIcon(Icons.delete_outline), findsOneWidget);
+    expect(find.text('Equipos'), findsOneWidget);
+    expect(tomaDeErrores(), isNull);
+  });
+
   testWidgets('el aire no se barre solo: hay que pedirlo', (probador) async {
     // Recorrer los canales corta el WiFi de este equipo unos segundos. Hacerlo
     // sin que nadie lo pida seria cortarle la conexion a alguien por dibujar

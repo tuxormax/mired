@@ -24,6 +24,12 @@ import '../widgets/mensajes.dart';
 /// renglon por renglon lo que pasaria, y solo entonces se importa. Importar a
 /// ciegas y descubrir despues que tres renglones estaban mal significa borrarlos
 /// a mano de uno en uno.
+/// anchoDeLectura es lo que mide un parrafo comodo de leer.
+///
+/// Unos noventa caracteres. Mas ancho y el ojo pierde el renglon al volver a la
+/// izquierda; es la razon por la que un periodico va en columnas.
+const double anchoDeLectura = 900;
+
 class PantallaImportar extends StatefulWidget {
   const PantallaImportar({super.key, required this.red});
 
@@ -161,33 +167,31 @@ class _PantallaImportarState extends State<PantallaImportar> {
       },
       child: Scaffold(
         appBar: AppBar(title: Text('Importar aparatos en ${widget.red.nombre}')),
-        body: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            // En una pantalla ancha, un texto que cruza 2 000 pixeles no se lee.
-            constraints: const BoxConstraints(maxWidth: 1080),
-            child: ListView(
-              padding: const EdgeInsets.all(24),
-              children: [
-                _paraQueSirve(contexto),
-                const SizedBox(height: 20),
-                _lasInstrucciones(contexto),
-                const SizedBox(height: 20),
-                _elCampoDeSubida(contexto),
-                if (_resumen != null) ...[
-                  const SizedBox(height: 20),
-                  _elResumen(contexto, _resumen!),
-                ],
-                if (plan != null) ...[
-                  const SizedBox(height: 24),
-                  _elPlan(contexto, plan),
-                ],
-                const SizedBox(height: 32),
-                _laGuia(contexto),
-                const SizedBox(height: 40),
-              ],
-            ),
-          ),
+        // Ocupa TODO el ancho de la ventana. Se probo con un tope de 1080 —para
+        // que los parrafos no cruzaran la pantalla entera— y salio mal: la tabla
+        // del ejemplo tiene doce columnas y quedaba cortada justo donde empieza
+        // a servir. Aqui manda la tabla; los parrafos se defienden solos, que
+        // para eso llevan su propio ancho maximo.
+        body: ListView(
+          padding: const EdgeInsets.all(24),
+          children: [
+            _paraQueSirve(contexto),
+            const SizedBox(height: 20),
+            _lasInstrucciones(contexto),
+            const SizedBox(height: 20),
+            _elCampoDeSubida(contexto),
+            if (_resumen != null) ...[
+              const SizedBox(height: 20),
+              _elResumen(contexto, _resumen!),
+            ],
+            if (plan != null) ...[
+              const SizedBox(height: 24),
+              _elPlan(contexto, plan),
+            ],
+            const SizedBox(height: 32),
+            _laGuia(contexto),
+            const SizedBox(height: 40),
+          ],
         ),
       ),
     );
@@ -205,12 +209,12 @@ class _PantallaImportarState extends State<PantallaImportar> {
           Text('Suba la instalacion que ya tiene documentada',
               style: tema.textTheme.headlineSmall),
           const SizedBox(height: 6),
-          Text(
+          _parrafo(
             'Si el sitio esta apuntado en una hoja de calculo —lo normal en algo '
             'cableado por alguien— no hace falta capturarlo aparato por aparato. '
             'De cada renglon salen el aparato, sus puertos, el cable que lo cuelga '
             'de su switch y hasta la clave de su panel.',
-            style: tema.textTheme.bodyMedium,
+            tema.textTheme.bodyMedium,
           ),
         ]),
       ),
@@ -233,7 +237,7 @@ class _PantallaImportarState extends State<PantallaImportar> {
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(titulo, style: tema.textTheme.titleSmall),
-                Text(texto, style: tema.textTheme.bodyMedium),
+                _parrafo(texto, tema.textTheme.bodyMedium),
               ]),
             ),
           ]),
@@ -426,6 +430,16 @@ class _PantallaImportarState extends State<PantallaImportar> {
     );
   }
 
+  /// _parrafo le pone al texto su ancho de lectura.
+  ///
+  /// La pantalla ocupa toda la ventana porque las tablas lo necesitan —el
+  /// ejemplo de llenado tiene doce columnas—, pero un renglon de texto que cruza
+  /// 1 900 pixeles no lo sigue el ojo de nadie.
+  Widget _parrafo(String texto, TextStyle? estilo) => ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: anchoDeLectura),
+        child: Text(texto, style: estilo),
+      );
+
   Widget _aviso(BuildContext contexto, IconData icono, String texto,
       {bool grave = false}) {
     final tema = Theme.of(contexto);
@@ -520,10 +534,10 @@ class _PantallaImportarState extends State<PantallaImportar> {
         Text('Guia para llenar la hoja', style: tema.textTheme.titleLarge),
       ]),
       const SizedBox(height: 4),
-      Text(
+      _parrafo(
         'Esta guia sale de lo que el servidor acepta de verdad, no de un manual '
         'aparte: si un dia cambia una columna, cambia aqui sola.',
-        style: tema.textTheme.bodySmall,
+        tema.textTheme.bodySmall,
       ),
       const SizedBox(height: 16),
       _lasReglas(contexto),
@@ -540,11 +554,11 @@ class _PantallaImportarState extends State<PantallaImportar> {
         const SizedBox(height: 24),
         Text('Que se puede poner en QUE_ES', style: tema.textTheme.titleMedium),
         const SizedBox(height: 4),
-        Text(
+        _parrafo(
           'Es una lista cerrada, la misma con la que MiRed clasifica lo que '
           'descubre. Lo que no este aqui se rechaza en vez de inventar una '
           'categoria, que dejaria el contador de la red diciendo dos cosas.',
-          style: tema.textTheme.bodySmall,
+          tema.textTheme.bodySmall,
         ),
         const SizedBox(height: 12),
         _lasCategorias(contexto, plantilla),
@@ -567,10 +581,18 @@ class _PantallaImportarState extends State<PantallaImportar> {
             Icon(icono, size: 18, color: tema.colorScheme.primary),
             const SizedBox(width: 10),
             Expanded(
-              child: Text.rich(TextSpan(children: [
-                TextSpan(text: '$titulo ', style: tema.textTheme.titleSmall),
-                TextSpan(text: texto, style: tema.textTheme.bodyMedium),
-              ])),
+              // El Expanded manda un ancho FIJO, asi que un ConstrainedBox a
+              // secas no encoge nada: hay que alinear primero a la izquierda.
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: anchoDeLectura),
+                  child: Text.rich(TextSpan(children: [
+                    TextSpan(text: '$titulo ', style: tema.textTheme.titleSmall),
+                    TextSpan(text: texto, style: tema.textTheme.bodyMedium),
+                  ])),
+                ),
+              ),
             ),
           ]),
         );
