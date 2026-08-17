@@ -482,3 +482,19 @@ fecha = "2026-08-17"
 tipo = "change"
 modulo = "Interfaz"
 notas = "La pantalla de una red se parte en dos: a la IZQUIERDA lo que se hace con ella —escanear todo, solo presencia, ver el mapa, alertas, barridos solos, actualizar, importar aparatos, y al fondo eliminar la red—, cada cosa con su icono Y SU NOMBRE escrito; a la derecha, en pestanas, lo que se mira: equipos, puertos, consumo, WiFi y que se revisa. Antes las acciones eran seis iconos sueltos arriba a la derecha sin una sola palabra, y habia que apuntar con el raton a cada uno para averiguar cual era cual: «escanear toda la red» y «solo presencia» son dos iconos que nadie distingue de memoria, y equivocarse cuesta un barrido completo. Lo que se mira sigue en pestanas a proposito, porque se cambia de una a otra constantemente y mezclarlo con las acciones haria que un clic de mas lanzara un escaneo. En una ventana estrecha el menu se queda en iconos con su globito: comerse 260 pixeles de la tabla para poner etiquetas seria pagar el texto con los datos. Ademas la pantalla de importar pasa a ocupar TODO el ancho de la ventana —el tope de 1080 cortaba la tabla del ejemplo de llenado, que tiene doce columnas, justo donde empieza a servir— y los parrafos llevan ahora su propio ancho de lectura, que una tabla quiere toda la ventana pero un renglon de texto de 1900 pixeles no lo sigue nadie."
+
+[[base]]
+version = "1.20"
+revision = 44
+fecha = "2026-08-17"
+tipo = "change"
+modulo = "Credenciales SNMP"
+notas = "Red 0020: cada red tiene ya sus propias tablas `credenciales_snmp` y `controladoras`. Vivian en el catalogo, compartidas por todas, con el argumento de que la misma comunidad sirve para varios sitios y repetirla red por red es la forma segura de que una quede desactualizada: cierto para quien administra una sola instalacion, falso y peligroso para quien lleva las redes de varios clientes, que es justo lo que MiRed permite sin topes. Compartidas, la comunidad de un cliente se probaba contra los switches de otro —y el intento fallido queda anotado en la bitacora de un equipo ajeno—, dar permiso de lectura sobre UNA red dejaba ver las claves que abren los switches de TODAS, y borrar la credencial de un sitio la borraba para los demas. Las tablas son identicas a las que habia, sin aprovechar la mudanza para cambiar columnas, para que la copia de lo viejo sea un INSERT directo."
+
+[[sistema]]
+version = "1.20"
+revision = 44
+fecha = "2026-08-17"
+tipo = "change"
+modulo = "Credenciales SNMP"
+notas = "Las credenciales SNMP y las controladoras WiFi pasan a ser DE CADA RED: sus rutas cuelgan ya de la red (`/api/redes/{clave}/credenciales-snmp`), el escaneo las lee de la base de la red que esta barriendo y sus dos pantallas dicen en el titulo de que red son. Lo que hubiera compartido **no se pierde**: al arrancar con la version nueva se copia a TODAS las redes y se vacia el catalogo (`internal/basedatos/mudanza.go`). Se copia a todas y no se reparte a ojo porque eso es lo que habia —esas credenciales se usaban en todas—, y adivinar cual era de que sitio seria inventarse un dato; lo que sobre se borra desde la pantalla de su red, que es una decision de quien conoce la instalacion. La mudanza es irrepetible sin necesidad de una marca aparte: vaciar el catalogo es lo ultimo que hace, y solo si todas las redes recibieron su copia; si una falla no se vacia nada y al siguiente arranque se reintenta entero. Tampoco pisa lo que la red ya tuviera con ese nombre."

@@ -12,7 +12,11 @@ import '../widgets/mensajes.dart';
 /// moderna la mitad de los equipos —telefonos, portatiles, camaras— salen como
 /// "sin ubicar" en el mapa.
 class PantallaControladoras extends StatefulWidget {
-  const PantallaControladoras({super.key});
+  const PantallaControladoras({super.key, required this.red});
+
+  /// La red de la que es esta controladora. **No se comparte**: la de un cliente
+  /// no atiende la red de otro.
+  final Red red;
 
   @override
   State<PantallaControladoras> createState() => _PantallaControladorasState();
@@ -29,14 +33,14 @@ class _PantallaControladorasState extends State<PantallaControladoras> {
 
   void _recargar() {
     setState(() {
-      _controladoras = Api.instancia.listarControladoras();
+      _controladoras = Api.instancia.listarControladoras(widget.red.clave);
     });
   }
 
   Future<void> _crear() async {
     final creada = await showDialog<bool>(
       context: context,
-      builder: (_) => const _DialogoControladora(),
+      builder: (_) => _DialogoControladora(clave: widget.red.clave),
     );
     if (creada == true) _recargar();
   }
@@ -61,7 +65,7 @@ class _PantallaControladorasState extends State<PantallaControladoras> {
     if (confirma != true) return;
 
     try {
-      await Api.instancia.borrarControladora(controladora.id);
+      await Api.instancia.borrarControladora(widget.red.clave, controladora.id);
       _recargar();
     } catch (problema, pila) {
       if (mounted) await mostrarProblema(context, problema, pila: pila.toString());
@@ -71,16 +75,15 @@ class _PantallaControladorasState extends State<PantallaControladoras> {
   @override
   Widget build(BuildContext contexto) => Scaffold(
         appBar: AppBar(
-          // Se llega aqui desde una red, asi que hay que decirlo: lo que se
-          // toque en esta pantalla cambia para todas. Sin este renglon, alguien
-          // creeria que esta editando algo de la red desde la que entro.
+          // De que red son, escrito: con varias instalaciones abiertas es lo
+          // unico que evita meterle a un cliente la credencial de otro.
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text('Controladoras WiFi'),
               Text(
-                'Se comparten entre TODAS las redes: una controladora suele atender varios sitios',
+                'Solo de la red ${widget.red.nombre}',
                 style: Theme.of(contexto).textTheme.labelSmall,
               ),
             ],
@@ -210,7 +213,9 @@ class _Renglon extends StatelessWidget {
 }
 
 class _DialogoControladora extends StatefulWidget {
-  const _DialogoControladora();
+  const _DialogoControladora({required this.clave});
+
+  final String clave;
 
   @override
   State<_DialogoControladora> createState() => _DialogoControladoraState();
@@ -243,7 +248,7 @@ class _DialogoControladoraState extends State<_DialogoControladora> {
     Trayectoria.instancia.anotar('Crear controladora ${_nombre.text}');
 
     try {
-      await Api.instancia.crearControladora({
+      await Api.instancia.crearControladora(widget.clave, {
         'nombre': _nombre.text.trim(),
         'tipo': 'unifi',
         'url': _url.text.trim(),

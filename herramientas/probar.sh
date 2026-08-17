@@ -459,6 +459,29 @@ pedir -X POST "$API/api/redes/$CLAVE/importacion" -d "@$CARPETA/importar-aplicar
     && paso "volver a subir la hoja no duplica aparatos" \
     || falla "la segunda importacion duplico aparatos"
 
+# Las credenciales SNMP son DE CADA RED. Compartidas, la comunidad de un cliente
+# se probaba contra los switches de otro y el intento fallido quedaba anotado en
+# la bitacora de un equipo ajeno.
+pedir -X POST "$API/api/redes/$CLAVE/credenciales-snmp" \
+     -d '{"nombre":"Switches del sitio","version":"v2c","comunidad":"secreta"}' \
+    | grep -q '"ok":true' \
+    && paso "la credencial SNMP se crea en la red" \
+    || falla "no se pudo crear la credencial de la red"
+
+# Y no viaja de vuelta con su secreto: la comunidad es, en la practica, una
+# contrasena.
+pedir "$API/api/redes/$CLAVE/credenciales-snmp" | grep -q '"secreta"' \
+    && falla "la comunidad SNMP viajo de vuelta al programa" \
+    || paso "y su comunidad no sale en el listado"
+
+OTRA=$(pedir -X POST "$API/api/redes" \
+       -d '{"nombre":"Otro cliente","subredes":["10.9.0.0/24"]}' \
+       | sed -n 's/.*"clave":"\([^"]*\)".*/\1/p')
+pedir "$API/api/redes/$OTRA/credenciales-snmp" | grep -q '"datos":\[\]' \
+    && paso "y no se ve desde la red de otro cliente" \
+    || falla "la credencial de una red se vio desde otra"
+pedir -X DELETE "$API/api/redes/$OTRA?datos=1" >/dev/null
+
 pedir "$API/api/redes/$CLAVE/consumo" | grep -q '"explicacion"' \
     && paso "el consumo responde y se explica" || falla "el consumo fallo"
 

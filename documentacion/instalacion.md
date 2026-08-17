@@ -101,9 +101,14 @@ tiene que poder preguntárselo al switch. Hacen falta dos cosas:
 
 1. Que el switch sea **administrable** y tenga **SNMP habilitado** (en el menú de
    su switch suele estar como «SNMP» o «Community»).
-2. Que le cargue esa credencial a MiRed: en el panel de inicio, el ícono de la
-   llave → **Nueva credencial**. Para casi todos los switches basta con
-   «SNMP v2c» y la comunidad de lectura (por omisión suele ser `public`).
+2. Que le cargue esa credencial a MiRed: en la pantalla de **esa red**, menú de
+   la izquierda → **Credenciales SNMP** → *Nueva credencial*. Para casi todos los
+   switches basta con «SNMP v2c» y la comunidad de lectura (por omisión suele ser
+   `public`).
+
+**Las credenciales son de cada red y no se comparten**: la comunidad de un
+cliente no se prueba nunca contra los switches de otro. Si lleva varias
+instalaciones, cada una tiene las suyas.
 
 Después de eso, un escaneo completo llena la pestaña **Puertos**.
 
@@ -118,7 +123,8 @@ está colgado de cuál es la controladora, no el aparato. Sin darla de alta, en 
 oficina moderna la mitad de los equipos —teléfonos, portátiles, cámaras— salen
 como *«sin ubicar»* en el mapa.
 
-En el panel de inicio, el ícono de la antena → **Nueva controladora**. Necesita
+En la pantalla de **esa red**, menú de la izquierda → **Controladoras WiFi** →
+*Nueva controladora* (también es de esa red y de ninguna otra). Necesita
 la misma dirección con la que usted entra desde el navegador
 (`https://192.168.1.10:8443`), un usuario —basta uno de sólo lectura— y el
 *sitio*, que en casi todas se llama `default`.

@@ -22,7 +22,14 @@ import (
 // es HTTPS contra una direccion de la red. No hace falta ningun privilegio, y la
 // sonda existe precisamente para lo que si lo necesita.
 func (s *Servicio) consultarControladoras(ctx context.Context, clave string) {
-	controladoras, err := s.Datos.ListarControladoras(ctx)
+	// Las controladoras son DE ESTA RED: se leen de su base, no de una lista
+	// compartida. La de un cliente no tiene nada que hacer en la red de otro.
+	var controladoras []basedatos.Controladora
+	err := s.Datos.ConRed(ctx, clave, func(base *basedatos.Base) error {
+		var err error
+		controladoras, err = base.ListarControladoras(ctx)
+		return err
+	})
 	if err != nil {
 		s.Bitacora.Warn("no se pudieron leer las controladoras", "red", clave, "error", err)
 		return
@@ -45,7 +52,10 @@ func (s *Servicio) consultarControladoras(ctx context.Context, clave string) {
 		// El resultado se anota siempre, salga bien o mal: una controladora que
 		// lleva dias sin contestar tiene que poder verse en la pantalla, no
 		// desaparecer del mapa en silencio.
-		if anotar := s.Datos.AnotarConsultaAControladora(ctx, guardada.ID, err); anotar != nil {
+		anotar := s.Datos.ConRed(ctx, clave, func(base *basedatos.Base) error {
+			return base.AnotarConsultaAControladora(ctx, guardada.ID, err)
+		})
+		if anotar != nil {
 			s.Bitacora.Warn("no se pudo anotar el resultado de la controladora",
 				"controladora", guardada.Nombre, "error", anotar)
 		}

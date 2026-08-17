@@ -447,10 +447,22 @@ usuarios, catalogo de dispositivos, actualizar y la cuenta. Lo que se usa
 trabajando sobre UNA red —las credenciales SNMP con las que se le pregunta a sus
 switches, su controladora WiFi— se llega desde la pantalla de esa red.
 
-Ojo con el matiz: **esas dos cosas se guardan una sola vez y las comparten todas
-las redes** (viven en el catalogo, no en la base de cada red, para no repetirlas
-sitio por sitio). Por eso sus pantallas lo dicen en el titulo. Se llega a ellas
-desde una red porque es donde se necesitan, no porque sean de esa red.
+**Esas dos son DE CADA RED** (Rev 44). Vivieron compartidas en el catalogo hasta
+entonces, con el argumento de no repetirlas sitio por sitio; es razonable para
+quien lleva una sola instalacion y falso para quien lleva las redes de varios
+clientes, que es lo que MiRed permite sin topes:
+
+- la comunidad SNMP de un cliente se probaba contra los switches de otro, y el
+  intento fallido queda anotado en la bitacora de un equipo ajeno;
+- dar lectura sobre UNA red dejaba ver las claves que abren los switches de
+  TODAS;
+- borrar la de un sitio la borraba para los demas.
+
+Al actualizar, lo que hubiera compartido **se copia a todas las redes** y el
+catalogo se vacia (`internal/basedatos/mudanza.go`, al arrancar el servidor).
+Copiar a todas y no repartir a ojo es lo unico honesto: estaban en uso en todas,
+y adivinar de cual era cada una seria inventarse un dato. Lo que sobre se borra
+desde la pantalla de su red.
 
 ## En la pantalla de una red: izquierda se HACE, pestanas se MIRA
 

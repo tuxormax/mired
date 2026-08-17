@@ -59,6 +59,18 @@ valida renueva el vencimiento.
 | `POST /api/redes/{clave}/enlaces` | escritura | conectar; **siempre entra con `origen_dato = 'manual'`** |
 | `DELETE /api/redes/{clave}/enlaces/{enlace}` | escritura | desconectar |
 
+### Credenciales SNMP y controladoras WiFi — DE CADA RED (desde Rev 44)
+| Metodo y ruta | Quien puede | Que hace |
+|---|---|---|
+| `GET /api/redes/{clave}/credenciales-snmp` | lectura | las de esa red, **sin sus secretos** |
+| `POST /api/redes/{clave}/credenciales-snmp` | escritura | alta; reactiva por nombre si estaba borrada |
+| `DELETE /api/redes/{clave}/credenciales-snmp/{id}` | escritura | borrado suave |
+| `GET/POST /api/redes/{clave}/controladoras` | lectura / escritura | igual, para las controladoras WiFi |
+| `DELETE /api/redes/{clave}/controladoras/{id}` | escritura | borrado suave |
+
+Estuvieron en el catalogo, compartidas por todas las redes, hasta la Rev 44. Ver
+[[gotchas]] para por que se movieron y como se reparte lo que ya existia.
+
 ### Importar una hoja de aparatos (modulo 20, v1.20)
 | Metodo y ruta | Quien puede | Que hace |
 |---|---|---|

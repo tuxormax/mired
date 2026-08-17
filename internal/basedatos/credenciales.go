@@ -43,8 +43,8 @@ func (c CredencialSNMP) SinSecretos() CredencialSNMP {
 
 // ListarCredencialesSNMP devuelve las credenciales activas, CON sus secretos.
 // Solo la usa la sonda; para la interfaz se pasa antes por SinSecretos.
-func (e *Enrutador) ListarCredencialesSNMP(ctx context.Context) ([]CredencialSNMP, error) {
-	filas, err := e.Catalogo.QueryContext(ctx, `
+func (b *Base) ListarCredencialesSNMP(ctx context.Context) ([]CredencialSNMP, error) {
+	filas, err := b.QueryContext(ctx, `
 		SELECT id, nombre, version, COALESCE(comunidad, ''), COALESCE(usuario, ''),
 		       COALESCE(autenticacion_protocolo, ''), COALESCE(autenticacion_clave, ''),
 		       COALESCE(privacidad_protocolo, ''), COALESCE(privacidad_clave, ''), creada
@@ -71,7 +71,7 @@ func (e *Enrutador) ListarCredencialesSNMP(ctx context.Context) ([]CredencialSNM
 
 // CrearCredencialSNMP da de alta una credencial. Si habia una borrada con el
 // mismo nombre, se reactiva con los datos nuevos.
-func (e *Enrutador) CrearCredencialSNMP(ctx context.Context, credencial CredencialSNMP) (CredencialSNMP, error) {
+func (b *Base) CrearCredencialSNMP(ctx context.Context, credencial CredencialSNMP) (CredencialSNMP, error) {
 	credencial.Nombre = strings.TrimSpace(credencial.Nombre)
 	if credencial.Nombre == "" {
 		return CredencialSNMP{}, fmt.Errorf("la credencial necesita un nombre")
@@ -90,11 +90,11 @@ func (e *Enrutador) CrearCredencialSNMP(ctx context.Context, credencial Credenci
 	}
 
 	var borradaID int64
-	err := e.Catalogo.QueryRowContext(ctx,
+	err := b.QueryRowContext(ctx,
 		`SELECT id FROM credenciales_snmp WHERE nombre = ? AND estatus = -1`,
 		credencial.Nombre).Scan(&borradaID)
 	if err == nil {
-		_, err = e.Catalogo.ExecContext(ctx, `
+		_, err = b.ExecContext(ctx, `
 			UPDATE credenciales_snmp
 			   SET version = ?, comunidad = ?, usuario = ?, autenticacion_protocolo = ?,
 			       autenticacion_clave = ?, privacidad_protocolo = ?, privacidad_clave = ?,
@@ -112,7 +112,7 @@ func (e *Enrutador) CrearCredencialSNMP(ctx context.Context, credencial Credenci
 	}
 
 	var repetida int
-	if err := e.Catalogo.QueryRowContext(ctx,
+	if err := b.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM credenciales_snmp WHERE nombre = ? AND estatus >= 0`,
 		credencial.Nombre).Scan(&repetida); err != nil {
 		return CredencialSNMP{}, fmt.Errorf("no se pudo comprobar el nombre: %w", err)
@@ -121,7 +121,7 @@ func (e *Enrutador) CrearCredencialSNMP(ctx context.Context, credencial Credenci
 		return CredencialSNMP{}, ErrCredencialRepetida
 	}
 
-	resultado, err := e.Catalogo.ExecContext(ctx, `
+	resultado, err := b.ExecContext(ctx, `
 		INSERT INTO credenciales_snmp (nombre, version, comunidad, usuario,
 		                               autenticacion_protocolo, autenticacion_clave,
 		                               privacidad_protocolo, privacidad_clave, estatus, creada)
@@ -138,8 +138,8 @@ func (e *Enrutador) CrearCredencialSNMP(ctx context.Context, credencial Credenci
 }
 
 // BorrarCredencialSNMP aplica borrado suave.
-func (e *Enrutador) BorrarCredencialSNMP(ctx context.Context, id int64) error {
-	resultado, err := e.Catalogo.ExecContext(ctx,
+func (b *Base) BorrarCredencialSNMP(ctx context.Context, id int64) error {
+	resultado, err := b.ExecContext(ctx,
 		`UPDATE credenciales_snmp SET estatus = -1, modificada = ? WHERE id = ? AND estatus >= 0`,
 		Ahora(), id)
 	if err != nil {

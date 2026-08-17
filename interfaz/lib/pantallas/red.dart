@@ -207,14 +207,13 @@ class _PantallaRedState extends State<PantallaRed> {
     }
   }
 
-  /// _puedeAdministrar dice si este usuario puede tocar lo que se comparte entre
-  /// redes.
+  /// _puedeAdministrar dice si este usuario puede ver y tocar las credenciales
+  /// de la red.
   ///
-  /// Las credenciales SNMP y las controladoras **se guardan una sola vez y las
-  /// usan todas las redes**: una controladora suele atender varios sitios y
-  /// repetirla red por red es la forma segura de que una quede desactualizada.
-  /// Se llega a ellas desde aqui porque es donde se necesitan —trabajando sobre
-  /// una red—, pero editarlas sigue siendo cosa del superadministrador.
+  /// Las credenciales SNMP y las controladoras son **de esta red** desde la Rev
+  /// 44 —antes se compartian entre todas, y dar lectura sobre una dejaba ver las
+  /// claves que abren los switches de las demas—. Aun asi se piden permisos de
+  /// administrador: son las llaves de los equipos.
   bool get _puedeAdministrar => Api.instancia.usuario?.superadmin == true;
 
   Future<void> _abrir(Widget pantalla) async {
@@ -516,22 +515,21 @@ class _PantallaRedState extends State<PantallaRed> {
             alPulsar: _importar,
           ),
 
-          // Estas dos NO son de esta red: se guardan una sola vez y las usan
-          // todas. Se llega a ellas desde aqui porque es donde se necesitan, y
-          // sus pantallas lo dicen en el titulo para que nadie se confunda.
+          // Son de ESTA red y de ninguna otra: la comunidad SNMP de un cliente
+          // no tiene nada que hacer contra los switches de otro.
           if (_puedeAdministrar) ...[
-            titulo('Se comparte entre redes'),
+            titulo('Como se le pregunta'),
             opcion(
               icono: Icons.vpn_key_outlined,
               texto: 'Credenciales SNMP',
-              explicacion: 'Para preguntarle a los switches',
-              alPulsar: () => _abrir(const PantallaCredenciales()),
+              explicacion: 'Solo de esta red',
+              alPulsar: () => _abrir(PantallaCredenciales(red: _red)),
             ),
             opcion(
               icono: Icons.wifi_tethering,
               texto: 'Controladoras WiFi',
-              explicacion: 'Quien sabe que cuelga de cada una',
-              alPulsar: () => _abrir(const PantallaControladoras()),
+              explicacion: 'Solo de esta red',
+              alPulsar: () => _abrir(PantallaControladoras(red: _red)),
             ),
           ],
 

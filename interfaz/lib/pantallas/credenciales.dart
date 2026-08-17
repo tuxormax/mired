@@ -11,7 +11,11 @@ import '../widgets/mensajes.dart';
 /// switch esta cada aparato: sin ellas el mapa de puertos no existe, por mas
 /// administrable que sea el switch.
 class PantallaCredenciales extends StatefulWidget {
-  const PantallaCredenciales({super.key});
+  const PantallaCredenciales({super.key, required this.red});
+
+  /// La red de la que son estas credenciales. **No se comparten**: la comunidad
+  /// de un cliente no tiene nada que hacer contra los switches de otro.
+  final Red red;
 
   @override
   State<PantallaCredenciales> createState() => _PantallaCredencialesState();
@@ -28,14 +32,14 @@ class _PantallaCredencialesState extends State<PantallaCredenciales> {
 
   void _recargar() {
     setState(() {
-      _credenciales = Api.instancia.listarCredenciales();
+      _credenciales = Api.instancia.listarCredenciales(widget.red.clave);
     });
   }
 
   Future<void> _crear() async {
     final creada = await showDialog<bool>(
       context: context,
-      builder: (_) => const _DialogoCredencial(),
+      builder: (_) => _DialogoCredencial(clave: widget.red.clave),
     );
     if (creada == true) _recargar();
   }
@@ -60,7 +64,7 @@ class _PantallaCredencialesState extends State<PantallaCredenciales> {
     if (confirma != true) return;
 
     try {
-      await Api.instancia.borrarCredencial(credencial.id);
+      await Api.instancia.borrarCredencial(widget.red.clave, credencial.id);
       _recargar();
     } catch (problema, pila) {
       if (mounted) await mostrarProblema(context, problema, pila: pila.toString());
@@ -70,16 +74,15 @@ class _PantallaCredencialesState extends State<PantallaCredenciales> {
   @override
   Widget build(BuildContext contexto) => Scaffold(
         appBar: AppBar(
-          // Se llega aqui desde una red, asi que hay que decirlo: lo que se
-          // toque en esta pantalla cambia para todas. Sin este renglon, alguien
-          // creeria que esta editando algo de la red desde la que entro.
+          // De que red son, escrito: con varias instalaciones abiertas es lo
+          // unico que evita meterle a un cliente la credencial de otro.
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text('Credenciales SNMP'),
               Text(
-                'Se comparten entre TODAS las redes: se guardan una vez y se prueban en orden',
+                'Solo de la red ${widget.red.nombre}',
                 style: Theme.of(contexto).textTheme.labelSmall,
               ),
             ],
@@ -170,7 +173,9 @@ class _PantallaCredencialesState extends State<PantallaCredenciales> {
 }
 
 class _DialogoCredencial extends StatefulWidget {
-  const _DialogoCredencial();
+  const _DialogoCredencial({required this.clave});
+
+  final String clave;
 
   @override
   State<_DialogoCredencial> createState() => _DialogoCredencialState();
@@ -207,7 +212,7 @@ class _DialogoCredencialState extends State<_DialogoCredencial> {
     Trayectoria.instancia.anotar('Crear credencial SNMP ${_nombre.text}');
 
     try {
-      await Api.instancia.crearCredencial({
+      await Api.instancia.crearCredencial(widget.clave, {
         'nombre': _nombre.text.trim(),
         'version': _version,
         if (!_esV3) 'comunidad': _comunidad.text,

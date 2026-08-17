@@ -397,9 +397,18 @@ func (s *Servicio) revisarAgenda(ctx context.Context) {
 // Por eso esto nunca marca el escaneo como fallido — el barrido ya termino bien,
 // y esto es informacion adicional que puede haber o no.
 func (s *Servicio) consultarSNMP(ctx context.Context, clave string, vistos []sonda.EquipoVisto) {
-	credenciales, err := s.Datos.ListarCredencialesSNMP(ctx)
+	// Las credenciales son DE ESTA RED. Antes salian de una lista compartida y
+	// se probaban contra los equipos de todos los sitios: un intento fallido con
+	// la comunidad de un cliente quedaba anotado en la bitacora del switch de
+	// otro.
+	var credenciales []basedatos.CredencialSNMP
+	err := s.Datos.ConRed(ctx, clave, func(base *basedatos.Base) error {
+		var err error
+		credenciales, err = base.ListarCredencialesSNMP(ctx)
+		return err
+	})
 	if err != nil {
-		s.Bitacora.Warn("no se pudieron leer las credenciales SNMP", "error", err)
+		s.Bitacora.Warn("no se pudieron leer las credenciales SNMP", "red", clave, "error", err)
 		return
 	}
 	// **Siempre se prueba, aunque nadie haya configurado nada.**

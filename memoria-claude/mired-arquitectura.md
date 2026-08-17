@@ -29,11 +29,14 @@ Al crear una red se crea **su propio archivo SQLite** con todo lo operativo. Ni
 una tabla compartida.
 
 - **Catalogo** (`/var/lib/mired/mired.db`, uno): usuarios, sesiones, claves de
-  API, permisos de quien ve que red, credenciales SNMP reutilizables y el
+  API, permisos de quien ve que red y el
   registro de redes con **resumen por red** (para que el panel de inicio no abra
   treinta archivos).
 - **Red** (`/var/lib/mired/redes/matriz-a1b2.db`, una por red): equipos,
-  subredes, servicios, puertos, interfaces, VLAN, topologias, presencia, reglas
+  subredes, servicios, puertos, interfaces, VLAN, topologias, presencia,
+  **credenciales SNMP y controladoras WiFi** (desde la Rev 44; antes vivian
+  compartidas en el catalogo, y eso significaba probar la comunidad de un
+  cliente contra los switches de otro), reglas
   de alerta y trafico. Cada archivo lleva dentro su ficha de red → es
   **autodescriptivo**: se copia a otra instalacion y se sabe que es.
 

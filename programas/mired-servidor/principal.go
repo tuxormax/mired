@@ -72,6 +72,17 @@ func correr(cfg configuracion.Configuracion, bitacora *slog.Logger) error {
 		bitacora.Warn("no se pudo sembrar el historial de versiones", "error", err)
 	}
 
+	// Las credenciales SNMP y las controladoras estuvieron compartidas entre
+	// todas las redes hasta la Rev 44. Al arrancar con la version nueva se
+	// reparten a cada red y se vacia el catalogo; despues de eso esto no vuelve a
+	// hacer nada, porque no queda nada que mudar.
+	if credenciales, controladoras, err := datos.MudarCredencialesALasRedes(ctx); err != nil {
+		bitacora.Warn("no se pudo mudar lo compartido a cada red", "error", err)
+	} else if credenciales > 0 || controladoras > 0 {
+		bitacora.Info("las credenciales y controladoras ahora son de cada red",
+			"credenciales", credenciales, "controladoras", controladoras)
+	}
+
 	autenticador := autenticacion.Nuevo(datos, cfg.Servidor.DuracionSesion.Duration)
 	// No se siembra ningun usuario: el primero lo crea quien entre, con el
 	// usuario y la clave que el elija. Unas credenciales iguales en todas las

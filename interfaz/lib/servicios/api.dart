@@ -585,35 +585,44 @@ class Api {
   Future<Map<String, dynamic>> historialVersiones() async =>
       await obtener('/api/versiones') as Map<String, dynamic>;
 
-  Future<List<CredencialSNMP>> listarCredenciales() async {
-    final datos = await obtener('/api/credenciales-snmp') as List<dynamic>;
+  // Las credenciales SNMP y las controladoras son DE CADA RED: cuelgan de ella
+  // en la API igual que todo lo demas suyo. Estuvieron compartidas entre todas
+  // hasta la Rev 44, y eso significaba probar la comunidad de un cliente contra
+  // los switches de otro.
+
+  Future<List<CredencialSNMP>> listarCredenciales(String clave) async {
+    final datos = await obtener('/api/redes/$clave/credenciales-snmp') as List<dynamic>;
     return datos
         .map((fila) => CredencialSNMP.desdeJson(fila as Map<String, dynamic>))
         .toList();
   }
 
-  Future<CredencialSNMP> crearCredencial(Map<String, dynamic> credencial) async {
-    final datos = await enviar('/api/credenciales-snmp', credencial);
+  Future<CredencialSNMP> crearCredencial(
+      String clave, Map<String, dynamic> credencial) async {
+    final datos = await enviar('/api/redes/$clave/credenciales-snmp', credencial);
     return CredencialSNMP.desdeJson(datos as Map<String, dynamic>);
   }
 
-  Future<void> borrarCredencial(int id) => borrar('/api/credenciales-snmp/$id');
+  Future<void> borrarCredencial(String clave, int id) =>
+      borrar('/api/redes/$clave/credenciales-snmp/$id');
 
   // ------------------------------------------------------- controladoras --
 
-  Future<List<Controladora>> listarControladoras() async {
-    final datos = await obtener('/api/controladoras') as List<dynamic>;
+  Future<List<Controladora>> listarControladoras(String clave) async {
+    final datos = await obtener('/api/redes/$clave/controladoras') as List<dynamic>;
     return datos
         .map((fila) => Controladora.desdeJson(fila as Map<String, dynamic>))
         .toList();
   }
 
-  Future<Controladora> crearControladora(Map<String, dynamic> controladora) async {
-    final datos = await enviar('/api/controladoras', controladora);
+  Future<Controladora> crearControladora(
+      String clave, Map<String, dynamic> controladora) async {
+    final datos = await enviar('/api/redes/$clave/controladoras', controladora);
     return Controladora.desdeJson(datos as Map<String, dynamic>);
   }
 
-  Future<void> borrarControladora(int id) => borrar('/api/controladoras/$id');
+  Future<void> borrarControladora(String clave, int id) =>
+      borrar('/api/redes/$clave/controladoras/$id');
 
   Future<Map<String, dynamic>> estadoSonda() async =>
       await obtener('/api/sonda') as Map<String, dynamic>;

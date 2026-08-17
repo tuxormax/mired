@@ -37,8 +37,8 @@ func (c Controladora) SinSecretos() Controladora {
 
 // ListarControladoras devuelve las activas, CON su clave. Para la interfaz se
 // pasa antes por SinSecretos.
-func (e *Enrutador) ListarControladoras(ctx context.Context) ([]Controladora, error) {
-	filas, err := e.Catalogo.QueryContext(ctx, `
+func (b *Base) ListarControladoras(ctx context.Context) ([]Controladora, error) {
+	filas, err := b.QueryContext(ctx, `
 		SELECT id, nombre, tipo, url, usuario, clave, sitio, verificar_tls, creada,
 		       COALESCE(ultimo_exito, ''), COALESCE(ultimo_error, '')
 		  FROM controladoras
@@ -65,7 +65,7 @@ func (e *Enrutador) ListarControladoras(ctx context.Context) ([]Controladora, er
 
 // CrearControladora da de alta una controladora. Si habia una borrada con el
 // mismo nombre, se reactiva con los datos nuevos.
-func (e *Enrutador) CrearControladora(ctx context.Context, c Controladora) (Controladora, error) {
+func (b *Base) CrearControladora(ctx context.Context, c Controladora) (Controladora, error) {
 	c.Nombre = strings.TrimSpace(c.Nombre)
 	c.URL = strings.TrimRight(strings.TrimSpace(c.URL), "/")
 	c.Usuario = strings.TrimSpace(c.Usuario)
@@ -97,10 +97,10 @@ func (e *Enrutador) CrearControladora(ctx context.Context, c Controladora) (Cont
 	}
 
 	var borradaID int64
-	err = e.Catalogo.QueryRowContext(ctx,
+	err = b.QueryRowContext(ctx,
 		`SELECT id FROM controladoras WHERE nombre = ? AND estatus = -1`, c.Nombre).Scan(&borradaID)
 	if err == nil {
-		_, err = e.Catalogo.ExecContext(ctx, `
+		_, err = b.ExecContext(ctx, `
 			UPDATE controladoras
 			   SET tipo = ?, url = ?, usuario = ?, clave = ?, sitio = ?, verificar_tls = ?,
 			       estatus = 1, modificada = ?, ultimo_exito = NULL, ultimo_error = NULL
@@ -115,7 +115,7 @@ func (e *Enrutador) CrearControladora(ctx context.Context, c Controladora) (Cont
 	}
 
 	var repetida int
-	if err := e.Catalogo.QueryRowContext(ctx,
+	if err := b.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM controladoras WHERE nombre = ? AND estatus >= 0`,
 		c.Nombre).Scan(&repetida); err != nil {
 		return Controladora{}, fmt.Errorf("no se pudo comprobar el nombre: %w", err)
@@ -124,7 +124,7 @@ func (e *Enrutador) CrearControladora(ctx context.Context, c Controladora) (Cont
 		return Controladora{}, ErrControladoraRepetida
 	}
 
-	resultado, err := e.Catalogo.ExecContext(ctx, `
+	resultado, err := b.ExecContext(ctx, `
 		INSERT INTO controladoras (nombre, tipo, url, usuario, clave, sitio,
 		                           verificar_tls, estatus, creada)
 		VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`,
@@ -138,8 +138,8 @@ func (e *Enrutador) CrearControladora(ctx context.Context, c Controladora) (Cont
 }
 
 // BorrarControladora aplica borrado suave.
-func (e *Enrutador) BorrarControladora(ctx context.Context, id int64) error {
-	resultado, err := e.Catalogo.ExecContext(ctx,
+func (b *Base) BorrarControladora(ctx context.Context, id int64) error {
+	resultado, err := b.ExecContext(ctx,
 		`UPDATE controladoras SET estatus = -1, modificada = ? WHERE id = ? AND estatus >= 0`,
 		Ahora(), id)
 	if err != nil {
@@ -155,9 +155,9 @@ func (e *Enrutador) BorrarControladora(ctx context.Context, id int64) error {
 //
 // Que una controladora lleve dias sin contestar es un dato, no un silencio: sin
 // esto, el WiFi desapareceria del mapa poco a poco y nadie sabria por que.
-func (e *Enrutador) AnotarConsultaAControladora(ctx context.Context, id int64, problema error) error {
+func (b *Base) AnotarConsultaAControladora(ctx context.Context, id int64, problema error) error {
 	if problema == nil {
-		_, err := e.Catalogo.ExecContext(ctx,
+		_, err := b.ExecContext(ctx,
 			`UPDATE controladoras SET ultimo_exito = ?, ultimo_error = NULL WHERE id = ?`,
 			Ahora(), id)
 		return err
@@ -166,7 +166,7 @@ func (e *Enrutador) AnotarConsultaAControladora(ctx context.Context, id int64, p
 	if len(mensaje) > 500 {
 		mensaje = mensaje[:500]
 	}
-	_, err := e.Catalogo.ExecContext(ctx,
+	_, err := b.ExecContext(ctx,
 		`UPDATE controladoras SET ultimo_error = ? WHERE id = ?`, mensaje, id)
 	return err
 }

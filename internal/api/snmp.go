@@ -14,7 +14,14 @@ import (
 // La comunidad SNMP es en la practica una contrasena: no tiene por que viajar de
 // vuelta al navegador solo para pintar una lista.
 func (a *API) listarCredenciales(escritor http.ResponseWriter, peticion *http.Request) {
-	credenciales, err := a.Datos.ListarCredencialesSNMP(peticion.Context())
+	clave, _ := autenticacion.RedActivaDe(peticion.Context())
+
+	var credenciales []basedatos.CredencialSNMP
+	err := a.Datos.ConRed(peticion.Context(), clave, func(base *basedatos.Base) error {
+		var err error
+		credenciales, err = base.ListarCredencialesSNMP(peticion.Context())
+		return err
+	})
 	if err != nil {
 		a.responderError(escritor, peticion, contextoError{
 			Modulo: "Credenciales SNMP", Accion: "Listar", Causa: CausaBaseDatos,
@@ -36,7 +43,17 @@ func (a *API) crearCredencial(escritor http.ResponseWriter, peticion *http.Reque
 		return
 	}
 
-	credencial, err := a.Datos.CrearCredencialSNMP(peticion.Context(), cuerpo)
+	if !a.exigeEscritura(escritor, peticion, "Crear credencial") {
+		return
+	}
+	clave, _ := autenticacion.RedActivaDe(peticion.Context())
+
+	var credencial basedatos.CredencialSNMP
+	err := a.Datos.ConRed(peticion.Context(), clave, func(base *basedatos.Base) error {
+		var err error
+		credencial, err = base.CrearCredencialSNMP(peticion.Context(), cuerpo)
+		return err
+	})
 	if errors.Is(err, basedatos.ErrCredencialRepetida) {
 		a.errorValidacion(escritor, peticion, "Credenciales SNMP", "Crear",
 			"Ya existe una credencial con ese nombre.")
@@ -61,7 +78,15 @@ func (a *API) borrarCredencial(escritor http.ResponseWriter, peticion *http.Requ
 		return
 	}
 
-	if err := a.Datos.BorrarCredencialSNMP(peticion.Context(), id); err != nil {
+	if !a.exigeEscritura(escritor, peticion, "Borrar credencial") {
+		return
+	}
+	clave, _ := autenticacion.RedActivaDe(peticion.Context())
+
+	err = a.Datos.ConRed(peticion.Context(), clave, func(base *basedatos.Base) error {
+		return base.BorrarCredencialSNMP(peticion.Context(), id)
+	})
+	if err != nil {
 		a.errorValidacion(escritor, peticion, "Credenciales SNMP", "Borrar", err.Error())
 		return
 	}
@@ -185,11 +210,19 @@ func (a *API) consumoPorAplicacion(escritor http.ResponseWriter, peticion *http.
 
 // -------------------------------------------------------- controladoras WiFi --
 
-// Las controladoras viven en el catalogo, como las credenciales SNMP, y por la
-// misma razon: una controladora suele atender varios sitios a la vez.
+// Las controladoras son DE CADA RED, como las credenciales SNMP. Estuvieron en
+// el catalogo, compartidas, hasta la Rev 44: ver la migracion 0020 de red para
+// por que se movieron.
 
 func (a *API) listarControladoras(escritor http.ResponseWriter, peticion *http.Request) {
-	controladoras, err := a.Datos.ListarControladoras(peticion.Context())
+	clave, _ := autenticacion.RedActivaDe(peticion.Context())
+
+	var controladoras []basedatos.Controladora
+	err := a.Datos.ConRed(peticion.Context(), clave, func(base *basedatos.Base) error {
+		var err error
+		controladoras, err = base.ListarControladoras(peticion.Context())
+		return err
+	})
 	if err != nil {
 		a.responderError(escritor, peticion, contextoError{
 			Modulo: "Controladoras WiFi", Accion: "Listar", Causa: CausaBaseDatos,
@@ -211,7 +244,17 @@ func (a *API) crearControladora(escritor http.ResponseWriter, peticion *http.Req
 		return
 	}
 
-	controladora, err := a.Datos.CrearControladora(peticion.Context(), cuerpo)
+	if !a.exigeEscritura(escritor, peticion, "Crear controladora") {
+		return
+	}
+	clave, _ := autenticacion.RedActivaDe(peticion.Context())
+
+	var controladora basedatos.Controladora
+	err := a.Datos.ConRed(peticion.Context(), clave, func(base *basedatos.Base) error {
+		var err error
+		controladora, err = base.CrearControladora(peticion.Context(), cuerpo)
+		return err
+	})
 	if errors.Is(err, basedatos.ErrControladoraRepetida) {
 		a.errorValidacion(escritor, peticion, "Controladoras WiFi", "Crear",
 			"Ya existe una controladora con ese nombre.")
@@ -234,7 +277,15 @@ func (a *API) borrarControladora(escritor http.ResponseWriter, peticion *http.Re
 		return
 	}
 
-	if err := a.Datos.BorrarControladora(peticion.Context(), id); err != nil {
+	if !a.exigeEscritura(escritor, peticion, "Borrar controladora") {
+		return
+	}
+	clave, _ := autenticacion.RedActivaDe(peticion.Context())
+
+	err = a.Datos.ConRed(peticion.Context(), clave, func(base *basedatos.Base) error {
+		return base.BorrarControladora(peticion.Context(), id)
+	})
+	if err != nil {
 		a.errorValidacion(escritor, peticion, "Controladoras WiFi", "Borrar", err.Error())
 		return
 	}

@@ -156,12 +156,16 @@ func (a *API) Rutas() http.Handler {
 
 	// Credenciales SNMP: son secretos compartidos entre redes, asi que las
 	// administra solo el superadministrador.
-	mux.Handle("GET /api/credenciales-snmp", a.conSuperadmin(a.listarCredenciales))
-	mux.Handle("POST /api/credenciales-snmp", a.conSuperadmin(a.crearCredencial))
-	mux.Handle("DELETE /api/credenciales-snmp/{id}", a.conSuperadmin(a.borrarCredencial))
-	mux.Handle("GET /api/controladoras", a.conSuperadmin(a.listarControladoras))
-	mux.Handle("POST /api/controladoras", a.conSuperadmin(a.crearControladora))
-	mux.Handle("DELETE /api/controladoras/{id}", a.conSuperadmin(a.borrarControladora))
+	// Las credenciales SNMP y las controladoras WiFi son DE CADA RED, y por eso
+	// cuelgan de ella. Estuvieron compartidas en el catalogo hasta la Rev 44: la
+	// comunidad de un cliente se probaba contra los switches de otro, y dar
+	// lectura sobre una red dejaba ver las claves de todas.
+	mux.Handle("GET /api/redes/{clave}/credenciales-snmp", a.conRed(a.listarCredenciales))
+	mux.Handle("POST /api/redes/{clave}/credenciales-snmp", a.conRed(a.crearCredencial))
+	mux.Handle("DELETE /api/redes/{clave}/credenciales-snmp/{id}", a.conRed(a.borrarCredencial))
+	mux.Handle("GET /api/redes/{clave}/controladoras", a.conRed(a.listarControladoras))
+	mux.Handle("POST /api/redes/{clave}/controladoras", a.conRed(a.crearControladora))
+	mux.Handle("DELETE /api/redes/{clave}/controladoras/{id}", a.conRed(a.borrarControladora))
 
 	// Usuarios y permisos: solo el superadministrador.
 	mux.Handle("GET /api/usuarios", a.conSuperadmin(a.listarUsuarios))
