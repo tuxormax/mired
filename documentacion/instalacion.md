@@ -169,7 +169,9 @@ Si la instalación ya está documentada en una hoja de cálculo —lo normal en 
 sitio cableado por alguien— no hace falta capturarla aparato por aparato. En la
 pantalla de la red, menú **⋮ → Importar aparatos de una hoja**.
 
-Se descarga la plantilla, se llena y se sube. Acepta **CSV, ODS y XLSX**.
+Es una pantalla completa: **para qué sirve, los tres pasos, el campo del archivo
+y la guía de llenado dentro**, para tenerla delante mientras se llena la hoja. Se
+descarga la plantilla, se llena y se sube. Acepta **CSV, ODS y XLSX**.
 
 | Columna | ¿Obligatoria? | Qué se escribe |
 |---|---|---|

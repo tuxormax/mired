@@ -31,11 +31,16 @@ type archivoImportado struct {
 	Repetidos string `json:"repetidos"`
 }
 
-// plantillaDeImportacion entrega el archivo de ejemplo para llenar.
+// plantillaDeImportacion entrega el archivo de ejemplo y la guia para llenarlo.
+//
+// Las dos cosas juntas y de la MISMA fuente: la guia que se lee en pantalla sale
+// de la definicion con la que el servidor lee el archivo, asi que el dia que se
+// agregue una columna no puede quedarse diciendo lo que ya no es.
 func (a *API) plantillaDeImportacion(escritor http.ResponseWriter, peticion *http.Request) {
-	responderOk(escritor, map[string]string{
+	responderOk(escritor, map[string]any{
 		"nombre":    "mired-plantilla-aparatos.csv",
 		"contenido": importacion.PlantillaCSV(),
+		"guia":      importacion.Guia(),
 	})
 }
 

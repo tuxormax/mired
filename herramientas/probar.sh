@@ -378,9 +378,21 @@ pedir -X DELETE "$API/api/redes/$CLAVE/equipos/$MANUAL" | grep -q '"borrado":tru
 # por formulario. Se prueba con la hoja de una clinica de verdad: un switch
 # tonto, sus nodos colgados por numero de puerto y uno que cuelga de otro sitio.
 
-pedir "$API/api/redes/$CLAVE/importacion/plantilla" | grep -q 'NOMBRE,QUE_ES' \
+PLANTILLA=$(pedir "$API/api/redes/$CLAVE/importacion/plantilla")
+echo "$PLANTILLA" | grep -q 'NOMBRE,QUE_ES' \
     && paso "la plantilla para importar se descarga" \
     || falla "la plantilla no se pudo descargar"
+
+# La guia de la pantalla sale de la MISMA definicion con la que el servidor lee
+# el archivo. Si viajaran por separado, el dia que se agregue una columna la
+# pantalla seguiria explicando la de ayer.
+echo "$PLANTILLA" | grep -q '"guia"' \
+    && paso "y trae la guia de como se llena" \
+    || falla "la plantilla llego sin guia"
+
+echo "$PLANTILLA" | grep -q '"clave":"switch_simple"' \
+    && paso "la guia lista las categorias del catalogo, no una copia" \
+    || falla "la guia no trae la lista de categorias"
 
 python3 - "$CARPETA" <<'FINPY'
 import base64, json, sys

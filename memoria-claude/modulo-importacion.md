@@ -23,6 +23,30 @@ renglon suelto al final cuyo puerto decia «modem 2» porque no colgaba del swit
 Pantalla de la red → menu **⋮ → Importar aparatos de una hoja**. Se descarga la
 plantilla, se llena y se sube. **Dos pasos y el primero no escribe nada.**
 
+## Es una PANTALLA, no un cuadro de dialogo (Rev 41)
+Y la razon es una sola: **la guia va dentro**. Quien llena la hoja la tiene
+delante mientras la llena, en vez de ir a buscar un manual aparte. Cuatro
+bloques, en este orden:
+
+1. **Para que sirve** — dos frases.
+2. **Como se hace** — los tres pasos numerados.
+3. **El archivo** — la tarjeta con «Descargar la plantilla» y «Elegir un
+   archivo», los formatos que se aceptan y, al elegirlo, su nombre con una X
+   para quitarlo. Debajo caen la vista previa y el resumen.
+4. **Guia para llenar la hoja** — las siete reglas, la tabla de columnas, la
+   lista cerrada de QUE_ES y un ejemplo lleno.
+
+**La guia NO esta escrita en la pantalla.** La manda el servidor en
+`GET …/importacion/plantilla` (campo `guia`), sacada de la misma `Columnas` con
+la que se lee el archivo y se arma el CSV descargable. Escribirla aparte serian
+dos verdades —la que el servidor acepta y la que la pantalla dice que acepta— y
+la segunda se descubre equivocada cuando alguien ya llenó la hoja. Las
+categorias salen de `internal/catalogo`, la misma lista unica de siempre
+([[ref-categorias]]).
+
+Si la guia no carga, la pantalla **sigue sirviendo para subir el archivo**: se
+queda sin la tabla y ya. Un fallo al pedir la ayuda no puede impedir el trabajo.
+
 ## La plantilla — 14 columnas
 `NOMBRE` y `QUE_ES` obligatorias; el resto, opcionales.
 
@@ -88,7 +112,8 @@ a romper:
   referencia (`C2`) o el hueco corre lo que viene detras.
 
 ## Rutas
-- `GET  /api/redes/{clave}/importacion/plantilla` — el CSV de ejemplo.
+- `GET  /api/redes/{clave}/importacion/plantilla` — el CSV de ejemplo **y la
+  guia** (`{nombre, contenido, guia:{columnas, categorias, ejemplo}}`).
 - `POST /api/redes/{clave}/importacion/vista-previa` — el plan. No escribe.
 - `POST /api/redes/{clave}/importacion` — aplica. `repetidos`: `actualizar` o
   `saltar`.

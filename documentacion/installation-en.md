@@ -152,8 +152,10 @@ cabled by somebody — you do not have to type it in device by device. On the
 network screen: **⋮ → Importar aparatos de una hoja** (import devices from a
 sheet).
 
-Download the template, fill it in and upload it. **CSV, ODS and XLSX** are all
-accepted.
+It is a full screen: **what it is for, the three steps, the file field and the
+filling guide right there**, so you have it in front of you while you fill the
+sheet. Download the template, fill it in and upload it. **CSV, ODS and XLSX** are
+all accepted.
 
 | Column | Required? | What goes in it |
 |---|---|---|

@@ -91,13 +91,13 @@ Tres pruebas lo vigilan: que el binario y el historial digan la misma version,
 que la revision **no tenga huecos ni repetidos**, y que sembrar mil veces no
 duplique filas.
 
-## Estado real (2026-08-17, v1.20 Rev 40)
+## Estado real (2026-08-17, v1.20 Rev 41)
 **Las 10 fases cerradas**, salvo firmar los paquetes. Los **20 modulos**: los 15
 del plan mas el **catalogo comunitario** (16), la **escucha del aire** (17), los
 **enlaces inalambricos** (18), las **credenciales por equipo** (19) y la
 **importacion de hojas** (20).
 
-Lo hecho despues de cerrar el plan (Rev 21-40):
+Lo hecho despues de cerrar el plan (Rev 21-41):
 - **Reconocimiento de verdad** (Rev 21-27): lista IEEE completa —52 977
   prefijos, antes 99— y huellas activas: titulo y encabezados de su pagina,
   certificado TLS, banner SSH, mDNS, UPnP, ONVIF y los protocolos propios de
@@ -117,12 +117,15 @@ Lo hecho despues de cerrar el plan (Rev 21-40):
 - **Que no se coma el equipo** (Rev 34): mientras se edita el mapa la agenda de
   esa red se para, las cinco escuchas de red van a la vez y no en fila, y el
   barrido de puertos baja de 128 a 48 conexiones a la vez.
-- **Importar una hoja de aparatos** (Rev 40, modulo 20): una instalacion
+- **Importar una hoja de aparatos** (Rev 40-41, modulo 20): una instalacion
   documentada en una hoja de calculo se sube de una vez, en CSV, ODS o XLSX. De
   cada renglon salen el aparato, sus puertos, su cable y su credencial. La vista
   previa dice antes lo que se haria, renglon por renglon, sin escribir nada. De
   ahi salio tambien la columna **`ubicacion`**: donde ESTA el aparato, que no es
-  de donde cuelga. Ver [[modulo-importacion]].
+  de donde cuelga. Es una **pantalla completa** con la guia de llenado dentro
+  —columnas, categorias, ejemplo y reglas—, y esa guia **la manda el servidor**
+  desde la misma definicion con la que lee el archivo, para que no puedan
+  separarse. Ver [[modulo-importacion]].
 - **Lo exportado, usable** (Rev 39): se guarda **donde diga el usuario** —cuadro
   de guardar del escritorio, no la carpeta de descargas a la fuerza— y la hoja de
   calculo pasa a ser **dos tablas** («Aparatos» y «Conexiones») en **ODS, XLSX y
@@ -182,8 +185,8 @@ API entera y el dibujo del plano si estan cubiertos por pruebas). El switch admi
 siendo el riesgo abierto mas grande.
 
 ## Cobertura (2026-08-17)
-**231 pruebas en Go y 91 en Flutter**, sobre ~27 000 lineas de Go y ~14 900 de
-Dart, en 15 paquetes. Mas `herramientas/probar.sh` con **76 comprobaciones**:
+**231 pruebas en Go y 93 en Flutter**, sobre ~27 000 lineas de Go y ~14 900 de
+Dart, en 15 paquetes. Mas `herramientas/probar.sh` con **74 comprobaciones**:
 construye el `.deb`, lo desempaqueta y recorre el flujo completo. Es la unica que
 prueba lo que de verdad se entrega.
 

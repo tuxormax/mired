@@ -324,14 +324,11 @@ class Api {
   // Son DOS pasos a proposito: la vista previa no escribe nada y dice renglon
   // por renglon lo que pasaria; aplicar escribe, y va todo en una transaccion.
 
-  /// La plantilla para llenar, tal como se descarga.
-  Future<({String nombre, String contenido})> plantillaDeImportacion(String clave) async {
+  /// La plantilla para llenar y la guia de como se llena, las dos de la misma
+  /// fuente: la definicion con la que el servidor lee el archivo.
+  Future<PlantillaImportacion> plantillaDeImportacion(String clave) async {
     final datos = await obtener('/api/redes/$clave/importacion/plantilla');
-    final mapa = datos as Map<String, dynamic>;
-    return (
-      nombre: mapa['nombre'] as String? ?? 'mired-plantilla-aparatos.csv',
-      contenido: mapa['contenido'] as String? ?? '',
-    );
+    return PlantillaImportacion.desdeJson(datos as Map<String, dynamic>);
   }
 
   /// Que pasaria con este archivo. No toca la base.

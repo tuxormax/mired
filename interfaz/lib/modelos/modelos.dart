@@ -1585,3 +1585,110 @@ class ResumenImportacion {
     return '${partes.join(', ')}.';
   }
 }
+
+/// Una columna de la plantilla de importacion, tal como la define el servidor.
+///
+/// La guia de la pantalla se dibuja de esto y **no de una copia escrita a mano**:
+/// el dia que se agregue una columna, la guia se entera sola. Dos listas
+/// paralelas se separan siempre, y la de la pantalla se descubre equivocada
+/// cuando alguien ya llenó la hoja.
+class ColumnaPlantilla {
+  final String clave;
+  final bool obligatoria;
+  final String ayuda;
+  final String ejemplo;
+
+  /// Los otros encabezados que tambien se aceptan para esta columna. Es lo que
+  /// permite subir una hoja ajena sin renombrar nada.
+  final List<String> sinonimos;
+
+  const ColumnaPlantilla({
+    required this.clave,
+    this.obligatoria = false,
+    this.ayuda = '',
+    this.ejemplo = '',
+    this.sinonimos = const [],
+  });
+
+  factory ColumnaPlantilla.desdeJson(Map<String, dynamic> json) => ColumnaPlantilla(
+        clave: json['clave'] as String? ?? '',
+        obligatoria: json['obligatoria'] as bool? ?? false,
+        ayuda: json['ayuda'] as String? ?? '',
+        ejemplo: json['ejemplo'] as String? ?? '',
+        sinonimos: ((json['sinonimos'] as List<dynamic>?) ?? [])
+            .map((valor) => valor as String)
+            .toList(),
+      );
+
+  /// Los sinonimos que de verdad hay que decir: los que NO son el nombre de la
+  /// columna. Repetir «NOMBRE se puede llamar NOMBRE» no ayuda a nadie.
+  List<String> get otrosNombres =>
+      sinonimos.where((nombre) => nombre != clave).toList();
+}
+
+/// Un valor que se puede escribir en la columna QUE_ES.
+class CategoriaDeGuia {
+  final String clave;
+  final String comoSeLee;
+
+  /// Otras formas de escribirlo que tambien se aceptan: «pc», «nvr», «ap».
+  final List<String> apodos;
+
+  const CategoriaDeGuia({
+    required this.clave,
+    required this.comoSeLee,
+    this.apodos = const [],
+  });
+
+  factory CategoriaDeGuia.desdeJson(Map<String, dynamic> json) => CategoriaDeGuia(
+        clave: json['clave'] as String? ?? '',
+        comoSeLee: json['comoSeLee'] as String? ?? '',
+        apodos: ((json['apodos'] as List<dynamic>?) ?? [])
+            .map((valor) => valor as String)
+            .toList(),
+      );
+}
+
+/// La plantilla descargable y la guia para llenarla, las dos de la misma fuente.
+class PlantillaImportacion {
+  final String nombre;
+  final String contenido;
+  final List<ColumnaPlantilla> columnas;
+  final List<CategoriaDeGuia> categorias;
+
+  /// Renglones ya llenos: los MISMOS que trae el archivo descargable.
+  final List<Map<String, String>> ejemplo;
+
+  const PlantillaImportacion({
+    this.nombre = 'mired-plantilla-aparatos.csv',
+    this.contenido = '',
+    this.columnas = const [],
+    this.categorias = const [],
+    this.ejemplo = const [],
+  });
+
+  factory PlantillaImportacion.desdeJson(Map<String, dynamic> json) {
+    final guia = (json['guia'] as Map<String, dynamic>?) ?? const {};
+    return PlantillaImportacion(
+      nombre: json['nombre'] as String? ?? 'mired-plantilla-aparatos.csv',
+      contenido: json['contenido'] as String? ?? '',
+      columnas: ((guia['columnas'] as List<dynamic>?) ?? [])
+          .map((fila) => ColumnaPlantilla.desdeJson(fila as Map<String, dynamic>))
+          .toList(),
+      categorias: ((guia['categorias'] as List<dynamic>?) ?? [])
+          .map((fila) => CategoriaDeGuia.desdeJson(fila as Map<String, dynamic>))
+          .toList(),
+      ejemplo: ((guia['ejemplo'] as List<dynamic>?) ?? [])
+          .map((fila) => (fila as Map<String, dynamic>)
+              .map((clave, valor) => MapEntry(clave, valor as String)))
+          .toList(),
+    );
+  }
+
+  ColumnaPlantilla? porClave(String clave) {
+    for (final columna in columnas) {
+      if (columna.clave == clave) return columna;
+    }
+    return null;
+  }
+}

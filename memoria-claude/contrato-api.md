@@ -62,7 +62,7 @@ valida renueva el vencimiento.
 ### Importar una hoja de aparatos (modulo 20, v1.20)
 | Metodo y ruta | Quien puede | Que hace |
 |---|---|---|
-| `GET /api/redes/{clave}/importacion/plantilla` | lectura | `{nombre, contenido}` — el CSV de ejemplo |
+| `GET /api/redes/{clave}/importacion/plantilla` | lectura | `{nombre, contenido, guia}` — el CSV de ejemplo **y la guia** que dibuja la pantalla |
 | `POST /api/redes/{clave}/importacion/vista-previa` | escritura | el plan. **NO escribe nada** |
 | `POST /api/redes/{clave}/importacion` | escritura | aplica; `repetidos`: `actualizar` o `saltar` |
 

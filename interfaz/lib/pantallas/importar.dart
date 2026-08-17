@@ -15,6 +15,11 @@ import '../widgets/mensajes.dart';
 /// columna por puerto, nodo, ubicacion y observaciones— que llevaba anos en una
 /// hoja de calculo. Capturar eso aparato por aparato son 23 formularios.
 ///
+/// Es una pantalla completa y no un cuadro de dialogo **porque la guia va
+/// dentro**: quien llena la hoja la tiene delante mientras la llena, sin ir a
+/// buscar un manual aparte. Y la guia se dibuja de lo que manda el servidor, no
+/// de una copia escrita aqui: si se agrega una columna, la guia se entera sola.
+///
 /// **Son dos pasos y el primero no escribe nada.** Se elige el archivo, se ve
 /// renglon por renglon lo que pasaria, y solo entonces se importa. Importar a
 /// ciegas y descubrir despues que tres renglones estaban mal significa borrarlos
@@ -29,6 +34,8 @@ class PantallaImportar extends StatefulWidget {
 }
 
 class _PantallaImportarState extends State<PantallaImportar> {
+  PlantillaImportacion? _plantilla;
+
   String _nombreArchivo = '';
   Uint8List? _archivo;
   PlanImportacion? _plan;
@@ -40,10 +47,31 @@ class _PantallaImportarState extends State<PantallaImportar> {
   bool _trabajando = false;
   bool _huboCambios = false;
 
+  @override
+  void initState() {
+    super.initState();
+    _cargarGuia();
+  }
+
+  /// _cargarGuia trae la plantilla y como se llena.
+  ///
+  /// Si falla no se monta un modal: la pantalla sirve igual para subir un
+  /// archivo, solo se queda sin la tabla de columnas. Un error aqui no puede
+  /// impedir el trabajo.
+  Future<void> _cargarGuia() async {
+    try {
+      final plantilla = await Api.instancia.plantillaDeImportacion(widget.red.clave);
+      if (mounted) setState(() => _plantilla = plantilla);
+    } catch (_) {
+      // Sin guia, pero la pantalla sigue en pie.
+    }
+  }
+
   Future<void> _descargarPlantilla() async {
     setState(() => _trabajando = true);
     try {
-      final plantilla = await Api.instancia.plantillaDeImportacion(widget.red.clave);
+      final plantilla =
+          _plantilla ?? await Api.instancia.plantillaDeImportacion(widget.red.clave);
       final donde = await descargarArchivo(plantilla.nombre, 'text/csv;charset=utf-8',
           Uint8List.fromList(utf8.encode(plantilla.contenido)));
       if (donde.isNotEmpty && mounted) {
@@ -118,6 +146,11 @@ class _PantallaImportarState extends State<PantallaImportar> {
     }
   }
 
+  void _olvidarArchivo() => setState(() {
+        _plan = null;
+        _archivo = null;
+      });
+
   @override
   Widget build(BuildContext contexto) {
     final plan = _plan;
@@ -128,73 +161,153 @@ class _PantallaImportarState extends State<PantallaImportar> {
       },
       child: Scaffold(
         appBar: AppBar(title: Text('Importar aparatos en ${widget.red.nombre}')),
-        body: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _laExplicacion(contexto),
-            const SizedBox(height: 16),
-            Row(children: [
-              OutlinedButton.icon(
-                onPressed: _trabajando ? null : _descargarPlantilla,
-                icon: const Icon(Icons.download_outlined),
-                label: const Text('Descargar la plantilla'),
-              ),
-              const SizedBox(width: 12),
-              FilledButton.icon(
-                onPressed: _trabajando ? null : _elegirArchivo,
-                icon: const Icon(Icons.upload_file_outlined),
-                label: const Text('Elegir un archivo'),
-              ),
-              if (_trabajando) ...[
-                const SizedBox(width: 16),
-                const SizedBox(
-                    width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+        body: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            // En una pantalla ancha, un texto que cruza 2 000 pixeles no se lee.
+            constraints: const BoxConstraints(maxWidth: 1080),
+            child: ListView(
+              padding: const EdgeInsets.all(24),
+              children: [
+                _paraQueSirve(contexto),
+                const SizedBox(height: 20),
+                _lasInstrucciones(contexto),
+                const SizedBox(height: 20),
+                _elCampoDeSubida(contexto),
+                if (_resumen != null) ...[
+                  const SizedBox(height: 20),
+                  _elResumen(contexto, _resumen!),
+                ],
+                if (plan != null) ...[
+                  const SizedBox(height: 24),
+                  _elPlan(contexto, plan),
+                ],
+                const SizedBox(height: 32),
+                _laGuia(contexto),
+                const SizedBox(height: 40),
               ],
-            ]),
-            if (_resumen != null) ...[
-              const SizedBox(height: 20),
-              _elResumen(contexto, _resumen!),
-            ],
-            if (plan != null) ...[
-              const SizedBox(height: 20),
-              _elPlan(contexto, plan),
-            ],
-          ],
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _laExplicacion(BuildContext contexto) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Como se llena la hoja',
-                  style: Theme.of(contexto).textTheme.titleMedium),
-              const SizedBox(height: 8),
-              const Text(
-                'Un renglon por aparato. El switch tambien lleva su renglon, y los '
-                'demas cuelgan de el poniendo su nombre en CUELGA_DE y el numero de '
-                'puerto en PUERTO. El orden de los renglones da igual.',
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Se aceptan CSV, ODS y XLSX. Si su hoja ya viene de otro sitio no hace '
-                'falta reescribirla: MiRed reconoce tambien encabezados como NODO, '
-                'OBSERVACIONES o CONECTADO_A.',
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Nada se guarda hasta que usted lo diga: al elegir el archivo se '
-                'ensena antes, renglon por renglon, lo que se va a hacer.',
-                style: Theme.of(contexto).textTheme.bodySmall,
-              ),
-            ],
+  // ------------------------------------------------------- las instrucciones --
+
+  Widget _paraQueSirve(BuildContext contexto) {
+    final tema = Theme.of(contexto);
+    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Icon(Icons.upload_file_outlined, size: 32, color: tema.colorScheme.primary),
+      const SizedBox(width: 16),
+      Expanded(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Suba la instalacion que ya tiene documentada',
+              style: tema.textTheme.headlineSmall),
+          const SizedBox(height: 6),
+          Text(
+            'Si el sitio esta apuntado en una hoja de calculo —lo normal en algo '
+            'cableado por alguien— no hace falta capturarlo aparato por aparato. '
+            'De cada renglon salen el aparato, sus puertos, el cable que lo cuelga '
+            'de su switch y hasta la clave de su panel.',
+            style: tema.textTheme.bodyMedium,
           ),
-        ),
-      );
+        ]),
+      ),
+    ]);
+  }
+
+  Widget _lasInstrucciones(BuildContext contexto) {
+    final tema = Theme.of(contexto);
+    Widget paso(int numero, String titulo, String texto) => Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            CircleAvatar(
+              radius: 13,
+              backgroundColor: tema.colorScheme.primaryContainer,
+              child: Text('$numero',
+                  style: tema.textTheme.labelLarge
+                      ?.copyWith(color: tema.colorScheme.onPrimaryContainer)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(titulo, style: tema.textTheme.titleSmall),
+                Text(texto, style: tema.textTheme.bodyMedium),
+              ]),
+            ),
+          ]),
+        );
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Como se hace', style: tema.textTheme.titleMedium),
+          const SizedBox(height: 16),
+          paso(1, 'Descargue la plantilla',
+              'Trae los encabezados, la ayuda de cada columna y dos renglones de '
+              'ejemplo. Abrala en LibreOffice o en Excel.'),
+          paso(2, 'Llenela: un renglon por aparato',
+              'El switch tambien lleva su renglon; los demas cuelgan de el '
+              'poniendo su nombre en CUELGA_DE. El orden de los renglones da igual. '
+              'La guia de aqui abajo explica columna por columna.'),
+          paso(3, 'Subala y revise antes de guardar',
+              'MiRed le ensena renglon por renglon lo que va a hacer, con el numero '
+              'de renglon de SU hoja. Nada se guarda hasta que usted lo diga.'),
+        ]),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------- el campo de subida --
+
+  Widget _elCampoDeSubida(BuildContext contexto) {
+    final tema = Theme.of(contexto);
+    return Card(
+      color: tema.colorScheme.surfaceContainerHighest,
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(children: [
+          Icon(Icons.table_view_outlined, size: 40, color: tema.colorScheme.primary),
+          const SizedBox(height: 12),
+          Text('El archivo', style: tema.textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Text('Se aceptan CSV, ODS y XLSX',
+              style: tema.textTheme.bodySmall, textAlign: TextAlign.center),
+          const SizedBox(height: 16),
+          Wrap(spacing: 12, runSpacing: 12, alignment: WrapAlignment.center, children: [
+            OutlinedButton.icon(
+              onPressed: _trabajando ? null : _descargarPlantilla,
+              icon: const Icon(Icons.download_outlined),
+              label: const Text('Descargar la plantilla'),
+            ),
+            FilledButton.icon(
+              onPressed: _trabajando ? null : _elegirArchivo,
+              icon: const Icon(Icons.folder_open_outlined),
+              label: Text(_archivo == null ? 'Elegir un archivo' : 'Elegir otro archivo'),
+            ),
+          ]),
+          if (_nombreArchivo.isNotEmpty && _archivo != null) ...[
+            const SizedBox(height: 12),
+            Chip(
+              avatar: const Icon(Icons.description_outlined, size: 18),
+              label: Text(_nombreArchivo),
+              onDeleted: _trabajando ? null : _olvidarArchivo,
+              deleteButtonTooltipMessage: 'Quitar este archivo',
+            ),
+          ],
+          if (_trabajando) ...[
+            const SizedBox(height: 16),
+            const SizedBox(
+                width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+          ],
+        ]),
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------- el plan ----
 
   Widget _elResumen(BuildContext contexto, ResumenImportacion resumen) => Card(
         color: Theme.of(contexto).colorScheme.secondaryContainer,
@@ -296,12 +409,7 @@ class _PantallaImportarState extends State<PantallaImportar> {
           ),
           const SizedBox(width: 12),
           TextButton(
-            onPressed: _trabajando
-                ? null
-                : () => setState(() {
-                      _plan = null;
-                      _archivo = null;
-                    }),
+            onPressed: _trabajando ? null : _olvidarArchivo,
             child: const Text('Cancelar'),
           ),
         ]),
@@ -351,7 +459,8 @@ class _PantallaImportarState extends State<PantallaImportar> {
             for (final renglon in plan.renglones)
               DataRow(
                 color: renglon.seRechaza
-                    ? WidgetStatePropertyAll(tema.colorScheme.errorContainer.withValues(alpha: 0.4))
+                    ? WidgetStatePropertyAll(
+                        tema.colorScheme.errorContainer.withValues(alpha: 0.4))
                     : null,
                 cells: [
                   DataCell(Text('${renglon.renglon}')),
@@ -373,20 +482,17 @@ class _PantallaImportarState extends State<PantallaImportar> {
   Widget _queSeHace(BuildContext contexto, RenglonImportado renglon) {
     final tema = Theme.of(contexto);
     if (renglon.seRechaza) {
-      return Tooltip(
-        message: renglon.motivo,
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.error_outline, size: 16, color: tema.colorScheme.error),
-          const SizedBox(width: 6),
-          // El motivo va a la vista y no solo en el globito: si hay que
-          // corregir el archivo, hay que poder leerlo todo de un tiron.
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: Text(renglon.motivo,
-                style: tema.textTheme.bodySmall?.copyWith(color: tema.colorScheme.error)),
-          ),
-        ]),
-      );
+      return Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(Icons.error_outline, size: 16, color: tema.colorScheme.error),
+        const SizedBox(width: 6),
+        // El motivo va a la vista y no en un globito: si hay que corregir el
+        // archivo, hay que poder leerlo todo de un tiron.
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Text(renglon.motivo,
+              style: tema.textTheme.bodySmall?.copyWith(color: tema.colorScheme.error)),
+        ),
+      ]);
     }
 
     final texto = renglon.seActualiza ? 'Ya existe: se actualiza' : 'Se crea';
@@ -399,5 +505,209 @@ class _PantallaImportarState extends State<PantallaImportar> {
         child: Text('$texto — ${renglon.aviso}', style: tema.textTheme.bodySmall),
       ),
     ]);
+  }
+
+  // ------------------------------------------------------------- la guia ----
+
+  Widget _laGuia(BuildContext contexto) {
+    final tema = Theme.of(contexto);
+    final plantilla = _plantilla;
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        const Icon(Icons.menu_book_outlined),
+        const SizedBox(width: 8),
+        Text('Guia para llenar la hoja', style: tema.textTheme.titleLarge),
+      ]),
+      const SizedBox(height: 4),
+      Text(
+        'Esta guia sale de lo que el servidor acepta de verdad, no de un manual '
+        'aparte: si un dia cambia una columna, cambia aqui sola.',
+        style: tema.textTheme.bodySmall,
+      ),
+      const SizedBox(height: 16),
+      _lasReglas(contexto),
+      const SizedBox(height: 20),
+      if (plantilla == null)
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 24),
+          child: Center(child: CircularProgressIndicator()),
+        )
+      else ...[
+        Text('Las columnas', style: tema.textTheme.titleMedium),
+        const SizedBox(height: 8),
+        _tablaDeColumnas(contexto, plantilla),
+        const SizedBox(height: 24),
+        Text('Que se puede poner en QUE_ES', style: tema.textTheme.titleMedium),
+        const SizedBox(height: 4),
+        Text(
+          'Es una lista cerrada, la misma con la que MiRed clasifica lo que '
+          'descubre. Lo que no este aqui se rechaza en vez de inventar una '
+          'categoria, que dejaria el contador de la red diciendo dos cosas.',
+          style: tema.textTheme.bodySmall,
+        ),
+        const SizedBox(height: 12),
+        _lasCategorias(contexto, plantilla),
+        const SizedBox(height: 24),
+        Text('Un ejemplo lleno', style: tema.textTheme.titleMedium),
+        const SizedBox(height: 4),
+        Text('Los mismos renglones que trae la plantilla descargable.',
+            style: tema.textTheme.bodySmall),
+        const SizedBox(height: 12),
+        _elEjemplo(contexto, plantilla),
+      ],
+    ]);
+  }
+
+  Widget _lasReglas(BuildContext contexto) {
+    final tema = Theme.of(contexto);
+    Widget regla(IconData icono, String titulo, String texto) => Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(icono, size: 18, color: tema.colorScheme.primary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text.rich(TextSpan(children: [
+                TextSpan(text: '$titulo ', style: tema.textTheme.titleSmall),
+                TextSpan(text: texto, style: tema.textTheme.bodyMedium),
+              ])),
+            ),
+          ]),
+        );
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          regla(Icons.hub_outlined, 'El switch tambien es un renglon.',
+              'Los demas cuelgan de el poniendo su NOMBRE en CUELGA_DE y el numero '
+              'de puerto en PUERTO. Asi tambien se dice que un aparato cuelga del '
+              'modem y no del switch: se cambia el nombre y ya.'),
+          regla(Icons.swap_vert, 'El orden de los renglones da igual.',
+              'Primero se crean todos los aparatos y despues se tiran los cables, '
+              'asi que un nodo puede ir antes que su switch.'),
+          regla(Icons.badge_outlined, 'El nombre no se puede repetir.',
+              'Es como se reconoce un aparato en la red. Si ya existe uno con ese '
+              'nombre, usted decide si se actualiza o se deja como esta.'),
+          regla(Icons.backspace_outlined, 'Una celda vacia no borra nada.',
+              'Significa «no lo se», no «borralo»: lo que deje en blanco se queda '
+              'como estaba.'),
+          regla(Icons.place_outlined, 'UBICACION no es CUELGA_DE.',
+              'Una cosa es donde ESTA el aparato —farmacia, consultorio 5— y otra de '
+              'que puerto cuelga. Las dos se guardan.'),
+          regla(Icons.translate, 'No hace falta reescribir su hoja.',
+              'Se reconocen encabezados como NODO, OBSERVACIONES o CONECTADO_A, el '
+              'titulo del sitio arriba, los renglones en blanco, el punto y coma que '
+              'pone Excel en espanol y los acentos.'),
+          regla(Icons.key_outlined, 'Las claves se guardan cifradas.',
+              'En MiRed si; en el archivo no. Si la hoja lleva contrasenas, '
+              'convendria borrarla despues de importar.'),
+        ]),
+      ),
+    );
+  }
+
+  Widget _tablaDeColumnas(BuildContext contexto, PlantillaImportacion plantilla) {
+    final tema = Theme.of(contexto);
+    return Card(
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          columnSpacing: 24,
+          columns: const [
+            DataColumn(label: Text('Columna')),
+            DataColumn(label: Text('Que se escribe')),
+            DataColumn(label: Text('Ejemplo')),
+            DataColumn(label: Text('Tambien se acepta')),
+          ],
+          rows: [
+            for (final columna in plantilla.columnas)
+              DataRow(cells: [
+                DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
+                  Text(columna.clave,
+                      style: tema.textTheme.bodyMedium
+                          ?.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
+                  if (columna.obligatoria) ...[
+                    const SizedBox(width: 6),
+                    Tooltip(
+                      message: 'Sin esta columna el archivo no se puede importar',
+                      child: Text('obligatoria',
+                          style: tema.textTheme.labelSmall
+                              ?.copyWith(color: tema.colorScheme.error)),
+                    ),
+                  ],
+                ])),
+                DataCell(ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: Text(columna.ayuda),
+                )),
+                DataCell(Text(columna.ejemplo,
+                    style: tema.textTheme.bodySmall
+                        ?.copyWith(color: tema.colorScheme.primary))),
+                DataCell(ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 260),
+                  child: Text(columna.otrosNombres.join(', '),
+                      style: tema.textTheme.bodySmall),
+                )),
+              ]),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _lasCategorias(BuildContext contexto, PlantillaImportacion plantilla) {
+    final tema = Theme.of(contexto);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Wrap(spacing: 10, runSpacing: 10, children: [
+          for (final categoria in plantilla.categorias)
+            Tooltip(
+              message: categoria.apodos.isEmpty
+                  ? categoria.comoSeLee
+                  : '${categoria.comoSeLee}\nTambien: ${categoria.apodos.join(', ')}',
+              child: Chip(
+                label: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(categoria.clave, style: tema.textTheme.bodyMedium),
+                    Text(categoria.comoSeLee, style: tema.textTheme.labelSmall),
+                  ],
+                ),
+              ),
+            ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _elEjemplo(BuildContext contexto, PlantillaImportacion plantilla) {
+    // Solo las columnas que el ejemplo usa: ensenar catorce columnas donde diez
+    // van vacias no ensena nada.
+    final usadas = <String>[];
+    for (final columna in plantilla.columnas) {
+      if (plantilla.ejemplo.any((fila) => (fila[columna.clave] ?? '').isNotEmpty)) {
+        usadas.add(columna.clave);
+      }
+    }
+    if (usadas.isEmpty) return const SizedBox.shrink();
+
+    return Card(
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          columnSpacing: 20,
+          columns: [for (final clave in usadas) DataColumn(label: Text(clave))],
+          rows: [
+            for (final fila in plantilla.ejemplo)
+              DataRow(cells: [
+                for (final clave in usadas) DataCell(Text(fila[clave] ?? '')),
+              ]),
+          ],
+        ),
+      ),
+    );
   }
 }
